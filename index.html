@@ -1,0 +1,2827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Elbrink's Crate">
+<title>Elbrink's Crate</title>
+<link rel="manifest" href="/vinyl/manifest.json">
+<link rel="icon" type="image/x-icon" href="/vinyl/favicon.ico">
+<link rel="icon" type="image/png" sizes="192x192" href="/vinyl/icon-v2-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/vinyl/apple-touch-icon-v2.png">
+<link rel="apple-touch-icon" sizes="152x152" href="/vinyl/apple-touch-icon-v2.png">
+<link rel="apple-touch-icon" sizes="120x120" href="/vinyl/apple-touch-icon-v2.png">
+<link rel="apple-touch-icon-precomposed" sizes="180x180" href="/vinyl/apple-touch-icon-precomposed-v2.png">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0a0a;--surface:#161616;--surface2:#1f1f1f;--border:#2a2a2a;
+  --text:#f0f0f0;--muted:#888;--accent:#e8372c;--radius:12px;
+  --nav-h:64px;--font:'Helvetica Neue',Helvetica,Arial,sans-serif
+}
+body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;overscroll-behavior:none;padding-bottom:var(--nav-h)}
+header{padding:14px 16px 10px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--bg);z-index:100;transition:transform .3s}
+header.bar-hidden{transform:translateY(-100%)}
+.header-left,.header-right{width:40px;display:flex;align-items:center}
+.header-right{justify-content:flex-end}
+.header-center{display:flex;align-items:center;gap:10px}
+.hamburger-btn{background:none;border:none;color:var(--text);cursor:pointer;padding:4px;display:flex;align-items:center;justify-content:center}
+.hamburger-btn svg{width:22px;height:22px}
+.search-icon-btn{background:none;border:none;color:var(--muted);cursor:pointer;padding:4px;display:flex;align-items:center;justify-content:center}
+.search-icon-btn svg{width:22px;height:22px}
+/* Hamburger menu overlay */
+.hamburger-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:250;display:none;backdrop-filter:blur(4px)}
+.hamburger-menu{position:fixed;top:0;left:0;width:280px;height:100%;background:var(--surface);z-index:251;transform:translateX(-100%);transition:transform .25s ease;padding:env(safe-area-inset-top) 0 0;overflow-y:auto}
+.hamburger-overlay.open .hamburger-menu{transform:translateX(0)}
+.hamburger-overlay.open{display:block}
+.ham-header{padding:20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.ham-item{display:flex;align-items:center;gap:12px;padding:14px 20px;color:var(--text);font-size:14px;font-weight:600;cursor:pointer;border:none;background:none;width:100%;text-align:left;font-family:var(--font)}
+.ham-item:active{background:var(--surface2)}
+.ham-item svg{width:20px;height:20px;color:var(--muted);flex-shrink:0}
+.ham-divider{height:1px;background:var(--border);margin:8px 20px}
+/* Search overlay bar */
+.search-overlay{position:fixed;top:0;left:0;right:0;background:var(--bg);z-index:150;padding:10px 16px;display:none;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
+.search-overlay.open{display:flex}
+.search-overlay input{flex:1}
+.search-cancel{background:none;border:none;color:var(--accent);font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap}
+.logo{display:flex;align-items:center;gap:10px}
+.logo span{font-size:17px;font-weight:700;letter-spacing:-0.5px;color:#f0f0f0}
+.logo span em{color:#e8372c;font-style:normal}
+.btn-ghost{background:var(--surface2);border:none;border-radius:8px;color:var(--text);cursor:pointer;font-family:var(--font);font-size:13px;font-weight:600;padding:6px 12px}
+.btn-accent{background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:var(--font);font-size:13px;font-weight:600;padding:8px 14px}
+.btn-ghost-sm{background:var(--surface2);border:none;border-radius:8px;color:var(--text);cursor:pointer;font-family:var(--font);font-size:13px;font-weight:600;padding:8px 14px}
+/* Bottom nav */
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;height:var(--nav-h);background:var(--surface);border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-around;z-index:220;padding:0 12px;padding-bottom:env(safe-area-inset-bottom)}
+.nav-btn{background:none;border:none;color:var(--muted);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 12px;font-family:var(--font);font-size:10px;font-weight:600;letter-spacing:.3px;text-transform:uppercase;transition:color .15s;min-width:56px}
+.nav-btn.active{color:var(--accent)}
+.nav-btn svg{width:22px;height:22px}
+.bottom-nav{transition:transform .3s}
+.bottom-nav.bar-hidden{transform:translateY(100%)}
+/* Main */
+#mainContent{padding:16px}
+.setup-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px;max-width:440px;margin:40px auto}
+.setup-card h2{font-size:20px;font-weight:700;margin-bottom:8px}
+.setup-card p{color:var(--muted);font-size:14px;line-height:1.5;margin-bottom:20px}
+.field{margin-bottom:14px}
+.field label{display:block;color:var(--muted);font-size:12px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;margin-bottom:6px}
+input[type=text],input[type=password],textarea{background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font);font-size:14px;padding:10px 12px;width:100%;outline:none}
+input:focus,textarea:focus{border-color:var(--accent)}
+/* Crate progress */
+.crate-progress{text-align:center;margin-bottom:12px}
+.crate-bar-wrap{background:var(--surface2);border-radius:4px;height:4px;margin:0 auto 6px;max-width:280px;overflow:hidden}
+.crate-bar{background:var(--accent);height:100%;border-radius:4px;transition:width .4s}
+.crate-label{color:var(--muted);font-size:12px}
+.crate-label span{color:var(--text);font-weight:600}
+/* Collection */
+.collection-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.count-badge{color:var(--muted);font-size:14px}
+.search-bar{background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font);font-size:14px;padding:10px 14px;width:100%;outline:none}
+.search-bar:focus{border-color:var(--accent)}
+
+.controls-row{display:flex;gap:8px;margin-bottom:12px}
+.ctrl-btn{flex:1;background:var(--surface2);border:none;border-radius:8px;color:var(--text);cursor:pointer;font-family:var(--font);font-size:12px;font-weight:600;padding:8px 10px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ctrl-btn.active-filter{color:var(--accent)}
+/* Grid */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:12px}
+.record-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;cursor:pointer;transition:transform .15s,border-color .15s}
+.record-card:hover{transform:translateY(-2px);border-color:#444}
+.record-card.played-this-cycle{opacity:.5}
+.art-wrap{aspect-ratio:1;background:var(--surface2);overflow:hidden}
+.art-wrap img{width:100%;height:100%;object-fit:cover}
+.art-placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:48px;opacity:.15}
+.art-loading{background:linear-gradient(90deg,var(--surface2) 25%,var(--border) 50%,var(--surface2) 75%);background-size:200% 100%;animation:shimmer 1.5s infinite}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.card-info{padding:10px}
+.card-artist{color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.3px;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px}
+.card-title{font-size:13px;font-weight:600;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card-meta{color:var(--muted);font-size:11px;margin-top:4px}
+.card-bottom{display:flex;align-items:center;justify-content:space-between;margin-top:4px}
+.shop-link{display:inline-flex;align-items:center;gap:4px;color:var(--muted);font-size:11px;font-weight:600;text-decoration:none;padding:2px 0;transition:color .15s}
+.shop-link:hover,.shop-link:active{color:var(--accent)}
+.external-links{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+.ext-link{display:flex;align-items:center;justify-content:center;gap:5px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:11px;font-weight:600;text-decoration:none;padding:10px 4px;transition:color .15s,border-color .15s;white-space:nowrap}
+.ext-link:active{color:var(--text);border-color:var(--muted)}
+.stars{color:var(--accent);font-size:11px}
+.play-count{color:var(--muted);font-size:11px}
+/* Mood pill on card */
+.mood-pill{display:inline-block;font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;margin-top:3px}
+/* Sheets */
+.sheet-overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;display:flex;flex-direction:column;justify-content:flex-end;backdrop-filter:blur(4px)}
+.sheet{background:var(--surface);border-radius:20px 20px 0 0;width:100%;max-height:90vh;overflow-y:auto;padding-bottom:env(safe-area-inset-bottom)}
+.sheet-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:12px auto 0}
+.sheet-close{position:absolute;top:16px;right:16px;background:rgba(0,0,0,.5);border:none;border-radius:50%;color:#fff;cursor:pointer;font-size:16px;height:30px;width:30px;display:flex;align-items:center;justify-content:center;z-index:10}
+.sheet-wrap{position:relative}
+/* Full-page overlay (Stats, Want, Settings) */
+.fullpage-overlay{position:fixed;inset:0;background:var(--bg);z-index:200;display:none;flex-direction:column;overflow-y:auto;padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom))}
+#sheetOverlay{z-index:210}
+.fullpage-overlay.open{display:flex}
+.fullpage-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:10}
+.fullpage-title{font-size:18px;font-weight:700}
+.fullpage-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:24px;padding:4px;display:flex;align-items:center}
+.fullpage-body{padding:20px;flex:1}
+.sheet-drag-handle{display:flex;justify-content:center;padding:10px 0 6px;position:sticky;top:0;background:var(--bg);z-index:10}
+.drag-pill{width:36px;height:4px;border-radius:2px;background:var(--border)}
+.modal-art{width:100%;background:var(--surface2);display:flex;align-items:center;justify-content:center}
+.modal-art img{width:100%;height:auto;display:block}
+.modal-art-ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:80px;opacity:.2}
+.modal-body{padding:20px}
+.modal-artist{color:var(--muted);font-size:12px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px}
+.modal-title{font-size:22px;font-weight:700;line-height:1.2;margin-bottom:10px}
+.modal-meta{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+.meta-chip{background:var(--surface2);border-radius:6px;color:var(--muted);font-size:12px;padding:4px 10px}
+.play-info-row{color:var(--muted);font-size:12px;margin-bottom:6px;display:flex;align-items:center;gap:8px}
+.play-info-row span{color:var(--text);font-weight:600}
+.play-edit-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;padding:2px 4px;opacity:.6}
+.play-edit-btn:hover{opacity:1}
+.play-counter{display:inline-flex;align-items:center;gap:0;background:var(--surface2);border-radius:8px;overflow:hidden}
+.play-counter button{background:none;border:none;color:var(--text);cursor:pointer;font-size:16px;font-weight:700;padding:4px 12px;font-family:var(--font)}
+.play-counter button:hover{background:var(--border)}
+.play-counter button:active{opacity:.6}
+.play-counter .pc-val{font-size:14px;font-weight:700;color:var(--text);min-width:28px;text-align:center;padding:4px 2px}
+.last-played-row{color:var(--muted);font-size:12px;margin-bottom:16px}
+.modal-actions{display:flex;gap:10px;margin-bottom:12px}
+.modal-actions button{flex:1;border:none;border-radius:10px;cursor:pointer;font-family:var(--font);font-size:14px;font-weight:700;padding:14px;transition:opacity .15s}
+.modal-actions button:active{opacity:.7}
+.btn-play{background:var(--accent);color:#fff}
+.btn-again{background:var(--surface2);color:var(--text)}
+.btn-back{background:var(--surface2);color:var(--muted)}
+/* Swipe-to-close */
+.fullpage-overlay{transition:transform .2s ease-out}
+.fullpage-overlay.swiping{transition:none}
+/* Notes */
+.notes-section{margin-bottom:16px}
+.notes-label{color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;margin-bottom:6px}
+.notes-display{color:var(--text);font-size:13px;line-height:1.6;min-height:32px;cursor:pointer;padding:8px 10px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)}
+.notes-display.empty{color:var(--muted);font-style:italic}
+.notes-edit{display:none;width:100%;min-height:80px;resize:vertical}
+.notes-save{margin-top:6px;display:none}
+/* Mood */
+.mood-section{margin-bottom:16px}
+.mood-label{color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;margin-bottom:8px}
+.mood-pills{display:flex;gap:6px;justify-content:space-between}
+.mood-pill-btn{flex:1;text-align:center;border:1px solid var(--border);border-radius:16px;cursor:pointer;font-family:var(--font);font-size:12px;font-weight:600;padding:6px 4px;background:var(--surface2);color:var(--muted);transition:all .15s}
+.mood-pill-btn.selected{color:#fff;border-color:transparent}
+/* Tabs */
+.tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:16px}
+.tab{background:none;border:none;border-bottom:2px solid transparent;color:var(--muted);cursor:pointer;font-family:var(--font);font-size:13px;font-weight:600;padding:8px 14px;transition:all .15s;margin-bottom:-1px}
+.tab.active{border-bottom-color:var(--accent);color:var(--text)}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+.track-list{list-style:none}
+.track{display:flex;align-items:baseline;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)}
+.track:last-child{border-bottom:none}
+.track-pos{color:var(--muted);font-size:12px;min-width:24px;text-align:right}
+.track-title{font-size:13px;flex:1}
+.track-dur{color:var(--muted);font-size:12px}
+.about-text{color:var(--muted);font-size:13px;line-height:1.7}
+.about-text p{margin-bottom:10px}
+.wiki-link{color:var(--accent);font-size:12px;display:inline-block;margin-top:6px}
+.loading-inline{color:var(--muted);font-size:13px;padding:12px 0;text-align:center}
+/* Progress */
+@keyframes spin{to{transform:rotate(360deg)}}
+.progress-wrap{margin-bottom:14px}
+.progress-bar{height:3px;background:var(--surface2);border-radius:2px;overflow:hidden}
+.progress-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .3s}
+.progress-label{color:var(--muted);font-size:12px;text-align:center;margin-bottom:6px}
+/* Stats */
+.stat-tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px}
+.stat-tile{border-radius:12px;padding:16px;cursor:pointer;transition:opacity .15s;position:relative}
+.stat-tile:active{opacity:.8}
+.stat-tile-label{font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;margin-bottom:8px;opacity:.8}
+.stat-tile-value{font-size:32px;font-weight:700;line-height:1}
+.stat-tile-sub{font-size:11px;margin-top:4px;opacity:.7}
+.tile-red{background:#3a1212;color:#ff6b5b}
+.tile-amber{background:#2e1f00;color:#f59e0b}
+.tile-blue{background:#0d1f35;color:#60a5fa}
+.tile-teal{background:#0a2420;color:#34d399}
+.tile-purple{background:#1f1235;color:#a78bfa}
+.tile-green{background:#0a2e14;color:#4ade80}
+.tile-orange{background:#2e1a00;color:#fb923c}
+.tile-rose{background:#2e0a1a;color:#fb7185}
+.tile-indigo{background:#1a1a3a;color:#818cf8}
+.tile-yellow{background:#2e2a00;color:#facc15}
+.stat-list{margin-bottom:20px}
+.stat-list-title{font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px}
+.stat-record-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer;border-radius:8px;transition:background .15s}
+.stat-record-item:hover{background:var(--surface2)}
+.stat-record-item:active{opacity:.7}
+.stat-record-item:last-child{border-bottom:none}
+.stat-record-art{width:40px;height:40px;border-radius:6px;background:var(--surface2);overflow:hidden;flex-shrink:0}
+.stat-record-art img{width:100%;height:100%;object-fit:cover}
+.stat-record-info{flex:1;min-width:0}
+.stat-record-title{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stat-record-artist{color:var(--muted);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stat-record-meta{color:var(--muted);font-size:11px;white-space:nowrap;width:80px;text-align:right;flex-shrink:0;line-height:1.4}
+.stat-record-meta .play-count{font-weight:600}
+.stat-record-meta .play-date{font-size:10px;opacity:.7}
+.stat-section-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin:16px 0 8px}
+.stat-agg-item{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)}
+.stat-agg-item:last-child{border-bottom:none}
+.stat-agg-name{font-size:13px;font-weight:600;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stat-agg-count{color:var(--muted);font-size:12px;white-space:nowrap;margin-left:12px}
+/* Settings */
+.settings-row{display:flex;gap:8px;align-items:center;margin-bottom:12px}
+.settings-row label{color:var(--muted);font-size:13px;min-width:110px}
+.section-title{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin:16px 0 8px;padding-top:12px;border-top:1px solid var(--border)}
+/* Toast */
+.toast{position:fixed;bottom:calc(var(--nav-h) + 12px);left:50%;transform:translateX(-50%);background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;padding:10px 18px;z-index:300;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1}
+/* Reset modal */
+.reset-modal{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:400;display:flex;align-items:center;justify-content:center;padding:24px}
+.reset-card{background:var(--surface);border-radius:20px;padding:32px;max-width:360px;width:100%;text-align:center}
+.reset-card .icon{font-size:56px;margin-bottom:16px}
+.reset-card h2{font-size:22px;font-weight:700;margin-bottom:8px}
+.reset-card p{color:var(--muted);font-size:14px;line-height:1.6;margin-bottom:24px}
+.reset-card button{width:100%;border:none;border-radius:10px;cursor:pointer;font-family:var(--font);font-size:15px;font-weight:700;padding:14px;background:var(--accent);color:#fff}
+/* Alphabet / index scrubber */
+.alpha-scrubber{position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:90;display:flex;flex-direction:column;align-items:center;padding:6px 4px;background:rgba(22,22,22,.9);border-radius:12px 0 0 12px;backdrop-filter:blur(6px);opacity:0;transition:opacity .25s;pointer-events:none;user-select:none;-webkit-user-select:none;touch-action:manipulation}
+.alpha-scrubber.visible{opacity:1;pointer-events:auto}
+.alpha-scrubber.scroll-fade{opacity:.25}
+.alpha-scrubber span{display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--muted);min-height:34px;min-width:32px;padding:0 6px;cursor:pointer;-webkit-tap-highlight-color:transparent;border-radius:6px;white-space:nowrap}
+.alpha-scrubber span:active,.alpha-scrubber span.active{color:var(--accent);background:rgba(232,55,44,.15)}
+.alpha-jump-toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:80px;font-weight:800;color:#fff;opacity:0;transition:opacity .4s ease-out;pointer-events:none;z-index:91;text-shadow:0 2px 20px rgba(0,0,0,.6)}
+.alpha-jump-toast.show{opacity:.7;transition:opacity .08s ease-in}
+@media(max-width:400px){.grid{grid-template-columns:repeat(2,1fr)}}
+@media(min-width:768px){.sheet-layout{display:flex;gap:32px;align-items:flex-start}.sheet-layout .modal-art{width:45%;flex-shrink:0;position:sticky;top:72px;max-width:none;margin:0}.sheet-layout .modal-art img{width:100%;border-radius:12px}.sheet-layout .fullpage-body{flex:1;min-width:0}}
+/* Artist page */
+.artist-hero{display:flex;align-items:center;gap:16px;padding:16px 0 20px}
+.artist-hero-img{width:80px;height:80px;border-radius:50%;background:var(--surface2);overflow:hidden;flex-shrink:0}
+.artist-hero-img img{width:100%;height:100%;object-fit:cover}
+.artist-hero-img .artist-ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:32px;color:var(--muted);opacity:.4}
+.artist-hero-info{flex:1;min-width:0}
+.artist-hero-name{font-size:20px;font-weight:700;line-height:1.2}
+.artist-hero-sub{color:var(--muted);font-size:12px;margin-top:4px}
+.artist-section{margin-bottom:24px}
+.artist-section-title{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.artist-bio{color:var(--muted);font-size:13px;line-height:1.7}
+.artist-bio p{margin-bottom:8px}
+.artist-stat-row{display:flex;gap:10px;margin-bottom:16px}
+.artist-stat-box{flex:1;background:var(--surface2);border-radius:10px;padding:12px;text-align:center}
+.artist-stat-val{font-size:24px;font-weight:700;color:var(--text)}
+.artist-stat-label{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;margin-top:2px}
+.artist-disc-item{display:flex;align-items:center;gap:10px;padding:8px 6px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s;border-radius:8px}
+.artist-disc-item:hover{background:var(--surface2)}
+.artist-disc-item:active{opacity:.7}
+.artist-disc-item:last-child{border-bottom:none}
+.artist-disc-art{width:44px;height:44px;border-radius:6px;background:var(--surface2);overflow:hidden;flex-shrink:0}
+.artist-disc-art img{width:100%;height:100%;object-fit:cover}
+.artist-disc-info{flex:1;min-width:0}
+.artist-disc-title{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.artist-disc-meta{color:var(--muted);font-size:11px}
+.artist-disc-plays{color:var(--muted);font-size:11px;white-space:nowrap;padding-right:4px}
+.wiki-edit-btn{background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;padding:2px 6px;opacity:.6;font-family:var(--font)}
+.wiki-edit-btn:hover{opacity:1}
+.wiki-edit-row{display:flex;gap:8px;margin-top:8px;align-items:center}
+.wiki-edit-row input{flex:1;font-size:12px;padding:8px 10px}
+.wiki-edit-row button{white-space:nowrap}
+.tappable-artist{cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;text-decoration:underline;text-decoration-color:var(--border);text-underline-offset:2px}
+.tappable-artist:active{opacity:.6}
+</style>
+</head>
+<body>
+
+<header id="topBar">
+  <div class="header-left">
+    <button class="hamburger-btn" id="hamburgerBtn" style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="header-center">
+    <div class="logo">
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+        <rect x="1" y="1" width="26" height="26" rx="6" stroke="#e8372c" stroke-width="1.5"/>
+        <text x="14" y="19" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#e8372c" text-anchor="middle" letter-spacing="1">EC</text>
+      </svg>
+      <span>Elbrink's <em>Crate</em></span>
+    </div>
+  </div>
+  <div class="header-right">
+    <button class="search-icon-btn" id="searchIconBtn" style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    </button>
+  </div>
+</header>
+
+<!-- Hamburger menu -->
+<div class="hamburger-overlay" id="hamburgerOverlay">
+  <div class="hamburger-menu" id="hamburgerMenu">
+    <div class="ham-header">
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+        <rect x="1" y="1" width="26" height="26" rx="6" stroke="#e8372c" stroke-width="1.5"/>
+        <text x="14" y="19" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#e8372c" text-anchor="middle" letter-spacing="1">EC</text>
+      </svg>
+      <span style="font-size:17px;font-weight:700;letter-spacing:-0.5px">Elbrink's <em style="color:#e8372c;font-style:normal">Crate</em></span>
+    </div>
+    <button class="ham-item" id="hamSync">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      Full Sync
+    </button>
+    <button class="ham-item" id="hamSettings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Settings
+    </button>
+    <button class="ham-item" id="hamSignOut">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      Sign out
+    </button>
+  </div>
+</div>
+
+<!-- Search overlay -->
+<div class="search-overlay" id="searchOverlay">
+  <input class="search-bar" id="searchBarTop" placeholder="Search artist, title, label, genre, mood..." type="text">
+  <button class="search-cancel" id="searchCancel">Cancel</button>
+</div>
+
+<div id="mainContent">
+  <div id="initLoading" style="text-align:center;padding:80px 20px;color:var(--muted)">
+    <div style="font-size:13px">Loading your crate...</div>
+  </div>
+  <div class="setup-card" id="authCard" style="display:none">
+    <h2>Elbrink's Crate</h2>
+    <p>Sign in to manage the collection. We'll email you a one-tap magic link.</p>
+    <div class="field"><label>Email</label><input type="email" id="authEmailInput" placeholder="you@example.com" autocomplete="email"></div>
+    <button class="btn-accent" id="authSendBtn" style="width:100%;padding:12px;font-size:15px">Send magic link</button>
+    <p id="authStatus" style="color:var(--muted);font-size:12px;margin-top:12px"></p>
+  </div>
+  <div class="setup-card" id="setupCard" style="display:none">
+    <h2>Elbrink's Crate</h2>
+    <p>Connect your Discogs account to load your collection automatically.</p>
+    <div class="field"><label>Discogs username</label><input type="text" id="usernameInput" value="telbrink"></div>
+    <div class="field"><label>Discogs token</label><input type="password" id="tokenInput" placeholder="Paste your API token"></div>
+    <button class="btn-accent" id="connectBtn" style="width:100%;padding:12px;font-size:15px">Connect and Load Collection</button>
+    <p style="color:var(--muted);font-size:12px;margin-top:12px">Get a free token at discogs.com/settings/developers.</p>
+  </div>
+
+  <div id="collectionView" style="display:none">
+    <div id="crateProgressWrap" style="display:none" class="crate-progress">
+      <div class="crate-bar-wrap"><div class="crate-bar" id="crateBar" style="width:0%"></div></div>
+      <div class="crate-label" id="crateLabel"></div>
+    </div>
+    <div id="progressWrap" class="progress-wrap" style="display:none">
+      <div class="progress-label" id="progressLabel"></div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    </div>
+    <div class="collection-header">
+      <span class="count-badge" id="countBadge"></span>
+    </div>
+    <div class="controls-row">
+      <button class="ctrl-btn" id="sortBtn">Sort: Artist A–Z</button>
+      <button class="ctrl-btn" id="moodFilterBtn">Mood: All</button>
+    </div>
+    <div class="grid" id="grid"></div>
+  </div>
+
+  <div id="wantlistView" style="display:none">
+    <div class="collection-header">
+      <span class="count-badge" id="wantlistCount"></span>
+    </div>
+    <div class="controls-row">
+      <button class="ctrl-btn" id="wantSortBtn">Sort: Artist A–Z</button>
+    </div>
+    <div class="grid" id="wantlistGrid"></div>
+    <div id="wantlistEmpty" style="display:none;text-align:center;padding:40px 20px;color:var(--muted)">
+      <div style="font-size:48px;margin-bottom:12px">&#9825;</div>
+      <p>Your Discogs wantlist is empty</p>
+    </div>
+    <div id="wantlistLoading" style="display:none;text-align:center;padding:40px 20px;color:var(--muted)">Loading wantlist...</div>
+  </div>
+
+  <div id="statsView" style="display:none">
+    <div class="stat-tiles" id="statTiles"></div>
+    <div style="text-align:center;margin-top:8px"><button class="btn-ghost-sm" id="shareStatsBtn" style="padding:10px 20px">Share My Stats</button></div>
+  </div>
+</div>
+
+<!-- Bottom nav: Crate, Want, Shuffle (center), Moods, Stats -->
+<nav class="bottom-nav" id="bottomNav" style="display:none">
+  <button class="nav-btn active" id="navCrate">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+    Crate
+  </button>
+  <button class="nav-btn" id="navWantlist">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+    Want
+  </button>
+  <button class="nav-btn" id="navShuffle">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/>
+      <polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/>
+    </svg>
+    <span id="shuffleLabel">Shuffle</span>
+  </button>
+  <button class="nav-btn" id="navMoods">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+    Moods
+  </button>
+  <button class="nav-btn" id="navStats">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+    Stats
+  </button>
+</nav>
+
+<!-- Album detail page -->
+<div id="sheetOverlay" class="fullpage-overlay">
+  <div class="sheet-drag-handle"><div class="drag-pill"></div></div>
+  <div class="sheet-layout">
+    <div class="modal-art" id="modalArt"></div>
+    <div class="fullpage-body">
+      <div class="modal-artist" id="modalArtist"></div>
+      <div class="modal-title" id="modalTitle"></div>
+      <div class="modal-meta" id="modalMeta"></div>
+      <div class="play-info-row" id="playInfoRow"></div>
+      <div class="last-played-row" id="lastPlayedRow"></div>
+      <div class="modal-actions">
+        <button class="btn-play" id="playBtn">Play</button>
+        <button class="btn-again" id="shareBtn">Share</button>
+        <button class="btn-again" id="againBtn" style="display:none">Shuffle</button>
+      </div>
+      <!-- Mood tagging -->
+      <div class="mood-section">
+        <div class="mood-label">Mood</div>
+        <div class="mood-pills" id="moodPills"></div>
+      </div>
+      <!-- External links -->
+      <div class="external-links" id="externalLinks"></div>
+      <!-- Notes -->
+      <div class="notes-section">
+        <div class="notes-label">Notes</div>
+        <div class="notes-display" id="notesDisplay"></div>
+        <textarea class="notes-edit" id="notesEdit" placeholder="Add a note about this record…" rows="3"></textarea>
+        <button class="btn-accent notes-save" id="notesSave" style="padding:8px 14px;font-size:13px">Save Note</button>
+      </div>
+      <div class="tabs">
+        <button class="tab active" data-tab="Tracks">Tracks</button>
+        <button class="tab" data-tab="About">About</button>
+      </div>
+      <div class="tab-panel active" id="tabTracks">
+        <div class="loading-inline" id="tracksLoading">Loading tracks…</div>
+        <ul class="track-list" id="trackList"></ul>
+      </div>
+      <div class="tab-panel" id="tabAbout">
+        <div class="loading-inline" id="aboutLoading">Loading info…</div>
+        <div class="about-text" id="aboutText"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Stats drill-down overlay -->
+<div id="statDrillOverlay" class="fullpage-overlay">
+  <div class="fullpage-header">
+    <span class="fullpage-title" id="drillHeaderTitle"></span>
+    <button class="fullpage-close" id="drillClose">&#10005;</button>
+  </div>
+  <div class="fullpage-body" style="padding:0 16px 40px">
+    <div id="drillContent"></div>
+  </div>
+</div>
+
+<!-- Artist page overlay -->
+<div id="artistOverlay" class="fullpage-overlay" style="z-index:215">
+  <div class="sheet-drag-handle"><div class="drag-pill"></div></div>
+  <div class="fullpage-header" style="position:relative">
+    <span class="fullpage-title" id="artistHeaderTitle"></span>
+    <button class="fullpage-close" id="artistClose">&#10005;</button>
+  </div>
+  <div class="fullpage-body" id="artistBody" style="padding:0 16px 40px"></div>
+</div>
+
+<!-- Settings page -->
+<div id="settingsOverlay" class="fullpage-overlay">
+  <div class="fullpage-header">
+    <span class="fullpage-title">Settings</span>
+    <button class="fullpage-close" id="settingsClose">&#10005;</button>
+  </div>
+  <div class="fullpage-body">
+        <div class="settings-row"><label>Username</label><span id="sUsername" style="color:var(--muted);font-size:13px"></span></div>
+        <div class="settings-row"><label>Collection</label><span id="sCount" style="color:var(--muted);font-size:13px"></span></div>
+        <div class="settings-row"><label>Art cached</label><span id="sArt" style="color:var(--muted);font-size:13px"></span></div>
+        <div class="settings-row"><label>Genres loaded</label><span id="sGenres" style="color:var(--muted);font-size:13px"></span></div>
+        <div class="settings-row"><label>About / Wiki</label><span id="sWiki" style="color:var(--muted);font-size:13px"></span></div>
+        <div class="settings-row"><label>Conditions</label><span id="sConditions" style="color:var(--muted);font-size:13px"></span></div>
+        <div class="settings-row"><label>Moods tagged</label><span id="sMoods" style="color:var(--muted);font-size:13px"></span></div>
+        <div class="settings-row"><label>Wantlist</label><span id="sWantlist" style="color:var(--muted);font-size:13px"></span></div>
+        <div class="settings-row"><label>Notes</label><span id="sNotes" style="color:var(--muted);font-size:13px"></span></div>
+        <div class="settings-row"><label>Last synced</label><span id="sSync" style="color:var(--muted);font-size:13px"></span></div>
+        <div class="settings-row"><label>Total plays</label><span id="sTotalPlays" style="color:var(--muted);font-size:13px"></span></div>
+        <div class="settings-row"><label>Crate cycle</label><span id="sCycle" style="color:var(--muted);font-size:13px"></span></div>
+
+        <div class="section-title">Shuffle Mode</div>
+        <div style="display:flex;gap:8px;margin-bottom:4px">
+          <button class="btn-ghost-sm" id="modeAllBtn" style="flex:1;padding:10px">Shuffle All</button>
+          <button class="btn-accent" id="modeUnplayedBtn" style="flex:1;padding:10px">Shuffle Unplayed</button>
+        </div>
+        <div id="settingsCrateProgress" style="margin-top:8px">
+          <div class="crate-bar-wrap" style="max-width:100%"><div class="crate-bar" id="settingsCrateBar" style="width:0%"></div></div>
+          <div class="crate-label" id="settingsCrateLabel" style="margin-top:4px"></div>
+        </div>
+
+        <div class="section-title">Data</div>
+        <div id="syncStatus" style="display:none;margin-bottom:12px;padding:10px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <span id="syncSpinner" style="display:inline-block;width:14px;height:14px;border:2px solid var(--muted);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite"></span>
+            <span id="syncLabel" style="color:var(--text);font-size:13px;font-weight:600"></span>
+          </div>
+          <div style="height:3px;background:var(--surface);border-radius:2px;overflow:hidden"><div id="syncFill" style="height:100%;background:var(--accent);border-radius:2px;transition:width .3s;width:0%"></div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <button class="btn-accent" id="fullSyncBtn" style="padding:10px">Full Sync</button>
+          <button class="btn-ghost-sm" id="resetCycleBtn" style="padding:10px">Reset Cycle</button>
+          <button class="btn-ghost-sm" id="clearPlaysBtn" style="padding:10px;color:#f59e0b">Clear Play History</button>
+          <button class="btn-ghost-sm" id="clearNotesBtn" style="padding:10px;color:var(--muted)">Clear Notes & Moods</button>
+        </div>
+        <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
+          <button class="btn-ghost-sm" id="clearBtn" style="width:100%;padding:10px;color:var(--accent)">Clear All Data</button>
+        </div>
+        <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--border)">
+          <button class="btn-accent" id="settingsDoneBtn" style="width:100%;padding:14px;font-size:15px">Done</button>
+        </div>
+  </div>
+</div>
+
+<!-- Wantlist page (removed, now inline in mainContent) -->
+
+<div id="resetModal" class="reset-modal" style="display:none">
+  <div class="reset-card">
+    <div class="icon">🎉</div>
+    <h2>Crate Complete</h2>
+    <p>You've played every record. Resetting for a fresh cycle.</p>
+    <button id="resetConfirmBtn">Start Fresh Cycle</button>
+  </div>
+</div>
+
+<!-- Clear All Data confirmation modal -->
+<div id="clearAllModal" class="reset-modal" style="display:none">
+  <div class="reset-card">
+    <div class="icon" style="font-size:48px">&#9888;</div>
+    <h2 style="color:var(--accent)">Clear All Data?</h2>
+    <p>This will delete your collection, art, play history, and login data. Notes and moods will be kept. This cannot be undone.</p>
+    <button id="clearAllConfirmBtn" style="background:var(--accent);margin-bottom:10px">Yes, Clear Everything</button>
+    <button id="clearAllCancelBtn" style="background:var(--surface2);color:var(--text)">Cancel</button>
+  </div>
+</div>
+
+<div class="alpha-scrubber" id="alphaScrubber"></div>
+<div class="alpha-jump-toast" id="alphaJumpToast"></div>
+<div class="toast" id="toast"></div>
+
+<!-- Supabase client + API wrappers (replaces api.php). Module is implicitly deferred. -->
+<script>window.crateReady = new Promise(r => { window._crateReadyResolve = r; });</script>
+<script type="module" src="/lib/supabase.js"></script>
+
+<script>
+const $=id=>document.getElementById(id);
+const DB='ElbrinksCrate',VER=5;
+
+// Moods config
+const MOODS=[
+  {id:'mellow',label:'Mellow',color:'#3b82f6',bg:'#1e3a5f'},
+  {id:'energy',label:'Energy',color:'#ef4444',bg:'#4a1515'},
+  {id:'latenight',label:'Late',color:'#8b5cf6',bg:'#2d1b5e'},
+  {id:'sunday',label:'Sunday',color:'#f59e0b',bg:'#3d2800'},
+  {id:'deepcut',label:'Deep',color:'#10b981',bg:'#0a2e20'},
+];
+
+let db,collection=[],filtered=[],artCache={},genreCache={},moodCache={},notesCache={},wikiCache={},artistsDB={},token='',username='telbrink';
+let playCounts={},cycleLog={},lastPlayed={},currentCycle=1;
+let sortMode='alpha',sortIdx=2,artFetching=false,genreFetching=false;
+let shuffleMode='unplayed',activeMoodFilter='all',currentRecord=null,fromShuffle=false;
+let activeView='crate'; // 'crate','want','stats'
+
+const sortModes=['date_desc','date_asc','alpha','rating','year','plays'];
+const sortLabels=['Date Added ↓','Date Added ↑','Artist A–Z','Rating ↓','Year ↓','Play Count ↓'];
+
+// Wantlist sort
+const wantSortModes=['date_desc','date_asc','alpha','year'];
+const wantSortLabels=['Date Added ↓','Date Added ↑','Artist A–Z','Year ↓'];
+let wantSortMode='alpha',wantSortIdx=2,wantFiltered=[];
+
+// Most Played drill sort
+const playsSortModes=['plays','recent','album','artist'];
+const playsSortLabels=['Most Played','Recently Played','Album A–Z','Artist A–Z'];
+let playsSortMode='plays',playsSortIdx=0;
+function sortPlaysList(records){
+  const list=[...records];
+  if(playsSortMode==='plays')list.sort((a,b)=>(playCounts[b.releaseId]||0)-(playCounts[a.releaseId]||0));
+  else if(playsSortMode==='recent')list.sort((a,b)=>new Date(lastPlayed[b.releaseId]||0)-new Date(lastPlayed[a.releaseId]||0));
+  else if(playsSortMode==='album')list.sort((a,b)=>(a.title||'').localeCompare(b.title||''));
+  else if(playsSortMode==='artist')list.sort((a,b)=>(a.artist||'').localeCompare(b.artist||''));
+  return list;
+}
+
+function closeAllOverlays(){
+  const wasOpen=$('sheetOverlay').classList.contains('open')||$('statDrillOverlay').classList.contains('open')||$('settingsOverlay').classList.contains('open')||$('artistOverlay').classList.contains('open');
+  $('sheetOverlay').classList.remove('open');currentRecord=null;
+  $('statDrillOverlay').classList.remove('open');
+  $('settingsOverlay').classList.remove('open');
+  $('artistOverlay').classList.remove('open');
+  if(wasOpen&&history.state?.modal)history.back();
+}
+function switchView(view){
+  $('collectionView').style.display='none';
+  $('wantlistView').style.display='none';
+  $('statsView').style.display='none';
+  activeView=view;
+  if(view==='crate')$('collectionView').style.display='block';
+  else if(view==='want')$('wantlistView').style.display='block';
+  else if(view==='stats')$('statsView').style.display='block';
+  window.scrollTo(0,0);
+  // Scrubber might not exist yet at init, so guard the call
+  if(typeof updateAlphaScrubber==='function')updateAlphaScrubber();
+}
+
+// ── IndexedDB ────────────────────────────────────────────────
+function openDB(){
+  return new Promise((res,rej)=>{
+    const r=indexedDB.open(DB,VER);
+    r.onupgradeneeded=e=>{
+      const d=e.target.result;
+      ['meta','art','collection','plays','genres','moods','notes'].forEach(s=>{if(!d.objectStoreNames.contains(s))d.createObjectStore(s)});
+    };
+    r.onsuccess=e=>res(e.target.result);r.onerror=rej;
+  });
+}
+const txs=(s,m='readonly')=>db.transaction(s,m).objectStore(s);
+const dbGet=(s,k)=>new Promise((r,j)=>{const q=txs(s).get(k);q.onsuccess=()=>r(q.result);q.onerror=j});
+const dbSet=(s,k,v)=>new Promise((r,j)=>{const q=txs(s,'readwrite').put(v,k);q.onsuccess=r;q.onerror=j});
+const dbGetAll=s=>new Promise((r,j)=>{const q=txs(s).getAll();q.onsuccess=()=>r(q.result);q.onerror=j});
+const dbGetAllKeys=s=>new Promise((r,j)=>{const q=txs(s).getAllKeys();q.onsuccess=()=>r(q.result);q.onerror=j});
+const dbClear=s=>new Promise(r=>{txs(s,'readwrite').clear().onsuccess=r});
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function discogsGet(url,retries=3){
+  for(let i=0;i<retries;i++){
+    const res=await fetch(url,{headers:HDR()});
+    if(res.ok)return res;
+    if(res.status===429){const wait=Math.min(5000*(i+1),15000);console.log(`Rate limited, waiting ${wait}ms…`);await sleep(wait);continue;}
+    throw new Error(`HTTP ${res.status}`);
+  }
+  throw new Error('Rate limit exceeded after retries');
+}
+
+async function init(){
+  db=await openDB();
+  token=await dbGet('meta','token')||'';
+  username=await dbGet('meta','username')||'telbrink';
+
+  // Auth gate: collection writes require an authenticated session.
+  // Reads work for anon, but the private app at /vinyl is admin-only by design.
+  const session=await crate.getSession();
+  if(!session){
+    $('initLoading').style.display='none';
+    $('authCard').style.display='block';
+    return;
+  }
+
+  // Restore Discogs token/username from Supabase if IndexedDB was cleared.
+  // vinyl_settings is RLS-locked to authenticated; this works because we just gated above.
+  if(!token){
+    const sRes=await crate.loadSettings();
+    if(sRes.success&&sRes.data){
+      if(sRes.data.token){token=sRes.data.token;await dbSet('meta','token',token);}
+      if(sRes.data.username){username=sRes.data.username;await dbSet('meta','username',username);}
+    }
+  }else{
+    // Token exists locally — make sure Supabase has the same value for other admin devices.
+    crate.saveSetting('token',token);
+    crate.saveSetting('username',username);
+  }
+  playCounts=await dbGet('plays','counts')||{};
+  cycleLog=await dbGet('plays','cycleLog')||{};
+  lastPlayed=await dbGet('plays','lastPlayed')||{};
+  currentCycle=await dbGet('plays','currentCycle')||1;
+  if(token)$('tokenInput').value=token;
+  $('usernameInput').value=username;
+  const gkeys=await dbGetAllKeys('genres');const gvals=await dbGetAll('genres');
+  gkeys.forEach((k,i)=>genreCache[k]=gvals[i]);
+  const mkeys=await dbGetAllKeys('moods');const mvals=await dbGetAll('moods');
+  mkeys.forEach((k,i)=>moodCache[k]=mvals[i]);
+  const nkeys=await dbGetAllKeys('notes');const nvals=await dbGetAll('notes');
+  nkeys.forEach((k,i)=>notesCache[k]=nvals[i]);
+  // Try Supabase first, fall back to IndexedDB
+  let loaded=false;
+  const cRes=await crate.loadCollection();
+  if(cRes.success&&cRes.data&&cRes.data.length){
+    collection=cRes.data;filtered=[...collection];
+    await dbSet('meta','collection',collection);
+    loaded=true;
+  }
+  if(!loaded){
+    const saved=await dbGet('meta','collection');
+    if(saved&&saved.length){collection=saved;filtered=[...collection];loaded=true;}
+  }
+  if(loaded){
+    const keys=await dbGetAllKeys('art');const vals=await dbGetAll('art');
+    keys.forEach((k,i)=>artCache[k]=vals[i]);
+    collection.forEach(r=>{if(!artCache[r.releaseId]&&r.coverImage&&!r.coverImage.includes('spacer'))artCache[r.releaseId]=r.coverImage;});
+    await loadPlaysFromAPI();
+    await loadMetaFromAPI();
+    await loadArtistsFromAPI();
+    showCollection();seedDiscogsNotes();startArtFetch();startGenreFetch();startWikiFetch();
+    if(token)setTimeout(silentSync,5000);
+  }else{
+    $('initLoading').style.display='none';$('setupCard').style.display='block';
+  }
+}
+
+function showToast(msg,dur=2500){
+  const t=$('toast');t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),dur);
+}
+
+// ── API ───────────────────────────────────────────────────────
+async function loadPlaysFromAPI(){
+  const res=await crate.loadPlays();
+  if(res.success&&res.data&&typeof res.data==='object'){
+    // Replace local data with Supabase (source of truth), not merge
+    playCounts={};cycleLog={};lastPlayed={};
+    Object.entries(res.data).forEach(([id,row])=>{
+      playCounts[id]=(row.play_count||0);
+      if(row.cycle_played)cycleLog[id]=true;
+      if(row.last_played)lastPlayed[id]=row.last_played;
+    });
+    // Update IndexedDB to match Supabase
+    await dbSet('plays','counts',playCounts);
+    await dbSet('plays','cycleLog',cycleLog);
+    await dbSet('plays','lastPlayed',lastPlayed);
+  }
+}
+
+async function loadMetaFromAPI(){
+  const res=await crate.loadMeta();
+  if(res.success&&res.data&&typeof res.data==='object'){
+    // For each release Supabase knows about, trust its values (replace, not merge)
+    Object.entries(res.data).forEach(([id,row])=>{
+      // Genres: array wins (even if empty)
+      const genres=row.genres||[];
+      genreCache[id]=genres;dbSet('genres',id,genres);
+      // Moods: array wins
+      const moods=row.moods||[];
+      moodCache[id]=moods;dbSet('moods',id,moods);
+      // Notes: value wins (empty string clears local note)
+      const notes=row.notes||'';
+      notesCache[id]=notes;dbSet('notes',id,notes);
+      // Art: only update if there's a URL (never clear art)
+      if(row.art_url){artCache[id]=row.art_url;dbSet('art',id,row.art_url);}
+      // Wiki: same, only update if present
+      if(row.artist_wiki_url){wikiCache[id]=row.artist_wiki_url;}
+    });
+  }
+}
+
+async function loadArtistsFromAPI(){
+  const res=await crate.loadArtists();
+  if(res.success&&res.data&&typeof res.data==='object'){
+    artistsDB=res.data;
+  }
+}
+
+// Preserve conditions from existing data when fresh fetch lacks them
+function mergeConditions(fresh,existing){
+  if(!existing||!existing.length)return fresh;
+  const cMap={};
+  existing.forEach(r=>{if(r.mediaCondition)cMap[r.releaseId]={m:r.mediaCondition,s:r.sleeveCondition};});
+  return fresh.map(r=>{
+    if(!r.mediaCondition&&cMap[r.releaseId]){r.mediaCondition=cMap[r.releaseId].m;r.sleeveCondition=cMap[r.releaseId].s;}
+    return r;
+  });
+}
+
+async function saveCollectionToAPI(records){
+  // Don't overwrite DB with data missing conditions if token wasn't available
+  if(!token&&records.length&&!records[0].mediaCondition){console.log('Skipping collection save — no token, conditions would be lost');return;}
+  await crate.saveCollection(records);
+}
+
+async function saveMetaToAPI(releaseId,fields){
+  await crate.saveMeta(releaseId,fields);
+}
+
+async function logPlay(releaseId){
+  playCounts[releaseId]=(playCounts[releaseId]||0)+1;
+  cycleLog[releaseId]=true;
+  lastPlayed[releaseId]=new Date().toISOString();
+  await crate.recordPlay(releaseId);
+  await dbSet('plays','counts',playCounts);
+  await dbSet('plays','cycleLog',cycleLog);
+  await dbSet('plays','lastPlayed',lastPlayed);
+  updateCrateProgress();renderGrid();
+  const allIds=[...new Set(collection.map(r=>r.releaseId).filter(Boolean))];
+  if(allIds.every(id=>cycleLog[id]))setTimeout(()=>$('resetModal').style.display='flex',600);
+}
+
+async function resetCycle(){
+  cycleLog={};currentCycle++;
+  await crate.resetCycle();
+  await dbSet('plays','cycleLog',cycleLog);
+  await dbSet('plays','currentCycle',currentCycle);
+  updateCrateProgress();renderGrid();
+  showToast(`Cycle ${currentCycle} started`);
+}
+
+async function clearPlayHistory(){
+  if(!confirm('Clear all play history from the server? This cannot be undone.'))return;
+  await crate.clearPlays();
+  playCounts={};cycleLog={};lastPlayed={};currentCycle=1;
+  await dbSet('plays','counts',{});
+  await dbSet('plays','cycleLog',{});
+  await dbSet('plays','lastPlayed',{});
+  await dbSet('plays','currentCycle',1);
+  updateCrateProgress();renderGrid();closeSettings();
+  showToast('Play history cleared');
+}
+
+// ── History helpers ───────────────────────────────────────────
+function shortCondition(c){
+  if(!c)return'?';
+  if(c.startsWith('Mint'))return'M';if(c.startsWith('Near Mint'))return'NM';
+  if(c.startsWith('Very Good Plus'))return'VG+';if(c.startsWith('Very Good'))return'VG';
+  if(c.startsWith('Good Plus'))return'G+';if(c.startsWith('Good'))return'G';
+  if(c.startsWith('Fair'))return'F';if(c.startsWith('Poor'))return'P';return c.substring(0,3);
+}
+function formatLastPlayed(iso){
+  if(!iso)return null;
+  const d=new Date(iso);const now=new Date();
+  const diff=Math.floor((now-d)/86400000);
+  if(diff===0)return'Today';if(diff===1)return'Yesterday';
+  if(diff<7)return`${diff} days ago`;
+  if(diff<30)return`${Math.floor(diff/7)}w ago`;
+  return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+}
+
+// ── Sheet history ─────────────────────────────────────────────
+function pushModalState(){history.pushState({modal:true},'');}
+function closeSheet(){
+  $('sheetOverlay').classList.remove('open');currentRecord=null;
+  // Return to whichever view was active before
+  if(activeView==='want')setActiveNav('navWantlist');
+  else if(activeView==='stats')setActiveNav('navStats');
+  else setActiveNav('navCrate');
+}
+function closeStats(){switchView('crate');setActiveNav('navCrate');}
+function closeSettings(){$('settingsOverlay').classList.remove('open');setActiveNav('navCrate');}
+window.addEventListener('popstate',()=>{
+  if($('artistOverlay').classList.contains('open'))closeArtistPage();
+  else if($('statDrillOverlay').classList.contains('open'))closeStatDrill();
+  else if($('sheetOverlay').classList.contains('open'))closeSheet();
+  else if($('settingsOverlay').classList.contains('open'))closeSettings();
+  closeHamburger();
+});
+
+// ── Discogs ───────────────────────────────────────────────────
+const HDR=()=>({'Authorization':`Discogs token=${token}`,'User-Agent':'ElbrinksCrate/1.0'});
+
+async function fetchCollection(silent=false){
+  let page=1,results=[];if(!silent)setProgress('Loading collection…',0);
+  while(true){
+    const res=await discogsGet(`https://api.discogs.com/users/${username}/collection/folders/0/releases?per_page=100&page=${page}`);
+    const data=await res.json();
+    results=results.concat(data.releases);
+    if(!silent)setProgress(`Loading collection… ${results.length} of ${data.pagination.items}`,Math.round(results.length/data.pagination.items*100));
+    if(page>=data.pagination.pages)break;
+    page++;await sleep(500);
+  }
+  return results.map(normalizeRelease);
+}
+
+function normalizeRelease(r){
+  const bi=r.basic_information||{};
+  const noteFields=r.notes||[];
+  const mediaCondition=(noteFields.find(n=>n.field_id===1)||{}).value||'';
+  const sleeveCondition=(noteFields.find(n=>n.field_id===2)||{}).value||'';
+  const discogsNotes=((noteFields.find(n=>n.field_id===3)||{}).value||'').trim();
+  const artistId=bi.artists&&bi.artists.length?String(bi.artists[0].id):'';
+  return{id:String(r.id),releaseId:String(bi.id||r.id),artistId,
+    artist:bi.artists&&bi.artists.length?bi.artists.map(a=>a.name.replace(/\s*\(\d+\)$/,'')).join(', '):'Unknown',
+    title:bi.title||'',label:bi.labels&&bi.labels.length?bi.labels[0].name:'',
+    format:bi.formats&&bi.formats.length?bi.formats[0].name:'',
+    year:parseInt(bi.year)||0,dateAdded:r.date_added||'',
+    rating:r.rating||0,thumb:bi.thumb||'',coverImage:bi.cover_image||'',
+    mediaCondition,sleeveCondition,
+    discogsNotes:discogsNotes};
+}
+
+async function fetchReleaseDetail(releaseId){
+  try{const res=await discogsGet(`https://api.discogs.com/releases/${releaseId}`);return res.json();}
+  catch(e){console.log(`Release ${releaseId} fetch failed:`,e.message);return null;}
+}
+
+async function fetchReleaseArt(releaseId){
+  if(!token||!releaseId||artCache[releaseId])return;
+  try{
+    const data=await fetchReleaseDetail(releaseId);if(!data)return;
+    const img=data.images&&data.images[0]&&data.images[0].uri||null;
+    if(img){artCache[releaseId]=img;await dbSet('art',releaseId,img);updateCardArt(releaseId,img);saveMetaToAPI(releaseId,{art_url:img});}
+    if(!genreCache[releaseId]){const genres=data.genres||[];if(genres.length){genreCache[releaseId]=genres;await dbSet('genres',releaseId,genres);saveMetaToAPI(releaseId,{genres});}}
+  }catch{}
+}
+
+async function startArtFetch(){
+  if(artFetching)return;
+  const missing=collection.filter(r=>!artCache[r.releaseId]&&r.releaseId);
+  if(!missing.length){hideProgress();return;}
+  artFetching=true;let done=0;
+  setProgress(`Loading cover art… 0 of ${missing.length}`,0);
+  for(const r of missing){await fetchReleaseArt(r.releaseId);done++;setProgress(`Loading cover art… ${done} of ${missing.length}`,Math.round(done/missing.length*100));await sleep(1100);}
+  artFetching=false;hideProgress();updateSettingsPanel();showToast('Cover art loaded');
+}
+
+async function startGenreFetch(){
+  if(genreFetching)return;
+  const missing=collection.filter(r=>!genreCache[r.releaseId]&&r.releaseId);
+  if(!missing.length)return;
+  genreFetching=true;setProgress(`Loading genres… 0 of ${missing.length}`,0);let done=0;
+  for(const r of missing){
+    try{
+      const data=await fetchReleaseDetail(r.releaseId);
+      if(data){
+        const genres=data.genres||[];genreCache[r.releaseId]=genres;await dbSet('genres',r.releaseId,genres);saveMetaToAPI(r.releaseId,{genres});
+        if(!artCache[r.releaseId]){const img=data.images&&data.images[0]&&data.images[0].uri||null;if(img){artCache[r.releaseId]=img;await dbSet('art',r.releaseId,img);updateCardArt(r.releaseId,img);saveMetaToAPI(r.releaseId,{art_url:img});}}
+      }
+    }catch{}
+    done++;setProgress(`Loading genres… ${done} of ${missing.length}`,Math.round(done/missing.length*100));await sleep(1100);
+  }
+  genreFetching=false;hideProgress();updateSettingsPanel();showToast('Genres loaded');
+}
+
+async function seedDiscogsNotes(){
+  let seeded=0,cleaned=0;
+  const conditionPattern=/^(Mint|Near Mint|Very Good|Good|Fair|Poor)/;
+  // Clean old-format notes that are just condition grades
+  for(const [id,val] of Object.entries(notesCache)){
+    if(val&&conditionPattern.test(val.trim())){
+      delete notesCache[id];await dbSet('notes',id,'');cleaned++;
+    }
+  }
+  // Seed actual custom notes from Discogs
+  for(const r of collection){
+    if(r.discogsNotes&&!notesCache[r.releaseId]){
+      notesCache[r.releaseId]=r.discogsNotes;
+      await dbSet('notes',r.releaseId,r.discogsNotes);
+      saveMetaToAPI(r.releaseId,{notes:r.discogsNotes});
+      seeded++;
+    }
+  }
+  if(cleaned)console.log(`Cleaned ${cleaned} old condition-grade notes`);
+  if(seeded)showToast(`Seeded ${seeded} notes from Discogs`);
+}
+
+// ── Artist Wikipedia URL fetch + vinyl_artists sync ──────────
+let wikiFetching=false;
+async function startWikiFetch(){
+  if(wikiFetching||!token)return;
+  // Build list of releases missing wiki URLs, grouped by unique artistId
+  // Include releases missing wiki URLs OR artists missing from vinyl_artists table
+  const missing=collection.filter(r=>r.artistId&&(!wikiCache[r.releaseId]||!artistsDB[r.artistId]));
+  if(!missing.length)return;
+  // Deduplicate by artistId so we only call Discogs once per artist
+  const artistMap={};
+  missing.forEach(r=>{
+    if(!artistMap[r.artistId])artistMap[r.artistId]=[];
+    artistMap[r.artistId].push(r.releaseId);
+  });
+  const artistIds=Object.keys(artistMap);
+  if(!artistIds.length)return;
+  wikiFetching=true;
+  let done=0;
+  const artistBulk={};
+  setProgress(`Loading artist info… 0 of ${artistIds.length}`,0);
+  for(const aid of artistIds){
+    try{
+      const res=await discogsGet(`https://api.discogs.com/artists/${aid}`);
+      const data=await res.json();
+      const urls=data.urls||[];
+      // Use existing artist-level wiki_url if manually edited, otherwise use Discogs
+      const existingArtist=artistsDB[aid];
+      const wikiUrl=existingArtist&&existingArtist.wiki_url?existingArtist.wiki_url:(urls.find(u=>u.includes('wikipedia.org'))||'');
+      // Apply to all releases by this artist
+      for(const rid of artistMap[aid]){
+        wikiCache[rid]=wikiUrl||'__none__';
+        saveMetaToAPI(rid,{artist_wiki_url:wikiUrl||'__none__'});
+      }
+      // Build artist record for vinyl_artists table
+      const artistName=data.name?data.name.replace(/\s*\(\d+\)$/,''):'';
+      const artistImage=(data.images&&data.images[0])?data.images[0].uri:'';
+      const discogsUrl=data.uri?`https://www.discogs.com/artist/${aid}`:'';
+      artistBulk[aid]={
+        artist_name:artistName,
+        discogs_url:discogsUrl,
+        wiki_url:wikiUrl||null,
+        image_url:artistImage||null
+      };
+      // Update local cache
+      artistsDB[aid]={
+        artist_name:artistName,
+        discogs_url:discogsUrl,
+        wiki_url:wikiUrl||'',
+        bio_text:existingArtist?existingArtist.bio_text:'',
+        image_url:artistImage||''
+      };
+    }catch(e){
+      console.log(`Artist ${aid} fetch failed:`,e.message);
+      // Mark as checked so we don't retry endlessly
+      for(const rid of artistMap[aid]){
+        wikiCache[rid]='__none__';
+        saveMetaToAPI(rid,{artist_wiki_url:'__none__'});
+      }
+    }
+    done++;
+    setProgress(`Loading artist info… ${done} of ${artistIds.length}`,Math.round(done/artistIds.length*100));
+    await sleep(1100);
+  }
+  // Bulk save artists
+  if(Object.keys(artistBulk).length){
+    await crate.bulkArtists(artistBulk);
+  }
+  wikiFetching=false;hideProgress();updateSettingsPanel();
+  console.log(`Artist info fetched for ${artistIds.length} artists`);
+}
+
+// ── Wantlist ─────────────────────────────────────────────────
+let wantlist=[],wantlistArtCache={},wantlistLoaded=false;
+
+async function fetchWantlist(){
+  if(!token||!username)return[];
+  let page=1,results=[];
+  while(true){
+    const res=await discogsGet(`https://api.discogs.com/users/${username}/wants?per_page=100&page=${page}`);
+    const data=await res.json();
+    results=results.concat(data.wants);
+    if(page>=data.pagination.pages)break;
+    page++;await sleep(500);
+  }
+  return results.map(w=>{
+    const bi=w.basic_information||{};
+    return{releaseId:String(bi.id||w.id),
+      artist:bi.artists&&bi.artists.length?bi.artists.map(a=>a.name.replace(/\s*\(\d+\)$/,'')).join(', '):'Unknown',
+      title:bi.title||'',label:bi.labels&&bi.labels.length?bi.labels[0].name:'',
+      year:parseInt(bi.year)||0,thumb:bi.thumb||'',coverImage:bi.cover_image||'',
+      dateAdded:w.date_added||''};
+  });
+}
+
+function renderWantlistGrid(){
+  const grid=$('wantlistGrid');grid.innerHTML='';
+  if(!wantFiltered.length&&!wantlist.length){$('wantlistEmpty').style.display='block';$('wantlistCount').textContent='';return;}
+  $('wantlistEmpty').style.display=wantFiltered.length?'none':'block';
+  wantFiltered.forEach(r=>{
+    const art=wantlistArtCache[r.releaseId]||r.coverImage||(r.thumb&&!r.thumb.includes('spacer')?r.thumb:'');
+    const card=document.createElement('div');
+    card.className='record-card';
+    card.innerHTML=`
+      <div class="art-wrap${!art?' art-loading':''}">
+        ${art?`<img src="${art}" loading="lazy" alt="">`:`<div class="art-placeholder">&#9825;</div>`}
+      </div>
+      <div class="card-info">
+        <div class="card-artist">${r.artist}</div>
+        <div class="card-title">${r.title}</div>
+        <div class="card-meta">${r.year||''} ${r.label?'· '+r.label:''}</div>
+        <div class="card-bottom">
+          <div></div>
+          <a href="https://www.discogs.com/sell/release/${r.releaseId}?ev=rb" target="_blank" rel="noopener" class="shop-link" onclick="event.stopPropagation()">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            Shop
+          </a>
+        </div>
+      </div>`;
+    card.onclick=()=>openSheet(r,false);
+    grid.appendChild(card);
+  });
+}
+
+async function openWantlist(){
+  switchView('want');
+  if(wantlistLoaded){applyWantlistFilters();return;}
+  $('wantlistLoading').style.display='block';$('wantlistGrid').innerHTML='';$('wantlistEmpty').style.display='none';
+  try{
+    // Try Supabase first (fast, no Discogs API calls)
+    const dbRes=await crate.loadWantlist();
+    if(dbRes.success&&dbRes.data&&dbRes.data.length){
+      // Use smart normalize: cache holds already-normalized records, but raw Discogs records may also appear in older entries
+      wantlist=dbRes.data.map(normalizeWantlistRecord).filter(Boolean);
+      wantlistLoaded=true;
+      $('wantlistLoading').style.display='none';
+      applyWantlistFilters();
+      // Refresh from Discogs in the background (if we have a token)
+      if(token&&username)refreshWantlistFromDiscogs();
+      return;
+    }
+    // No cached data: fetch from Discogs directly
+    wantlist=await fetchWantlist();wantlistLoaded=true;
+    $('wantlistLoading').style.display='none';
+    applyWantlistFilters();
+    // Save for next time and public page
+    if(wantlist.length)saveWantlistToAPI(wantlist);
+    // Fetch higher res art in background
+    await fetchWantlistArt();
+  }catch(e){$('wantlistLoading').style.display='none';showToast('Failed to load wantlist: '+e.message);}
+}
+
+async function refreshWantlistFromDiscogs(){
+  if(!token||!username)return;
+  try{
+    const fresh=await fetchWantlist();
+    if(fresh.length){
+      wantlist=fresh;
+      applyWantlistFilters();
+      saveWantlistToAPI(fresh);
+      await fetchWantlistArt();
+    }
+  }catch{}
+}
+
+async function fetchWantlistArt(){
+  for(const r of wantlist){
+    if(wantlistArtCache[r.releaseId])continue;
+    if(r.coverImage&&!r.coverImage.includes('spacer')){wantlistArtCache[r.releaseId]=r.coverImage;continue;}
+    try{
+      const data=await fetchReleaseDetail(r.releaseId);
+      if(data&&data.images&&data.images[0]){
+        wantlistArtCache[r.releaseId]=data.images[0].uri;
+        // Update the record's coverImage so it gets saved to MySQL
+        r.coverImage=data.images[0].uri;
+        const card=document.querySelector(`#wantlistGrid .record-card:nth-child(${wantFiltered.indexOf(r)+1}) .art-wrap`);
+        if(card){card.classList.remove('art-loading');card.innerHTML=`<img src="${data.images[0].uri}" loading="lazy" alt="">`;}
+      }
+    }catch{}
+    await sleep(1100);
+  }
+  // Re-save with updated art URLs
+  if(wantlist.length)saveWantlistToAPI(wantlist);
+}
+
+async function saveWantlistToAPI(records){
+  await crate.saveWantlist(records);
+}
+
+function applyWantlistFilters(){
+  const q=($('searchBarTop')||{value:''}).value.toLowerCase();
+  wantFiltered=wantlist.filter(r=>{
+    if(!q)return true;
+    return r.artist.toLowerCase().includes(q)||r.title.toLowerCase().includes(q)||r.label.toLowerCase().includes(q)||(r.year&&String(r.year).includes(q));
+  });
+  sortWantFiltered();
+  renderWantlistGrid();
+  $('wantlistCount').textContent=q?`${wantFiltered.length} of ${wantlist.length} records on the hunt`:`${wantlist.length} records on the hunt`;
+  updateAlphaScrubber();
+}
+
+function sortWantFiltered(){
+  if(wantSortMode==='date_desc')wantFiltered.sort((a,b)=>new Date(b.dateAdded)-new Date(a.dateAdded));
+  else if(wantSortMode==='date_asc')wantFiltered.sort((a,b)=>new Date(a.dateAdded)-new Date(b.dateAdded));
+  else if(wantSortMode==='alpha')wantFiltered.sort((a,b)=>a.artist.localeCompare(b.artist));
+  else if(wantSortMode==='year')wantFiltered.sort((a,b)=>(b.year||0)-(a.year||0));
+}
+
+function closeWantlist(){switchView('crate');setActiveNav('navCrate');}
+
+async function fetchTracks(releaseId){
+  try{const data=await fetchReleaseDetail(releaseId);if(!data)return[];return(data.tracklist||[]).filter(t=>t.type_==='track'||!t.type_);}catch{return[];}
+}
+
+async function loadAbout(r){
+  const cached=wikiCache[r.releaseId];
+  // If we have a direct Wikipedia URL from Discogs, use it
+  if(cached&&cached!=='__none__'){
+    try{
+      // Extract the page title from the URL
+      const wikiTitle=decodeURIComponent(cached.split('/wiki/').pop());
+      const e=await fetch(`https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=true&explaintext=true&titles=${encodeURIComponent(wikiTitle)}&format=json&origin=*`);
+      const ed=await e.json();const page=Object.values(ed.query.pages)[0];
+      if(page&&page.extract&&page.extract.length>100)return{text:page.extract,url:cached};
+    }catch{}
+  }
+  // Fallback: blind Wikipedia search (old method)
+  return fetchWikipedia(r.artist,r.title);
+}
+
+async function fetchWikipedia(artist,title){
+  const queries=[`${title} ${artist} album`,`${artist} musician`,`${artist} band`];
+  const artistLow=artist.toLowerCase();
+  const titleLow=title.toLowerCase();
+  for(const q of queries){
+    try{
+      const s=await fetch(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(q)}&format=json&origin=*`);
+      const sd=await s.json();const hit=sd.query&&sd.query.search&&sd.query.search[0];if(!hit)continue;
+      const hitLow=hit.title.toLowerCase();
+      const snippetLow=(hit.snippet||'').toLowerCase().replace(/<[^>]*>/g,'');
+      const relevant=hitLow.includes(artistLow)||hitLow.includes(titleLow)||snippetLow.includes(artistLow)||snippetLow.includes(titleLow);
+      if(!relevant)continue;
+      const e=await fetch(`https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=true&explaintext=true&titles=${encodeURIComponent(hit.title)}&format=json&origin=*`);
+      const ed=await e.json();const page=Object.values(ed.query.pages)[0];
+      if(page&&page.extract&&page.extract.length>100)return{text:page.extract,url:`https://en.wikipedia.org/wiki/${encodeURIComponent(hit.title)}`};
+    }catch{}
+  }return null;
+}
+
+async function silentSync(){
+  try{
+    // Push local meta first, then pull
+    await pushLocalMeta();
+    const fresh=await fetchCollection(true);if(!fresh.length)return;
+    const existingIds=new Set(collection.map(r=>r.releaseId));
+    const hasNew=fresh.some(r=>!existingIds.has(r.releaseId));
+    const merged=mergeConditions(fresh,collection);
+    collection=merged;filtered=[...collection];
+    await dbSet('meta','collection',collection);await dbSet('meta','lastSync',new Date().toISOString());saveCollectionToAPI(collection);
+    await loadPlaysFromAPI();await loadMetaFromAPI();await loadArtistsFromAPI();
+    applyFilters();seedDiscogsNotes();if(hasNew){startArtFetch();startGenreFetch();startWikiFetch();showToast('Collection updated');}
+  }catch(e){console.log('Silent sync failed:',e);}
+}
+
+async function connect(){
+  token=$('tokenInput').value.trim();username=$('usernameInput').value.trim()||'telbrink';
+  if(!token){showToast('Paste your Discogs token first');return;}
+  $('connectBtn').textContent='Connecting…';$('connectBtn').disabled=true;
+  try{
+    await dbSet('meta','token',token);await dbSet('meta','username',username);
+    crate.saveSetting('token',token);
+    crate.saveSetting('username',username);
+    collection=await fetchCollection();
+    await dbSet('meta','collection',collection);await dbSet('meta','lastSync',new Date().toISOString());saveCollectionToAPI(collection);
+    filtered=[...collection];await loadPlaysFromAPI();await loadMetaFromAPI();await loadArtistsFromAPI();showCollection();startArtFetch();startGenreFetch();startWikiFetch();seedDiscogsNotes();
+  }catch(e){showToast('Error: '+e.message,4000);$('connectBtn').textContent='Connect and Load Collection';$('connectBtn').disabled=false;hideProgress();}
+}
+
+// Push all local meta (moods, notes, genres, art) to Supabase
+async function pushLocalMeta(){
+  const data={};
+  const ids=[...new Set(collection.map(r=>r.releaseId).filter(Boolean))];
+  let count=0;
+  for(const id of ids){
+    const entry={};
+    if(moodCache[id]&&moodCache[id].length)entry.moods=moodCache[id];
+    if(notesCache[id]&&notesCache[id].trim())entry.notes=notesCache[id];
+    if(genreCache[id]&&genreCache[id].length)entry.genres=genreCache[id];
+    if(artCache[id])entry.art_url=artCache[id];
+    if(Object.keys(entry).length){data[id]=entry;count++;}
+  }
+  if(!count){console.log('pushLocalMeta: nothing to push');return;}
+  console.log(`pushLocalMeta: pushing ${count} records...`);
+  const res=await crate.bulkMeta(data);
+  console.log('pushLocalMeta response:',JSON.stringify(res));
+  if(!res.success)console.error('pushLocalMeta: returned error',res);
+}
+
+async function fullSync(){
+  // Stay in Settings so user can watch progress
+  $('fullSyncBtn').disabled=true;$('fullSyncBtn').textContent='Syncing…';
+  try{
+    // Step 1: Push local meta to Supabase (moods, notes, genres, art)
+    setProgress('Pushing local data…',10);
+    await pushLocalMeta();
+
+    if(!token){
+      // No token — reload from Supabase (Discogs won't return conditions without auth)
+      const cRes=await crate.loadCollection();
+      if(cRes.success&&cRes.data&&cRes.data.length){
+        collection=cRes.data;filtered=[...collection];
+        await dbSet('meta','collection',collection);
+      }
+      await loadPlaysFromAPI();await loadMetaFromAPI();await loadArtistsFromAPI();
+      applyFilters();showToast(`Loaded ${collection.length} records from database`);
+      startArtFetch();startGenreFetch();startWikiFetch();seedDiscogsNotes();
+      hideProgress();
+      return;
+    }
+    const old=collection.slice();
+    collection=await fetchCollection();
+    collection=mergeConditions(collection,old);
+    await dbSet('meta','collection',collection);await dbSet('meta','lastSync',new Date().toISOString());saveCollectionToAPI(collection);
+    // Step 2: Pull meta from Supabase (merges data from all devices)
+    await loadPlaysFromAPI();await loadMetaFromAPI();await loadArtistsFromAPI();
+    filtered=[...collection];applyFilters();showToast(`Synced — ${collection.length} records`);startArtFetch();startGenreFetch();startWikiFetch();seedDiscogsNotes();
+  }catch(e){showToast('Sync failed: '+e.message,4000);}
+  hideProgress();
+  $('fullSyncBtn').disabled=false;$('fullSyncBtn').textContent='Full Sync';
+  updateSettingsPanel();
+}
+
+function setProgress(msg,pct){
+  $('progressWrap').style.display='block';$('progressLabel').textContent=msg;$('progressFill').style.width=pct+'%';
+  // Mirror into Settings sync status if Settings is open
+  if($('settingsOverlay').classList.contains('open')){
+    $('syncStatus').style.display='block';$('syncLabel').textContent=msg;$('syncFill').style.width=pct+'%';
+    updateSettingsPanel();
+  }
+}
+function hideProgress(){
+  $('progressWrap').style.display='none';
+  $('syncStatus').style.display='none';
+  if($('settingsOverlay').classList.contains('open'))updateSettingsPanel();
+}
+function stars(n){return n?'★'.repeat(Math.round(n))+'☆'.repeat(5-Math.round(n)):'';}
+
+function showCollection(){
+  $('initLoading').style.display='none';$('setupCard').style.display='none';switchView('crate');
+  $('hamburgerBtn').style.display='flex';$('searchIconBtn').style.display='flex';
+  $('bottomNav').style.display='flex';
+  sortFiltered();renderGrid();
+  $('countBadge').textContent=`${filtered.length} of ${collection.length} records`;
+  updateCrateProgress();updateSettingsPanel();updateShuffleLabel();
+}
+
+function updateShuffleLabel(){
+  const mood=activeMoodFilter!=='all'?` · ${MOODS.find(m=>m.id===activeMoodFilter)?.label||''}` :'';
+  const mode=shuffleMode==='unplayed'?'Unplayed':'All';
+  $('shuffleLabel').textContent=mode+mood;
+}
+
+function updateCrateProgress(){
+  const total=collection.length;
+  const played=collection.filter(r=>cycleLog[r.releaseId]).length;
+  const pct=total?Math.round(played/total*100):0;
+  const show=shuffleMode==='unplayed';
+  const lbl=`Cycle ${currentCycle} — <span>${played} of ${total}</span> played`;
+  [$('crateBar'),$('settingsCrateBar')].forEach(b=>{if(b)b.style.width=pct+'%';});
+  [$('crateLabel'),$('settingsCrateLabel')].forEach(l=>{if(l)l.innerHTML=lbl;});
+  $('crateProgressWrap').style.display=show?'block':'none';
+  if(show){
+    $('settingsCrateBar').parentElement.style.display='';
+    $('settingsCrateLabel').innerHTML=lbl;
+  }else{
+    $('settingsCrateBar').parentElement.style.display='none';
+    $('settingsCrateLabel').innerHTML=`<span>${total} records</span> in rotation`;
+  }
+  updateSettingsPanel();
+}
+
+function applyFilters(){
+  const q=($('searchBarTop')||{value:''}).value.toLowerCase();
+  filtered=collection.filter(r=>{
+    if(activeMoodFilter!=='all'&&(moodCache[r.releaseId]||[]).indexOf(activeMoodFilter)===-1)return false;
+    if(!q)return true;
+    const genres=(genreCache[r.releaseId]||[]).join(' ').toLowerCase();
+    const mood=(moodCache[r.releaseId]||[]).map(m=>MOODS.find(x=>x.id===m)?.label||'').join(' ').toLowerCase();
+    return r.artist.toLowerCase().includes(q)||r.title.toLowerCase().includes(q)||r.label.toLowerCase().includes(q)||genres.includes(q)||mood.includes(q);
+  });
+  sortFiltered();renderGrid();
+  $('countBadge').textContent=`${filtered.length} of ${collection.length} records`;
+  updateAlphaScrubber();
+}
+
+function sortFiltered(){
+  if(sortMode==='date_desc')filtered.sort((a,b)=>new Date(b.dateAdded)-new Date(a.dateAdded));
+  else if(sortMode==='date_asc')filtered.sort((a,b)=>new Date(a.dateAdded)-new Date(b.dateAdded));
+  else if(sortMode==='alpha')filtered.sort((a,b)=>a.artist.localeCompare(b.artist));
+  else if(sortMode==='rating')filtered.sort((a,b)=>b.rating-a.rating);
+  else if(sortMode==='year')filtered.sort((a,b)=>(b.year||0)-(a.year||0));
+  else if(sortMode==='plays')filtered.sort((a,b)=>(playCounts[b.releaseId]||0)-(playCounts[a.releaseId]||0));
+}
+
+function getMoodColor(id){return MOODS.find(m=>m.id===id)||{color:'#888',bg:'#1f1f1f'};}
+
+function renderGrid(){
+  const grid=$('grid');grid.innerHTML='';
+  if(!filtered.length){grid.innerHTML='<div style="text-align:center;padding:60px 20px;color:var(--muted)"><div style="font-size:48px;margin-bottom:12px">🔍</div><p>No records match</p></div>';return;}
+  filtered.forEach(r=>{
+    const art=artCache[r.releaseId];const played=cycleLog[r.releaseId];
+    const count=playCounts[r.releaseId]||0;const lp=formatLastPlayed(lastPlayed[r.releaseId]);
+    const moods=moodCache[r.releaseId]||[];
+    const card=document.createElement('div');
+    card.className='record-card'+(played?' played-this-cycle':'');card.id=`card-${r.releaseId}`;
+    card.innerHTML=`
+      <div class="art-wrap${!art?' art-loading':''}">
+        ${art?`<img src="${art}" loading="lazy" alt="">`:`<div class="art-placeholder">💿</div>`}
+      </div>
+      <div class="card-info">
+        <div class="card-artist">${r.artist}</div>
+        <div class="card-title">${r.title}</div>
+        <div class="card-meta">${r.year||''}${r.mediaCondition?` · ${shortCondition(r.mediaCondition)}/${shortCondition(r.sleeveCondition)}`:''}</div>
+        ${moods.length?`<div>${moods.slice(0,2).map(m=>{const mc=getMoodColor(m);return`<span class="mood-pill" style="background:${mc.bg};color:${mc.color}">${MOODS.find(x=>x.id===m)?.label||m}</span>`;}).join(' ')}</div>`:''}
+        <div class="card-bottom">
+          ${r.rating?`<div class="stars">${stars(r.rating)}</div>`:'<div></div>'}
+          <div class="play-count" style="${count===0?'opacity:.35':''}">
+            ${count>0?`▶ ${count}${lp?' · '+lp:''}`:`Not Played`}
+          </div>
+        </div>
+      </div>`;
+    card.onclick=()=>openSheet(r,false);
+    grid.appendChild(card);
+  });
+}
+
+function updateCardArt(releaseId,url){
+  const card=$(`card-${releaseId}`);if(!card)return;
+  const wrap=card.querySelector('.art-wrap');wrap.classList.remove('art-loading');
+  wrap.innerHTML=url?`<img src="${url}" loading="lazy" alt="">`:`<div class="art-placeholder">💿</div>`;
+}
+
+// ── Album sheet ───────────────────────────────────────────────
+function showNav(){$('bottomNav').classList.remove('bar-hidden');$('topBar').classList.remove('bar-hidden');}
+
+async function openSheet(r,isShuffle=false){
+  if(!r)return;currentRecord=r;fromShuffle=isShuffle;pushModalState();showNav();
+  const art=artCache[r.releaseId]||wantlistArtCache[r.releaseId]||r.coverImage||'';
+  $('modalArt').innerHTML=art?`<img src="${art}" alt="">`:`<div class="modal-art-ph">💿</div>`;
+  $('modalArtist').innerHTML=r.artistId?`<span class="tappable-artist" data-artist-id="${r.artistId}" data-artist-name="${r.artist}">${r.artist}</span>`:r.artist;
+  $('modalTitle').textContent=r.title;
+  // Wire up artist tap in album detail
+  const artistTap=$('modalArtist').querySelector('.tappable-artist');
+  if(artistTap)artistTap.onclick=(e)=>{e.stopPropagation();openArtistPage(artistTap.dataset.artistId,artistTap.dataset.artistName);};
+  const genres=genreCache[r.releaseId]||[];
+  const condStr=r.mediaCondition?`${shortCondition(r.mediaCondition)}/${shortCondition(r.sleeveCondition)}`:'';
+  $('modalMeta').innerHTML=[
+    r.year&&`<span class="meta-chip">${r.year}</span>`,
+    r.label&&`<span class="meta-chip">${r.label}</span>`,
+    r.format&&`<span class="meta-chip">${r.format}</span>`,
+    condStr&&`<span class="meta-chip">${condStr}</span>`,
+    r.rating&&`<span class="meta-chip">${stars(r.rating)}</span>`,
+    ...genres.map(g=>`<span class="meta-chip">${g}</span>`),
+  ].filter(Boolean).join('');
+  const count=playCounts[r.releaseId]||0;const inCycle=cycleLog[r.releaseId];
+  $('playInfoRow').innerHTML=`
+    <span id="playInfoText">${count>0?`Played <span>${count} time${count!==1?'s':''}</span>${inCycle?' · this cycle':''}`:'Not yet played'}</span>
+    <button class="play-edit-btn" id="playEditBtn" title="Adjust count">&#9998;</button>
+    <span id="playCounterWrap" style="display:none">
+      <span class="play-counter">
+        <button id="pcMinus">&minus;</button>
+        <span class="pc-val" id="pcVal">${count}</span>
+        <button id="pcPlus">+</button>
+      </span>
+    </span>`;
+  const lp=lastPlayed[r.releaseId];
+  $('lastPlayedRow').textContent=lp?`Last played: ${formatLastPlayed(lp)}`:'';
+  $('playBtn').textContent='Play';
+  $('againBtn').style.display=isShuffle?'':'none';
+  // Mood pills
+  const currentMoods=moodCache[r.releaseId]||[];
+  $('moodPills').innerHTML=MOODS.map(m=>`
+    <button class="mood-pill-btn${currentMoods.includes(m.id)?' selected':''}"
+      style="${currentMoods.includes(m.id)?`background:${m.bg};color:${m.color};border-color:${m.color}`:''}"
+      data-mood="${m.id}">${m.label}</button>`).join('');
+  $('moodPills').querySelectorAll('.mood-pill-btn').forEach(btn=>{
+    btn.onclick=()=>toggleMood(r.releaseId,btn.dataset.mood,btn);
+  });
+  // External links
+  const artistEnc=encodeURIComponent(r.artist);
+  const albumEnc=encodeURIComponent(r.title);
+  $('externalLinks').innerHTML=`
+    <a href="https://music.apple.com/us/search?term=${artistEnc}+${albumEnc}" target="_blank" rel="noopener" class="ext-link">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+      Apple
+    </a>
+    <a href="https://open.spotify.com/search/${artistEnc}%20${albumEnc}" target="_blank" rel="noopener" class="ext-link">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 15c2.5-1 5.5-1 8 0"/><path d="M7 12c3-1.5 7-1.5 10 0"/><path d="M6.5 9c3.5-2 8.5-2 11 0"/></svg>
+      Spotify
+    </a>
+    <a href="https://www.bandsintown.com/artist/${artistEnc}" target="_blank" rel="noopener" class="ext-link">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Tours
+    </a>
+    <a href="https://www.discogs.com/release/${r.releaseId}" target="_blank" rel="noopener" class="ext-link">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+      Discogs
+    </a>`;
+  // Notes
+  const note=notesCache[r.releaseId]||'';
+  const discogsNote=r.discogsNotes||'';
+  const displayNote=note||discogsNote;
+  $('notesDisplay').textContent=displayNote||(discogsNote?discogsNote:'Tap to add a note…');
+  $('notesDisplay').className='notes-display'+(displayNote?'':' empty');
+  $('notesEdit').value=note;
+  $('notesEdit').style.display='none';$('notesSave').style.display='none';
+  $('notesDisplay').style.display='block';
+  // Tabs
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab==='Tracks'));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active',p.id==='tabTracks'));
+  $('trackList').innerHTML='';$('tracksLoading').style.display='block';
+  $('aboutText').innerHTML='';$('aboutLoading').style.display='block';
+  $('sheetOverlay').classList.add('open');
+  $('sheetOverlay').scrollTop=0;
+  fetchTracks(r.releaseId).then(tracks=>{
+    $('tracksLoading').style.display='none';
+    if(!tracks.length){$('trackList').innerHTML='<li style="color:var(--muted);font-size:13px;padding:8px 0">No track data available</li>';return;}
+    $('trackList').innerHTML=tracks.map(t=>`<li class="track"><span class="track-pos">${t.position||'—'}</span><span class="track-title">${t.title}</span><span class="track-dur">${t.duration||''}</span></li>`).join('');
+  });
+  loadAbout(r).then(wiki=>{
+    $('aboutLoading').style.display='none';
+    if(!wiki){$('aboutText').innerHTML='<p>No Wikipedia entry found for this artist.</p>';return;}
+    const paras=wiki.text.split('\n').filter(p=>p.trim().length>30).slice(0,4);
+    $('aboutText').innerHTML=paras.map(p=>`<p>${p}</p>`).join('')+`<a href="${wiki.url}" target="_blank" class="wiki-link">Read more on Wikipedia →</a>`;
+  });
+  if(!art&&token&&r.releaseId){fetchReleaseArt(r.releaseId).then(()=>{if(artCache[r.releaseId])$('modalArt').innerHTML=`<img src="${artCache[r.releaseId]}" alt="">`;});}
+}
+
+async function toggleMood(releaseId,moodId,btn){
+  let moods=moodCache[releaseId]||[];
+  const idx=moods.indexOf(moodId);
+  if(idx>-1)moods.splice(idx,1);else moods.push(moodId);
+  moodCache[releaseId]=moods;
+  await dbSet('moods',releaseId,moods);
+  saveMetaToAPI(releaseId,{moods});
+  const m=MOODS.find(x=>x.id===moodId);
+  const selected=moods.includes(moodId);
+  btn.className='mood-pill-btn'+(selected?' selected':'');
+  btn.style.cssText=selected?`background:${m.bg};color:${m.color};border-color:${m.color}`:'';
+  renderGrid();updateShuffleLabel();
+}
+
+// Notes
+$('notesDisplay').onclick=()=>{
+  $('notesDisplay').style.display='none';
+  $('notesEdit').style.display='block';$('notesSave').style.display='inline-block';
+  $('notesEdit').focus();
+};
+$('notesSave').onclick=async()=>{
+  const note=$('notesEdit').value.trim();
+  if(currentRecord){
+    notesCache[currentRecord.releaseId]=note;
+    await dbSet('notes',currentRecord.releaseId,note);
+    saveMetaToAPI(currentRecord.releaseId,{notes:note});
+  }
+  $('notesDisplay').textContent=note||'Tap to add a note…';
+  $('notesDisplay').className='notes-display'+(note?'':' empty');
+  $('notesDisplay').style.display='block';
+  $('notesEdit').style.display='none';$('notesSave').style.display='none';
+  showToast('Note saved');
+};
+
+// ── Stats ─────────────────────────────────────────────────────
+function openStats(){
+  switchView('stats');renderStats();
+}
+
+// Smart normalize for wantlist records loaded from MySQL. The cache stores already-normalized records (flat `artist`/`title` fields), but older code paths sometimes pushed raw Discogs records (with `basic_information`). Detect which format we're holding and only normalize the raw ones.
+function normalizeWantlistRecord(r){
+  if(!r)return null;
+  return r.basic_information?normalizeRelease(r):r;
+}
+
+// Lazy-load wantlist from MySQL cache so the Wantlist stat tile shows the right count even if the user hasn't visited the Wantlist view yet. Re-renders Stats when data arrives. Also kicks off a background Discogs refresh so data stays fresh — without this, setting wantlistLoaded=true here would suppress the refresh that openWantlist() normally triggers.
+async function loadWantlistForStats(){
+  if(wantlistLoaded)return;
+  const res=await crate.loadWantlist();
+  if(res.success&&res.data){
+    wantlist=res.data.map(normalizeWantlistRecord).filter(Boolean);
+    wantlistLoaded=true;
+    if($('statsView').style.display!=='none')renderStats();
+    // Refresh from Discogs in the background so the wantlist doesn't go stale just because Stats loaded it first
+    if(token&&username)refreshWantlistFromDiscogs();
+  }
+}
+
+// Single source of truth for stats values. Used by both renderStats() (live tiles) and shareStats() (canvas image) so they cannot drift.
+function computeStatsData(){
+  const totalPlays=Object.values(playCounts).reduce((a,b)=>a+b,0);
+  const playedRecords=collection.filter(r=>playCounts[r.releaseId]>0);
+  const unplayedRecords=collection.filter(r=>!playCounts[r.releaseId]);
+  const cycleRemaining=collection.filter(r=>!cycleLog[r.releaseId]);
+
+  const artistPlays={};
+  collection.forEach(r=>{
+    const a=r.artist||'Unknown';
+    artistPlays[a]=(artistPlays[a]||0)+(playCounts[r.releaseId]||0);
+  });
+  const artistsSorted=Object.entries(artistPlays).sort((a,b)=>b[1]-a[1]);
+  const topArtist=artistsSorted.length?artistsSorted[0]:['--',0];
+
+  const genrePlays={};
+  collection.forEach(r=>{
+    const genres=genreCache[r.releaseId]||[];
+    const pc=playCounts[r.releaseId]||0;
+    genres.forEach(g=>{genrePlays[g]=(genrePlays[g]||0)+pc;});
+  });
+  const genresSorted=Object.entries(genrePlays).sort((a,b)=>b[1]-a[1]);
+  const topGenre=genresSorted.length?genresSorted[0]:['--',0];
+
+  // Top Decade — bucket by Math.floor(year/10)*10, ignore missing/invalid years
+  const decadeCounts={};
+  collection.forEach(r=>{
+    const y=parseInt(r.year);
+    if(y&&y>=1900){
+      const d=Math.floor(y/10)*10;
+      decadeCounts[d]=(decadeCounts[d]||0)+1;
+    }
+  });
+  const decadesSorted=Object.entries(decadeCounts).sort((a,b)=>b[1]-a[1]);
+  const topDecade=decadesSorted.length?[parseInt(decadesSorted[0][0]),decadesSorted[0][1]]:[null,0];
+
+  const uniqueArtists=[...new Set(collection.map(r=>r.artist).filter(Boolean))].length;
+  const uniqueGenresSet=new Set();
+  Object.values(genreCache).forEach(g=>(g||[]).forEach(x=>uniqueGenresSet.add(x)));
+
+  return {
+    totalPlays,
+    playedCount:playedRecords.length,
+    unplayedCount:unplayedRecords.length,
+    cycleRemainingCount:cycleRemaining.length,
+    topArtist,
+    topGenre,
+    topDecade,
+    uniqueArtists,
+    uniqueGenres:uniqueGenresSet.size,
+    wantlistCount:wantlist.length,
+    collectionSize:collection.length,
+    currentCycle
+  };
+}
+
+function renderStats(){
+  const s=computeStatsData();
+
+  // Lazy-load wantlist if not yet loaded — re-renders Stats when ready
+  if(!wantlistLoaded)loadWantlistForStats();
+
+  const decadeLabel=s.topDecade[0]?`${s.topDecade[0]}s`:'--';
+  const decadeSub=s.topDecade[0]?`${s.topDecade[1]} record${s.topDecade[1]!==1?'s':''}`:'no year data';
+
+  $('statTiles').innerHTML=`
+    <div class="stat-tile tile-red" data-tile="plays">
+      <div class="stat-tile-label">Total Plays</div>
+      <div class="stat-tile-value">${s.totalPlays}</div>
+      <div class="stat-tile-sub">all time</div>
+    </div>
+    <div class="stat-tile tile-amber" data-tile="played">
+      <div class="stat-tile-label">Played</div>
+      <div class="stat-tile-value">${s.playedCount}</div>
+      <div class="stat-tile-sub">of ${s.collectionSize} records</div>
+    </div>
+    <div class="stat-tile tile-blue" data-tile="unplayed">
+      <div class="stat-tile-label">Unplayed</div>
+      <div class="stat-tile-value">${s.unplayedCount}</div>
+      <div class="stat-tile-sub">records</div>
+    </div>
+    <div class="stat-tile tile-teal" data-tile="cycle">
+      <div class="stat-tile-label">Cycle ${s.currentCycle}</div>
+      <div class="stat-tile-value">${s.cycleRemainingCount}</div>
+      <div class="stat-tile-sub">remaining this cycle</div>
+    </div>
+    <div class="stat-tile tile-purple" data-tile="topartist">
+      <div class="stat-tile-label">Top Artist</div>
+      <div class="stat-tile-value" style="font-size:20px;line-height:1.2">${s.topArtist[0]}</div>
+      <div class="stat-tile-sub">${s.topArtist[1]} plays</div>
+    </div>
+    <div class="stat-tile tile-green" data-tile="topgenre">
+      <div class="stat-tile-label">Top Genre</div>
+      <div class="stat-tile-value" style="font-size:20px;line-height:1.2">${s.topGenre[0]}</div>
+      <div class="stat-tile-sub">${s.topGenre[1]} plays</div>
+    </div>
+    <div class="stat-tile tile-orange" data-tile="artists">
+      <div class="stat-tile-label">Artists</div>
+      <div class="stat-tile-value">${s.uniqueArtists}</div>
+      <div class="stat-tile-sub">in your crate</div>
+    </div>
+    <div class="stat-tile tile-rose" data-tile="genres">
+      <div class="stat-tile-label">Genres</div>
+      <div class="stat-tile-value">${s.uniqueGenres}</div>
+      <div class="stat-tile-sub">across collection</div>
+    </div>
+    <div class="stat-tile tile-indigo" data-tile="topdecade">
+      <div class="stat-tile-label">Top Decade</div>
+      <div class="stat-tile-value">${decadeLabel}</div>
+      <div class="stat-tile-sub">${decadeSub}</div>
+    </div>
+    <div class="stat-tile tile-yellow" data-tile="wantlist">
+      <div class="stat-tile-label">Wantlist</div>
+      <div class="stat-tile-value">${s.wantlistCount}</div>
+      <div class="stat-tile-sub">records hunting</div>
+    </div>`;
+
+  $('statTiles').querySelectorAll('.stat-tile').forEach(tile=>{
+    tile.onclick=()=>{
+      // Wantlist tile opens the existing Wantlist view (which has its own sort/filter/search and Discogs links) instead of a stat drill overlay
+      if(tile.dataset.tile==='wantlist'){closeAllOverlays();setActiveNav('navWantlist');openWantlist();return;}
+      openStatDrill(tile.dataset.tile);
+    };
+  });
+}
+
+function openStatDrill(tile){
+  const playedRecords=collection.filter(r=>playCounts[r.releaseId]>0);
+  const unplayedRecords=collection.filter(r=>!playCounts[r.releaseId]);
+  const cycleRemaining=collection.filter(r=>!cycleLog[r.releaseId]);
+  let title='',html='';
+
+  if(tile==='plays'){
+    title='Most Played';
+    html=`<div class="controls-row"><button class="ctrl-btn" id="playsSortBtn">Sort: ${playsSortLabels[playsSortIdx]}</button></div>`+renderRecordList(sortPlaysList(playedRecords));
+  }else if(tile==='played'){
+    title='Played Records';
+    html=renderRecordList([...playedRecords].sort((a,b)=>new Date(lastPlayed[b.releaseId]||0)-new Date(lastPlayed[a.releaseId]||0)));
+  }else if(tile==='unplayed'){
+    title='Unplayed Records';
+    html=renderRecordList(unplayedRecords);
+  }else if(tile==='cycle'){
+    title='Remaining This Cycle';
+    html=renderRecordList(cycleRemaining);
+  }else if(tile==='topartist'){
+    title='Artists by Plays';
+    const artistPlays={};const artistIdMap={};
+    collection.forEach(r=>{const a=r.artist||'Unknown';artistPlays[a]=(artistPlays[a]||0)+(playCounts[r.releaseId]||0);if(r.artistId)artistIdMap[a]=r.artistId;});
+    const sorted=Object.entries(artistPlays).sort((a,b)=>b[1]-a[1]).filter(a=>a[1]>0);
+    html=renderAggList(sorted,true,artistIdMap);
+  }else if(tile==='topgenre'){
+    title='Genres by Plays';
+    const genrePlays={};
+    collection.forEach(r=>{(genreCache[r.releaseId]||[]).forEach(g=>{genrePlays[g]=(genrePlays[g]||0)+(playCounts[r.releaseId]||0);});});
+    const sorted=Object.entries(genrePlays).sort((a,b)=>b[1]-a[1]).filter(g=>g[1]>0);
+    html=renderAggList(sorted,true);
+  }else if(tile==='artists'){
+    title='All Artists';
+    const ct={};const artistIdMap={};
+    collection.forEach(r=>{const a=r.artist||'Unknown';ct[a]=(ct[a]||0)+1;if(r.artistId)artistIdMap[a]=r.artistId;});
+    html=renderAggList(Object.entries(ct).sort((a,b)=>b[1]-a[1]).map(([n,c])=>[n,c+' record'+(c!==1?'s':'')]),false,artistIdMap);
+  }else if(tile==='genres'){
+    title='All Genres';
+    const ct={};Object.values(genreCache).forEach(g=>(g||[]).forEach(x=>{ct[x]=(ct[x]||0)+1;}));
+    html=renderAggList(Object.entries(ct).sort((a,b)=>b[1]-a[1]).map(([n,c])=>[n,c+' record'+(c!==1?'s':'')]),false);
+  }else if(tile==='topdecade'){
+    // Records from the top decade, sorted by year then artist
+    const decadeCounts={};
+    collection.forEach(r=>{const y=parseInt(r.year);if(y&&y>=1900){const d=Math.floor(y/10)*10;decadeCounts[d]=(decadeCounts[d]||0)+1;}});
+    const top=Object.entries(decadeCounts).sort((a,b)=>b[1]-a[1])[0];
+    if(top){
+      const decade=parseInt(top[0]);
+      title=`${decade}s Records`;
+      const records=collection.filter(r=>{const y=parseInt(r.year);return y>=decade&&y<decade+10;}).sort((a,b)=>{const ay=parseInt(a.year)||0,by=parseInt(b.year)||0;return ay-by||(a.artist||'').localeCompare(b.artist||'');});
+      html=renderRecordList(records);
+    }
+  }
+
+  if(!html){html='<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">No records to show</div>';}
+  $('drillHeaderTitle').textContent=title;
+  $('drillContent').innerHTML=html;
+  pushModalState();showNav();
+  $('statDrillOverlay').classList.add('open');
+  $('statDrillOverlay').scrollTop=0;
+
+  wireDrillTaps(playedRecords);
+}
+
+function wireDrillTaps(playedRecords){
+  // Wire up record taps
+  $('drillContent').querySelectorAll('.stat-record-item').forEach(item=>{
+    item.onclick=(e)=>{
+      // Don't open album if tapping artist name
+      if(e.target.closest('.tappable-artist'))return;
+      const r=collection.find(x=>x.releaseId===item.dataset.id);
+      if(r){openSheet(r,false);}
+    };
+  });
+  // Wire up artist name taps in drill-down
+  $('drillContent').querySelectorAll('.tappable-artist').forEach(el=>{
+    el.onclick=(e)=>{e.stopPropagation();openArtistPage(el.dataset.artistId,el.dataset.artistName);};
+  });
+  // Wire up Most Played sort cycle
+  const psb=$('playsSortBtn');
+  if(psb&&playedRecords){
+    psb.onclick=()=>{
+      playsSortIdx=(playsSortIdx+1)%playsSortModes.length;
+      playsSortMode=playsSortModes[playsSortIdx];
+      $('drillContent').innerHTML=`<div class="controls-row"><button class="ctrl-btn" id="playsSortBtn">Sort: ${playsSortLabels[playsSortIdx]}</button></div>`+renderRecordList(sortPlaysList(playedRecords));
+      wireDrillTaps(playedRecords);
+    };
+  }
+}
+
+function closeStatDrill(){
+  $('statDrillOverlay').classList.remove('open');
+}
+
+function closeArtistPage(){
+  $('artistOverlay').classList.remove('open');
+}
+
+async function openArtistPage(artistId,artistName){
+  if(!artistId)return;
+  const artist=artistsDB[artistId]||{};
+  const name=artist.artist_name||artistName||'Unknown Artist';
+  $('artistHeaderTitle').textContent=name;
+
+  // Find all albums by this artist in the collection
+  const albums=collection.filter(r=>r.artistId===artistId);
+  albums.sort((a,b)=>(playCounts[b.releaseId]||0)-(playCounts[a.releaseId]||0));
+
+  // Stats
+  const totalPlays=albums.reduce((sum,r)=>sum+(playCounts[r.releaseId]||0),0);
+  const mostPlayed=albums.length?albums[0]:null;
+  const mostPlayedCount=mostPlayed?(playCounts[mostPlayed.releaseId]||0):0;
+
+  // Build hero
+  const heroImg=artist.image_url?`<img src="${artist.image_url}" alt="">`:'<div class="artist-ph">&#9835;</div>';
+
+  // Build stats row
+  const statsHtml=`<div class="artist-stat-row">
+    <div class="artist-stat-box"><div class="artist-stat-val">${totalPlays}</div><div class="artist-stat-label">Total Plays</div></div>
+    <div class="artist-stat-box"><div class="artist-stat-val">${albums.length}</div><div class="artist-stat-label">Albums Owned</div></div>
+    <div class="artist-stat-box"><div class="artist-stat-val">${mostPlayedCount}</div><div class="artist-stat-label">Most Played</div></div>
+  </div>`;
+
+  // Build discography (In My Crate)
+  let discHtml='';
+  if(albums.length){
+    discHtml=albums.map(r=>{
+      const art=artCache[r.releaseId];
+      const count=playCounts[r.releaseId]||0;
+      return`<div class="artist-disc-item" data-id="${r.releaseId}">
+        <div class="artist-disc-art">${art?`<img src="${art}" alt="">`:''}</div>
+        <div class="artist-disc-info">
+          <div class="artist-disc-title">${r.title}</div>
+          <div class="artist-disc-meta">${r.year||''}${r.format?' / '+r.format:''}</div>
+        </div>
+        <div class="artist-disc-plays">${count>0?'&#9654; '+count:'Unplayed'}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // External links
+  const artistEnc=encodeURIComponent(name);
+  const linksHtml=`<div class="external-links">
+    <a href="https://music.apple.com/us/search?term=${artistEnc}" target="_blank" rel="noopener" class="ext-link">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+      Apple
+    </a>
+    <a href="https://open.spotify.com/search/${artistEnc}" target="_blank" rel="noopener" class="ext-link">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 15c2.5-1 5.5-1 8 0"/><path d="M7 12c3-1.5 7-1.5 10 0"/><path d="M6.5 9c3.5-2 8.5-2 11 0"/></svg>
+      Spotify
+    </a>
+    <a href="https://www.bandsintown.com/artist/${artistEnc}" target="_blank" rel="noopener" class="ext-link">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Tours
+    </a>
+    <a href="${artist.discogs_url||'https://www.discogs.com/search/?type=artist&q='+artistEnc}" target="_blank" rel="noopener" class="ext-link">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+      Discogs
+    </a>
+  </div>`;
+
+  // Wiki URL and edit
+  const wikiUrl=artist.wiki_url||'';
+  const wikiDisplay=wikiUrl&&wikiUrl!=='__none__';
+  const wikiEditHtml=`<div id="artistWikiSection">
+    ${wikiDisplay?`<a href="${wikiUrl}" target="_blank" class="wiki-link">Read more on Wikipedia &#8594;</a>`:'<span style="color:var(--muted);font-size:12px">No Wikipedia link</span>'}
+    <button class="wiki-edit-btn" id="artistWikiEditBtn" title="Edit wiki URL">&#9998; Edit</button>
+    <div class="wiki-edit-row" id="artistWikiEditRow" style="display:none">
+      <input type="text" id="artistWikiInput" placeholder="Paste Wikipedia URL..." value="${wikiDisplay?wikiUrl:''}">
+      <button class="btn-accent" id="artistWikiSaveBtn" style="padding:6px 12px;font-size:12px">Save</button>
+    </div>
+  </div>`;
+
+  // Assemble full page
+  $('artistBody').innerHTML=`
+    <div class="artist-hero">
+      <div class="artist-hero-img">${heroImg}</div>
+      <div class="artist-hero-info">
+        <div class="artist-hero-name">${name}</div>
+        <div class="artist-hero-sub">${albums.length} album${albums.length!==1?'s':''} in your crate</div>
+      </div>
+    </div>
+    ${statsHtml}
+    <div class="artist-section">
+      <div class="artist-section-title">Bio</div>
+      <div class="artist-bio" id="artistBioText"><div class="loading-inline">Loading bio...</div></div>
+      ${wikiEditHtml}
+    </div>
+    <div class="artist-section">
+      <div class="artist-section-title">In My Crate</div>
+      ${discHtml||'<div style="color:var(--muted);font-size:13px">No albums found</div>'}
+    </div>
+    <div class="artist-section">
+      <div class="artist-section-title">Listen & Explore</div>
+      ${linksHtml}
+    </div>`;
+
+  // Open overlay
+  pushModalState();showNav();
+  $('artistOverlay').classList.add('open');
+  $('artistOverlay').scrollTop=0;
+
+  // Wire up album taps — close artist page first so album detail is visible
+  $('artistBody').querySelectorAll('.artist-disc-item').forEach(item=>{
+    item.onclick=()=>{
+      const r=collection.find(x=>x.releaseId===item.dataset.id);
+      if(r){closeArtistPage();openSheet(r,false);}
+    };
+  });
+
+  // Wire up wiki edit
+  $('artistWikiEditBtn').onclick=()=>{
+    const row=$('artistWikiEditRow');
+    row.style.display=row.style.display==='none'?'flex':'none';
+  };
+  $('artistWikiSaveBtn').onclick=async()=>{
+    const newUrl=$('artistWikiInput').value.trim();
+    try{
+      const wRes=await crate.saveArtistWiki(artistId,newUrl);
+      if(!wRes.success)throw new Error(wRes.error||'save failed');
+      // Update local cache
+      if(artistsDB[artistId])artistsDB[artistId].wiki_url=newUrl;
+      else artistsDB[artistId]={artist_name:name,wiki_url:newUrl,bio_text:'',image_url:'',discogs_url:''};
+      artistsDB[artistId].bio_text='';
+      // Update wikiCache for all releases by this artist
+      collection.filter(r=>r.artistId===artistId).forEach(r=>{
+        wikiCache[r.releaseId]=newUrl||'__none__';
+        saveMetaToAPI(r.releaseId,{artist_wiki_url:newUrl||'__none__'});
+      });
+      showToast('Wiki URL updated');
+      // Reload the artist page to refresh bio
+      openArtistPage(artistId,name);
+    }catch(e){showToast('Save failed: '+e.message);}
+  };
+
+  // Load bio
+  loadArtistBio(artistId,name,wikiUrl);
+}
+
+async function loadArtistBio(artistId,artistName,wikiUrl){
+  const bioEl=$('artistBioText');
+  if(!bioEl)return;
+  // Check cached bio first
+  const artist=artistsDB[artistId];
+  if(artist&&artist.bio_text&&artist.bio_text.length>50){
+    const paras=artist.bio_text.split('\n').filter(p=>p.trim().length>30).slice(0,4);
+    bioEl.innerHTML=paras.map(p=>`<p>${p}</p>`).join('');
+    return;
+  }
+  // Fetch from Wikipedia
+  const url=wikiUrl&&wikiUrl!=='__none__'?wikiUrl:'';
+  let bio=null;
+  if(url){
+    try{
+      const wikiTitle=decodeURIComponent(url.split('/wiki/').pop());
+      const res=await fetch(`https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=true&explaintext=true&titles=${encodeURIComponent(wikiTitle)}&format=json&origin=*`);
+      const data=await res.json();
+      const page=Object.values(data.query.pages)[0];
+      if(page&&page.extract&&page.extract.length>100)bio=page.extract;
+    }catch{}
+  }
+  // Fallback: search Wikipedia
+  if(!bio){
+    const result=await fetchWikipedia(artistName,'');
+    if(result)bio=result.text;
+  }
+  if(bio){
+    const paras=bio.split('\n').filter(p=>p.trim().length>30).slice(0,4);
+    bioEl.innerHTML=paras.map(p=>`<p>${p}</p>`).join('');
+    // Cache bio to artist record
+    if(artistsDB[artistId]){
+      artistsDB[artistId].bio_text=bio;
+      crate.saveArtist(artistId,{bio_text:bio});
+    }
+  }else{
+    bioEl.innerHTML='<p style="color:var(--muted)">No biography found.</p>';
+  }
+}
+
+async function shareStats(){
+  // WYSIWYG: refresh the live tiles first so the on-screen view and the shared image are computed from the same data snapshot.
+  renderStats();
+  const s=computeStatsData();
+
+  const W=1080,H=1080;
+  const canvas=document.createElement('canvas');
+  canvas.width=W;canvas.height=H;
+  const ctx=canvas.getContext('2d');
+
+  // Background (matches app --bg)
+  ctx.fillStyle='#121212';
+  ctx.fillRect(0,0,W,H);
+
+  // Title
+  ctx.fillStyle='#ffffff';
+  ctx.font='700 44px -apple-system, BlinkMacSystemFont, sans-serif';
+  ctx.textAlign='center';
+  ctx.fillText("My Crate",W/2,82);
+
+  // 10 tiles, mirroring live Stats grid (labels, order, sub-text, tinted backgrounds)
+  const decadeLabel=s.topDecade[0]?`${s.topDecade[0]}s`:'--';
+  const decadeSub=s.topDecade[0]?`${s.topDecade[1]} record${s.topDecade[1]!==1?'s':''}`:'no year data';
+  const tiles=[
+    {label:'Total Plays',          value:String(s.totalPlays),          sub:'all time',                       bg:'#3a1212', color:'#ff6b5b'},
+    {label:'Played',               value:String(s.playedCount),         sub:`of ${s.collectionSize} records`, bg:'#2e1f00', color:'#f59e0b'},
+    {label:'Unplayed',             value:String(s.unplayedCount),       sub:'records',                        bg:'#0d1f35', color:'#60a5fa'},
+    {label:`Cycle ${s.currentCycle}`, value:String(s.cycleRemainingCount), sub:'remaining this cycle',        bg:'#0a2420', color:'#34d399'},
+    {label:'Top Artist',           value:String(s.topArtist[0]),        sub:`${s.topArtist[1]} plays`,        bg:'#1f1235', color:'#a78bfa'},
+    {label:'Top Genre',            value:String(s.topGenre[0]),         sub:`${s.topGenre[1]} plays`,         bg:'#0a2e14', color:'#4ade80'},
+    {label:'Artists',              value:String(s.uniqueArtists),       sub:'in your crate',                  bg:'#2e1a00', color:'#fb923c'},
+    {label:'Genres',               value:String(s.uniqueGenres),        sub:'across collection',              bg:'#2e0a1a', color:'#fb7185'},
+    {label:'Top Decade',           value:decadeLabel,                   sub:decadeSub,                        bg:'#1a1a3a', color:'#818cf8'},
+    {label:'Wantlist',             value:String(s.wantlistCount),       sub:'records hunting',                bg:'#2e2a00', color:'#facc15'},
+  ];
+
+  // 5x2 grid — tile height shrunk from 180 to 156 to fit five rows in 1080
+  const cols=2,tileW=480,tileH=156,gapX=40,gapY=18;
+  const startX=(W-cols*tileW-(cols-1)*gapX)/2;
+  const startY=130;
+
+  tiles.forEach((t,i)=>{
+    const col=i%cols,row=Math.floor(i/cols);
+    const x=startX+col*(tileW+gapX);
+    const y=startY+row*(tileH+gapY);
+
+    // Tinted background (mirrors .tile-* CSS classes from live grid)
+    ctx.fillStyle=t.bg;
+    ctx.beginPath();
+    if(ctx.roundRect){ctx.roundRect(x,y,tileW,tileH,12);}
+    else{ctx.moveTo(x+12,y);ctx.lineTo(x+tileW-12,y);ctx.quadraticCurveTo(x+tileW,y,x+tileW,y+12);ctx.lineTo(x+tileW,y+tileH-12);ctx.quadraticCurveTo(x+tileW,y+tileH,x+tileW-12,y+tileH);ctx.lineTo(x+12,y+tileH);ctx.quadraticCurveTo(x,y+tileH,x,y+tileH-12);ctx.lineTo(x,y+12);ctx.quadraticCurveTo(x,y,x+12,y);}
+    ctx.fill();
+
+    // Label (uppercase, accent color)
+    ctx.fillStyle=t.color;
+    ctx.font='600 16px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.textAlign='left';
+    ctx.fillText(t.label.toUpperCase(),x+24,y+38);
+
+    // Value (white, large for numbers, smaller for text labels) — y positions tuned for tileH=156
+    ctx.fillStyle='#ffffff';
+    const isText=isNaN(t.value);
+    ctx.font=isText?'700 30px -apple-system, BlinkMacSystemFont, sans-serif':'700 56px -apple-system, BlinkMacSystemFont, sans-serif';
+    const valText=truncText(ctx,t.value,tileW-48);
+    ctx.fillText(valText,x+24,isText?y+82:y+98);
+
+    // Sub-text (muted white)
+    ctx.fillStyle='rgba(255,255,255,0.55)';
+    ctx.font='400 16px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillText(t.sub,x+24,y+tileH-18);
+  });
+
+  // Branding (anchored below the 5-row grid)
+  const brandY=startY+5*(tileH+gapY)+8;
+  ctx.fillStyle='#e53935';
+  ctx.fillRect(W/2-40,brandY,80,3);
+  ctx.fillStyle='#888888';
+  ctx.font='600 22px -apple-system, BlinkMacSystemFont, sans-serif';
+  ctx.textAlign='center';
+  ctx.fillText("Elbrink's Crate",W/2,brandY+32);
+
+  // Export
+  canvas.toBlob(async(blob)=>{
+    if(!blob){showToast('Failed to generate image');return;}
+    const file=new File([blob],'elbrinks-crate-stats.png',{type:'image/png'});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      try{await navigator.share({files:[file],title:"My Crate Stats"});}
+      catch(e){if(e.name!=='AbortError')showToast('Share cancelled');}
+    }else{
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url;a.download='elbrinks-crate-stats.png';
+      document.body.appendChild(a);a.click();document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('Image saved');
+    }
+  },'image/png');
+}
+
+function renderRecordList(records){
+  if(!records.length)return'';
+  return`<div class="stat-list">${records.map(r=>{
+    const art=artCache[r.releaseId];const count=playCounts[r.releaseId]||0;
+    const lp=formatLastPlayed(lastPlayed[r.releaseId]);
+    return`<div class="stat-record-item" data-id="${r.releaseId}">
+      <div class="stat-record-art">${art?`<img src="${art}" alt="">`:''}</div>
+      <div class="stat-record-info">
+        <div class="stat-record-title">${r.title}</div>
+        <div class="stat-record-artist">${r.artistId?`<span class="tappable-artist" data-artist-id="${r.artistId}" data-artist-name="${r.artist}">${r.artist}</span>`:r.artist}</div>
+      </div>
+      <div class="stat-record-meta">${count>0?`<div class="play-count">&#9654; ${count}</div>`:''}${lp?`<div class="play-date">${lp}</div>`:''}</div>
+    </div>`;}).join('')}</div>`;
+}
+
+function renderAggList(items,isPlayCount,artistIdMap){
+  if(!items.length)return'';
+  return`<div class="stat-list">${items.map(([name,val])=>{
+    const aid=artistIdMap&&artistIdMap[name];
+    const nameHtml=aid?`<span class="tappable-artist" data-artist-id="${aid}" data-artist-name="${name}">${name}</span>`:name;
+    return`<div class="stat-agg-item">
+      <div class="stat-agg-name">${nameHtml}</div>
+      <div class="stat-agg-count">${isPlayCount?'&#9654; '+val:val}</div>
+    </div>`;}).join('')}</div>`;
+}
+
+// ── Shuffle ───────────────────────────────────────────────────
+function doShuffle(){
+  let pool=shuffleMode==='unplayed'?collection.filter(r=>!cycleLog[r.releaseId]):collection;
+  if(activeMoodFilter!=='all')pool=pool.filter(r=>(moodCache[r.releaseId]||[]).includes(activeMoodFilter));
+  if(shuffleMode==='unplayed'&&!pool.length){showToast('All records played — reset cycle in Settings');return;}
+  if(!pool.length){showToast('No records match current mood filter');return;}
+  openSheet(pool[Math.floor(Math.random()*pool.length)],true);
+}
+
+// ── Mood filter button ────────────────────────────────────────
+$('moodFilterBtn').onclick=()=>{
+  const opts=['all',...MOODS.map(m=>m.id)];
+  const idx=opts.indexOf(activeMoodFilter);
+  activeMoodFilter=opts[(idx+1)%opts.length];
+  const mood=MOODS.find(m=>m.id===activeMoodFilter);
+  $('moodFilterBtn').textContent=mood?`Mood: ${mood.label}`:'Mood: All';
+  $('moodFilterBtn').className='ctrl-btn'+(activeMoodFilter!=='all'?' active-filter':'');
+  applyFilters();updateShuffleLabel();
+};
+
+// ── Settings ──────────────────────────────────────────────────
+async function updateSettingsPanel(){
+  if(!db)return;
+  const cached=Object.values(artCache).filter(Boolean).length;
+  const total=[...new Set(collection.map(r=>r.releaseId).filter(Boolean))].length;
+  const lastSync=await dbGet('meta','lastSync');
+  const totalPlays=Object.values(playCounts).reduce((a,b)=>a+b,0);
+  const playedThisCycle=collection.filter(r=>cycleLog[r.releaseId]).length;
+  $('sUsername').textContent=username;$('sCount').textContent=`${collection.length} records`;
+  $('sArt').textContent=`${cached} of ${total} covers`;
+  $('sGenres').textContent=`${Object.keys(genreCache).length} of ${total} records`;
+  const uniqueArtists=[...new Set(collection.map(r=>r.artistId).filter(Boolean))].length;
+  const wikiFound=Object.values(wikiCache).filter(v=>v&&v!=='__none__').length;
+  const wikiChecked=Object.keys(wikiCache).length;
+  const artistsChecked=[...new Set(collection.filter(r=>wikiCache[r.releaseId]).map(r=>r.artistId).filter(Boolean))].length;
+  $('sWiki').textContent=`${wikiFound} linked · ${artistsChecked} of ${uniqueArtists} artists checked`;
+  const withCondition=collection.filter(r=>r.mediaCondition).length;
+  $('sConditions').textContent=`${withCondition} of ${total} records`;
+  const withMoods=Object.values(moodCache).filter(m=>m&&m.length).length;
+  $('sMoods').textContent=`${withMoods} of ${total} records`;
+  const withNotes=Object.values(notesCache).filter(n=>n&&n.trim()).length;
+  const discogsNotes=collection.filter(r=>r.discogsNotes&&r.discogsNotes.trim()).length;
+  $('sNotes').textContent=`${withNotes} user · ${discogsNotes} from Discogs`;
+  // Wantlist: show in-memory count + check DB count
+  const wantInMemory=wantlist.length;
+  $('sWantlist').textContent=wantInMemory?`${wantInMemory} records cached`:'Not yet loaded';
+  // Check DB for wantlist count (async, update when ready)
+  crate.loadWantlist().then(res=>{
+    if(res.success&&res.data){
+      const dbCount=res.data.length;
+      $('sWantlist').textContent=dbCount?`${dbCount} records in DB`+(wantInMemory&&wantInMemory!==dbCount?` (${wantInMemory} in memory)`:''):'Not yet synced — tap Wantlist tab';
+    }
+  });
+  $('sSync').textContent=lastSync?new Date(lastSync).toLocaleString():'Never';
+  $('sTotalPlays').textContent=`${totalPlays} plays all time`;
+  $('sCycle').textContent=`Cycle ${currentCycle} — ${playedThisCycle} of ${collection.length} played`;
+  $('modeAllBtn').className=shuffleMode==='all'?'btn-accent':'btn-ghost-sm';
+  $('modeAllBtn').style.cssText='flex:1;padding:10px';
+  $('modeUnplayedBtn').className=shuffleMode==='unplayed'?'btn-accent':'btn-ghost-sm';
+  $('modeUnplayedBtn').style.cssText='flex:1;padding:10px';
+}
+
+// ── Auth events ───────────────────────────────────────────────
+$('authSendBtn').onclick=async()=>{
+  const email=$('authEmailInput').value.trim();
+  if(!email){$('authStatus').textContent='Enter your email';return;}
+  $('authSendBtn').disabled=true;$('authSendBtn').textContent='Sending…';
+  const res=await crate.signIn(email);
+  $('authSendBtn').disabled=false;$('authSendBtn').textContent='Send magic link';
+  $('authStatus').textContent=res.success?'Magic link sent — check your email and tap it on this device.':('Failed: '+res.error);
+};
+$('hamSignOut').onclick=async()=>{
+  await crate.signOut();
+  $('hamburgerOverlay').classList.remove('open');
+  location.reload();
+};
+// Re-run init() when auth state flips on (magic-link callback) and we're sitting on the auth card.
+function renderAuthState(session){
+  if(session&&$('authCard').style.display==='block'){
+    $('authCard').style.display='none';
+    $('initLoading').style.display='block';
+    init();
+  }
+}
+
+// ── Events ────────────────────────────────────────────────────
+$('connectBtn').onclick=connect;
+
+// Nav buttons
+function setActiveNav(id){document.querySelectorAll('#bottomNav .nav-btn').forEach(b=>b.classList.remove('active'));if(id)$(id).classList.add('active');}
+$('navCrate').onclick=()=>{closeAllOverlays();setActiveNav('navCrate');switchView('crate');};
+$('navShuffle').onclick=()=>{closeAllOverlays();setActiveNav('navShuffle');doShuffle();};
+$('navStats').onclick=()=>{closeAllOverlays();setActiveNav('navStats');openStats();};
+$('shareStatsBtn').onclick=()=>shareStats();
+$('navWantlist').onclick=()=>{closeAllOverlays();setActiveNav('navWantlist');openWantlist();};
+$('navMoods').onclick=()=>{
+  closeAllOverlays();setActiveNav('navMoods');switchView('crate');
+  // Cycle mood filter from nav
+  const opts=['all',...MOODS.map(m=>m.id)];
+  const idx=opts.indexOf(activeMoodFilter);
+  activeMoodFilter=opts[(idx+1)%opts.length];
+  const mood=MOODS.find(m=>m.id===activeMoodFilter);
+  $('moodFilterBtn').textContent=mood?`Mood: ${mood.label}`:'Mood: All';
+  $('moodFilterBtn').className='ctrl-btn'+(activeMoodFilter!=='all'?' active-filter':'');
+  applyFilters();updateShuffleLabel();
+  showToast(mood?`Mood: ${mood.label}`:'Mood: All',1500);
+};
+
+// Hamburger menu
+$('hamburgerBtn').onclick=()=>{$('hamburgerOverlay').classList.add('open');};
+$('hamburgerOverlay').onclick=e=>{if(e.target===$('hamburgerOverlay'))closeHamburger();};
+function closeHamburger(){$('hamburgerOverlay').classList.remove('open');}
+$('hamSync').onclick=()=>{closeHamburger();fullSync();};
+$('hamSettings').onclick=()=>{closeHamburger();pushModalState();showNav();updateSettingsPanel();$('settingsOverlay').classList.add('open');};
+
+// Search overlay
+$('searchIconBtn').onclick=()=>{
+  $('searchOverlay').classList.add('open');
+  $('searchBarTop').focus();
+};
+$('searchCancel').onclick=()=>{
+  $('searchBarTop').value='';
+  $('searchOverlay').classList.remove('open');
+  if(activeView==='want')applyWantlistFilters();else applyFilters();
+};
+$('searchBarTop').addEventListener('input',()=>{
+  if(activeView==='want')applyWantlistFilters();else applyFilters();
+});
+
+// Sheet close handlers
+// Sheet close via drag handle area tap
+$('sheetOverlay').querySelector('.sheet-drag-handle').onclick=()=>{if(history.state?.modal)history.back();else closeSheet();};
+// Stat drill close button
+$('drillClose').onclick=()=>{if(history.state?.modal)history.back();else closeStatDrill();};
+$('artistClose').onclick=()=>{if(history.state?.modal)history.back();else closeArtistPage();};
+$('artistOverlay').querySelector('.sheet-drag-handle').onclick=()=>{if(history.state?.modal)history.back();else closeArtistPage();};
+$('settingsClose').onclick=()=>{if(history.state?.modal)history.back();else closeSettings();};
+$('settingsDoneBtn').onclick=()=>{if(history.state?.modal)history.back();else closeSettings();};
+
+// Swipe-down to close album detail
+(function(){
+  const sheet=$('sheetOverlay');
+  let startY=0,startScroll=0,swiping=false;
+  sheet.addEventListener('touchstart',e=>{
+    startY=e.touches[0].clientY;
+    startScroll=sheet.scrollTop;
+  },{passive:true});
+  sheet.addEventListener('touchmove',e=>{
+    const dy=e.touches[0].clientY-startY;
+    // Only swipe-close if already scrolled to top and pulling down
+    if(sheet.scrollTop<=0&&dy>10&&startScroll<=0){
+      swiping=true;
+      sheet.classList.add('swiping');
+      sheet.style.transform=`translateY(${Math.min(dy*0.5,200)}px)`;
+    }
+  },{passive:true});
+  sheet.addEventListener('touchend',e=>{
+    if(!swiping){return;}
+    const dy=e.changedTouches[0].clientY-startY;
+    sheet.classList.remove('swiping');
+    if(dy>120){
+      sheet.style.transform='translateY(100%)';
+      setTimeout(()=>{
+        sheet.style.transform='';
+        if(history.state?.modal)history.back();else closeSheet();
+      },200);
+    }else{
+      sheet.style.transform='';
+    }
+    swiping=false;
+  },{passive:true});
+})();
+
+// Swipe-down to close settings
+(function(){
+  const panel=$('settingsOverlay');
+  let startY=0,startScroll=0,swiping=false;
+  panel.addEventListener('touchstart',e=>{
+    startY=e.touches[0].clientY;
+    startScroll=panel.scrollTop;
+  },{passive:true});
+  panel.addEventListener('touchmove',e=>{
+    const dy=e.touches[0].clientY-startY;
+    if(panel.scrollTop<=0&&dy>10&&startScroll<=0){
+      swiping=true;
+      panel.classList.add('swiping');
+      panel.style.transform=`translateY(${Math.min(dy*0.5,200)}px)`;
+    }
+  },{passive:true});
+  panel.addEventListener('touchend',e=>{
+    if(!swiping){return;}
+    const dy=e.changedTouches[0].clientY-startY;
+    panel.classList.remove('swiping');
+    if(dy>120){
+      panel.style.transform='translateY(100%)';
+      setTimeout(()=>{
+        panel.style.transform='';
+        if(history.state?.modal)history.back();else closeSettings();
+      },200);
+    }else{
+      panel.style.transform='';
+    }
+    swiping=false;
+  },{passive:true});
+})();
+
+// Swipe-down to close stats drill-down
+(function(){
+  const panel=$('statDrillOverlay');
+  let startY=0,startScroll=0,swiping=false;
+  panel.addEventListener('touchstart',e=>{
+    startY=e.touches[0].clientY;
+    startScroll=panel.scrollTop;
+  },{passive:true});
+  panel.addEventListener('touchmove',e=>{
+    const dy=e.touches[0].clientY-startY;
+    if(panel.scrollTop<=0&&dy>10&&startScroll<=0){
+      swiping=true;
+      panel.classList.add('swiping');
+      panel.style.transform=`translateY(${Math.min(dy*0.5,200)}px)`;
+    }
+  },{passive:true});
+  panel.addEventListener('touchend',e=>{
+    if(!swiping){return;}
+    const dy=e.changedTouches[0].clientY-startY;
+    panel.classList.remove('swiping');
+    if(dy>120){
+      panel.style.transform='translateY(100%)';
+      setTimeout(()=>{
+        panel.style.transform='';
+        if(history.state?.modal)history.back();else closeStatDrill();
+      },200);
+    }else{
+      panel.style.transform='';
+    }
+    swiping=false;
+  },{passive:true});
+})();
+
+// Swipe-down to close artist page
+(function(){
+  const panel=$('artistOverlay');
+  let startY=0,startScroll=0,swiping=false;
+  panel.addEventListener('touchstart',e=>{
+    startY=e.touches[0].clientY;
+    startScroll=panel.scrollTop;
+  },{passive:true});
+  panel.addEventListener('touchmove',e=>{
+    const dy=e.touches[0].clientY-startY;
+    if(panel.scrollTop<=0&&dy>10&&startScroll<=0){
+      swiping=true;
+      panel.classList.add('swiping');
+      panel.style.transform=`translateY(${Math.min(dy*0.5,200)}px)`;
+    }
+  },{passive:true});
+  panel.addEventListener('touchend',e=>{
+    if(!swiping){return;}
+    const dy=e.changedTouches[0].clientY-startY;
+    panel.classList.remove('swiping');
+    if(dy>120){
+      panel.style.transform='translateY(100%)';
+      setTimeout(()=>{
+        panel.style.transform='';
+        if(history.state?.modal)history.back();else closeArtistPage();
+      },200);
+    }else{
+      panel.style.transform='';
+    }
+    swiping=false;
+  },{passive:true});
+})();
+
+$('playBtn').onclick=async()=>{
+  if(currentRecord)await logPlay(currentRecord.releaseId);
+  if(history.state?.modal)history.back();else closeSheet();
+  showToast('Enjoy the record ♪',2000);
+};
+$('againBtn').onclick=()=>doShuffle();
+
+// Play count editor
+document.addEventListener('click',e=>{
+  // Edit button toggles counter visibility
+  if(e.target.id==='playEditBtn'){
+    const wrap=$('playCounterWrap');
+    const showing=wrap.style.display!=='none';
+    wrap.style.display=showing?'none':'inline-flex';
+    return;
+  }
+  // Minus button
+  if(e.target.id==='pcMinus'){
+    if(!currentRecord)return;
+    let count=playCounts[currentRecord.releaseId]||0;
+    if(count<=0)return;
+    count--;
+    updatePlayCount(currentRecord.releaseId,count);
+    return;
+  }
+  // Plus button
+  if(e.target.id==='pcPlus'){
+    if(!currentRecord)return;
+    let count=playCounts[currentRecord.releaseId]||0;
+    count++;
+    updatePlayCount(currentRecord.releaseId,count);
+    return;
+  }
+});
+
+async function updatePlayCount(releaseId,count){
+  playCounts[releaseId]=count;
+  if(count<=0){
+    delete playCounts[releaseId];
+    delete cycleLog[releaseId];
+    delete lastPlayed[releaseId];
+  }else{
+    cycleLog[releaseId]=true;
+  }
+  // Update UI
+  $('pcVal').textContent=count;
+  const inCycle=cycleLog[releaseId];
+  $('playInfoText').innerHTML=count>0?`Played <span>${count} time${count!==1?'s':''}</span>${inCycle?' · this cycle':''}`:'Not yet played';
+  // Save to IndexedDB
+  await dbSet('plays','counts',playCounts);
+  await dbSet('plays','cycleLog',cycleLog);
+  await dbSet('plays','lastPlayed',lastPlayed);
+  // Save to Supabase
+  await crate.setPlayCount(releaseId,count);
+  renderGrid();
+}
+
+// Share a Pick
+$('shareBtn').onclick=()=>{if(currentRecord)shareRecord(currentRecord);};
+
+function getShareText(r){
+  const count=playCounts[r.releaseId]||0;
+  const moods=moodCache[r.releaseId]||[];
+  const year=r.year||'';
+  const phrases=[];
+  // Context-aware options
+  if(count>=10)phrases.push(`${r.title} by ${r.artist}. Spin #${count}. Still hits.`);
+  if(count>=5&&count<10)phrases.push(`${r.title} by ${r.artist}. ${count} spins and counting.`);
+  if(count===1)phrases.push(`First spin: ${r.title} by ${r.artist}.`);
+  if(count===0)phrases.push(`Dropping the needle on ${r.title} by ${r.artist} for the first time.`);
+  if(moods.includes('latenight'))phrases.push(`Late night with ${r.artist}. ${r.title} on the turntable.`);
+  if(moods.includes('mellow'))phrases.push(`${r.title} by ${r.artist}. Perfect for right now.`);
+  if(moods.includes('energy'))phrases.push(`${r.artist} bringing the energy. ${r.title}.`);
+  if(moods.includes('sunday'))phrases.push(`Sunday morning vinyl. ${r.title} by ${r.artist}.`);
+  if(moods.includes('deepcut'))phrases.push(`Deep cut. ${r.title} by ${r.artist}.`);
+  if(year&&parseInt(year)<1990)phrases.push(`${r.artist}, ${year}. ${r.title}. Some records age well.`);
+  // General fallbacks
+  phrases.push(
+    `On the turntable: ${r.title} by ${r.artist}.`,
+    `Spinning ${r.artist}. ${r.title}.`,
+    `${r.title} by ${r.artist}. Vinyl sounds different.`,
+    `Tonight's pick: ${r.title} by ${r.artist}.`,
+    `${r.artist} on wax. ${r.title}.`
+  );
+  // Pick a random one from the available phrases
+  return phrases[Math.floor(Math.random()*phrases.length)];
+}
+
+// EC logo cached across share calls so it only loads once per session
+let _ecLogoCache=null;
+function loadEcLogo(){
+  if(_ecLogoCache)return Promise.resolve(_ecLogoCache);
+  return new Promise((resolve)=>{
+    const img=new Image();
+    img.onload=()=>{_ecLogoCache=img;resolve(img);};
+    img.onerror=()=>resolve(null);
+    img.src='/vinyl/icon-v2-512.png';
+  });
+}
+
+// Fit a title into maxW: try 64px, then 56px on a single line; if still too wide, wrap to two lines at 56px (truncate the second if needed). Returns {lines:[...], fontSize}.
+function fitShareTitle(ctx,title,maxW){
+  const sizes=[64,56];
+  for(const sz of sizes){
+    ctx.font=`800 ${sz}px -apple-system, BlinkMacSystemFont, sans-serif`;
+    if(ctx.measureText(title).width<=maxW){
+      return {lines:[title],fontSize:sz};
+    }
+  }
+  // Wrap to two lines at 56px
+  const sz=56;
+  ctx.font=`800 ${sz}px -apple-system, BlinkMacSystemFont, sans-serif`;
+  const words=title.split(' ');
+  let line1='',rest='';
+  for(let i=0;i<words.length;i++){
+    const test=line1?line1+' '+words[i]:words[i];
+    if(ctx.measureText(test).width<=maxW){
+      line1=test;
+    }else{
+      rest=words.slice(i).join(' ');
+      break;
+    }
+  }
+  // Single very-long word edge case
+  if(!line1){line1=truncText(ctx,words[0]||title,maxW);rest=words.slice(1).join(' ');}
+  // Truncate the second line if it overflows
+  let line2=rest;
+  if(line2&&ctx.measureText(line2).width>maxW){
+    line2=truncText(ctx,line2,maxW);
+  }
+  return {lines:line2?[line1,line2]:[line1],fontSize:sz};
+}
+
+async function shareRecord(r){
+  const W=1080,H=1080;
+  const canvas=document.createElement('canvas');
+  canvas.width=W;canvas.height=H;
+  const ctx=canvas.getContext('2d');
+
+  // Default dark background (used both as base and as fallback if art fails)
+  ctx.fillStyle='#0e0e0e';
+  ctx.fillRect(0,0,W,H);
+
+  // Load and draw album art full-bleed (1080x1080, cover-fit cropping for non-square sources)
+  const artUrl=artCache[r.releaseId]||r.coverImage||'';
+  let artLoaded=false;
+  if(artUrl){
+    try{
+      const img=new Image();
+      const proxyUrl=crate.proxyImage(artUrl);
+      await new Promise((resolve,reject)=>{
+        img.onload=resolve;img.onerror=reject;
+        img.src=proxyUrl;
+      });
+      // Cover-fit: crop to square if source is non-square, then scale to canvas
+      const iw=img.naturalWidth||img.width,ih=img.naturalHeight||img.height;
+      let sx=0,sy=0,sw=iw,sh=ih;
+      if(iw>ih){sx=(iw-ih)/2;sw=ih;}
+      else if(ih>iw){sy=(ih-iw)/2;sh=iw;}
+      ctx.drawImage(img,sx,sy,sw,sh,0,0,W,H);
+      artLoaded=true;
+    }catch(e){/* art failed to load, dark background remains */}
+  }
+
+  // Reserve right margin for the brand badge so long titles don't collide with the logo
+  const textMaxW=W-340;
+
+  // Compute title fit BEFORE drawing scrim so we can size the scrim to the actual text block
+  const titleFit=fitShareTitle(ctx,r.title||'',textMaxW);
+  const titleLineH=Math.round(titleFit.fontSize*1.05);
+  const isTwoLines=titleFit.lines.length===2;
+
+  // Layout (anchored from bottom): details > title (1 or 2 lines) > artist > "NOW SPINNING" tagline
+  const detailsY=H-85;
+  const titleBaselineLast=H-130;                                 // last (or only) title line baseline
+  const titleBaselineFirst=isTwoLines?titleBaselineLast-titleLineH:titleBaselineLast;
+  const titleTopApprox=titleBaselineFirst-titleFit.fontSize;     // approx top of title block
+  const artistY=titleTopApprox-18;                               // artist baseline above title block
+  const taglineY=artistY-44;                                     // "NOW SPINNING" baseline above artist
+
+  // Scrim height adjusts so the tagline sits inside the dark portion of the gradient
+  if(artLoaded){
+    const scrimTop=taglineY-50;                                  // start fading just above the tagline
+    const scrimH=H-scrimTop;
+    const grad=ctx.createLinearGradient(0,scrimTop,0,H);
+    grad.addColorStop(0,'rgba(0,0,0,0)');
+    grad.addColorStop(0.4,'rgba(0,0,0,0.65)');
+    grad.addColorStop(1,'rgba(0,0,0,0.95)');
+    ctx.fillStyle=grad;
+    ctx.fillRect(0,scrimTop,W,scrimH);
+  }
+
+  // "NOW SPINNING" tagline (red, uppercase) — replaces the static red bar, signals this record is on the turntable
+  ctx.fillStyle='#e53935';
+  ctx.font='700 22px -apple-system, BlinkMacSystemFont, sans-serif';
+  ctx.textAlign='left';
+  ctx.fillText('NOW SPINNING',60,taglineY);
+
+  // Artist (uppercase, light gray)
+  ctx.fillStyle='#e0e0e0';
+  ctx.font='600 30px -apple-system, BlinkMacSystemFont, sans-serif';
+  ctx.fillText(truncText(ctx,(r.artist||'').toUpperCase(),textMaxW),60,artistY);
+
+  // Album title (1 or 2 lines, sized by fitShareTitle)
+  ctx.fillStyle='#ffffff';
+  ctx.font=`800 ${titleFit.fontSize}px -apple-system, BlinkMacSystemFont, sans-serif`;
+  titleFit.lines.forEach((line,i)=>{
+    ctx.fillText(line,60,titleBaselineFirst+i*titleLineH);
+  });
+
+  // Year / format
+  const details=[r.year,r.format].filter(Boolean).join(' / ');
+  if(details){
+    ctx.fillStyle='rgba(255,255,255,0.65)';
+    ctx.font='500 22px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillText(truncText(ctx,details,textMaxW),60,detailsY);
+  }
+
+  // Brand badge: EC logo bottom-right with wordmark above it
+  const ecLogo=await loadEcLogo();
+  if(ecLogo){
+    const lSize=80;
+    const lX=W-lSize-50;
+    const lY=H-lSize-50;
+    ctx.drawImage(ecLogo,lX,lY,lSize,lSize);
+    ctx.fillStyle='#ffffff';
+    ctx.font='600 18px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.textAlign='right';
+    ctx.fillText("Elbrink's Crate",W-50,lY-14);
+  }else{
+    // Fallback if logo fails to load: text-only wordmark
+    ctx.fillStyle='#ffffff';
+    ctx.font='600 20px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.textAlign='right';
+    ctx.fillText("Elbrink's Crate",W-50,H-50);
+  }
+
+  // Export
+  canvas.toBlob(async(blob)=>{
+    if(!blob){showToast('Failed to generate image');return;}
+    const file=new File([blob],'elbrinks-crate-pick.png',{type:'image/png'});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      try{
+        await navigator.share({files:[file],title:`${r.artist} - ${r.title}`,text:getShareText(r)});
+      }catch(e){if(e.name!=='AbortError')showToast('Share cancelled');}
+    }else{
+      // Fallback: download
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url;a.download='elbrinks-crate-pick.png';
+      document.body.appendChild(a);a.click();document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('Image saved');
+    }
+  },'image/png');
+}
+
+function truncText(ctx,text,maxW){
+  if(ctx.measureText(text).width<=maxW)return text;
+  while(text.length>0&&ctx.measureText(text+'...').width>maxW)text=text.slice(0,-1);
+  return text+'...';
+}
+
+$('sortBtn').onclick=()=>{
+  sortIdx=(sortIdx+1)%sortModes.length;sortMode=sortModes[sortIdx];
+  $('sortBtn').textContent=`Sort: ${sortLabels[sortIdx]}`;applyFilters();
+};
+$('wantSortBtn').onclick=()=>{
+  wantSortIdx=(wantSortIdx+1)%wantSortModes.length;wantSortMode=wantSortModes[wantSortIdx];
+  $('wantSortBtn').textContent=`Sort: ${wantSortLabels[wantSortIdx]}`;applyWantlistFilters();
+};
+
+// ── Index scrubber (alpha + year) ────────────────────────────
+let scrubberEnabled=false,scrubberFadeTimer=null;
+
+function updateAlphaScrubber(){
+  const scrubber=$('alphaScrubber');
+  const isCrate=activeView==='crate';
+  const isWant=activeView==='want';
+  // Determine which scrubber mode to show
+  const showAlpha=(isCrate&&sortMode==='alpha')||(isWant&&wantSortMode==='alpha');
+  const showYear=(isCrate&&sortMode==='year')||(isWant&&wantSortMode==='year');
+  if(!showAlpha&&!showYear){scrubber.classList.remove('visible');scrubberEnabled=false;return;}
+  const items=isCrate?filtered:wantFiltered;
+  const gridId=isCrate?'grid':'wantlistGrid';
+  if(items.length<10){scrubber.classList.remove('visible');scrubberEnabled=false;return;}
+
+  let markers=[];
+  if(showAlpha){
+    markers=[...new Set(items.map(r=>{
+      const ch=r.artist.charAt(0).toUpperCase();
+      return /[A-Z]/.test(ch)?ch:'#';
+    }))].sort((a,b)=>a==='#'?1:b==='#'?-1:a.localeCompare(b));
+  }else if(showYear){
+    const decades=[...new Set(items.map(r=>{
+      const y=r.year||0;
+      if(y<1950)return 0;
+      return Math.floor(y/10)*10;
+    }).filter(d=>d>0))].sort((a,b)=>b-a);
+    markers=decades.map(d=>({val:String(d),label:String(d)+'s'}));
+  }
+
+  // Normalize markers to {val, label} objects
+  markers=markers.map(m=>typeof m==='string'?{val:m,label:m}:m);
+  if(markers.length<3){scrubber.classList.remove('visible');scrubberEnabled=false;return;}
+  // Thin out if too many markers to fit comfortably (max ~14)
+  const maxMarkers=14;
+  if(markers.length>maxMarkers){
+    const step=Math.ceil(markers.length/maxMarkers);
+    markers=markers.filter((_,i)=>i%step===0||i===markers.length-1);
+  }
+  scrubber.innerHTML=markers.map(m=>`<span data-marker="${m.val}">${m.label}</span>`).join('');
+  scrubberEnabled=true;
+  // Start hidden, show on scroll
+  scrubber.classList.add('visible');
+  scrubber.classList.add('scroll-fade');
+
+  let lastJump='';
+  function jumpTo(marker){
+    if(marker===lastJump)return;lastJump=marker;
+    let idx=-1;
+    if(showAlpha){
+      idx=items.findIndex(r=>{
+        const ch=r.artist.charAt(0).toUpperCase();
+        return (/[A-Z]/.test(ch)?ch:'#')===marker;
+      });
+    }else if(showYear){
+      const decade=parseInt(marker);
+      idx=items.findIndex(r=>(r.year||0)>=decade&&(r.year||0)<decade+10);
+    }
+    if(idx<0)return;
+    const cards=$(gridId).querySelectorAll('.record-card');
+    if(cards[idx]){
+      // Manual scroll: get card position, subtract header height + padding
+      const headerH=$('topBar').offsetHeight||56;
+      const rect=cards[idx].getBoundingClientRect();
+      const scrollTarget=window.scrollY+rect.top-headerH-12;
+      window.scrollTo({top:Math.max(0,scrollTarget),behavior:'instant'});
+    }
+    // Show toast — show full decade label for year mode
+    const toast=$('alphaJumpToast');
+    const toastLabel=showYear?parseInt(marker)+'s':marker;
+    toast.textContent=toastLabel;toast.classList.add('show');
+    clearTimeout(toast._t);toast._t=setTimeout(()=>toast.classList.remove('show'),800);
+    // Keep scrubber visible while using it
+    scrubber.classList.remove('scroll-fade');
+    clearTimeout(scrubberFadeTimer);
+    scrubberFadeTimer=setTimeout(()=>{scrubber.classList.add('scroll-fade');},2000);
+  }
+
+  // Touch: tap + slide. No onclick (300ms delay on mobile Safari).
+  let touching=false,moved=false,tapTarget=null;
+  scrubber.ontouchstart=e=>{
+    touching=true;moved=false;lastJump='';e.preventDefault();
+    scrubber.classList.remove('scroll-fade');
+    // Capture which marker the finger landed on
+    const touch=e.touches[0];
+    const el=document.elementFromPoint(touch.clientX,touch.clientY);
+    tapTarget=(el&&el.dataset&&el.dataset.marker)?el.dataset.marker:null;
+  };
+  scrubber.ontouchmove=e=>{
+    if(!touching)return;moved=true;e.preventDefault();
+    const touch=e.touches[0];
+    const el=document.elementFromPoint(touch.clientX,touch.clientY);
+    if(el&&el.dataset&&el.dataset.marker)jumpTo(el.dataset.marker);
+  };
+  scrubber.ontouchend=()=>{
+    // If no move happened, it's a tap — jump to the letter
+    if(!moved&&tapTarget){lastJump='';jumpTo(tapTarget);}
+    touching=false;tapTarget=null;lastJump='';
+    clearTimeout(scrubberFadeTimer);
+    scrubberFadeTimer=setTimeout(()=>{scrubber.classList.add('scroll-fade');},2000);
+  };
+}
+
+function showScrubberOnScroll(){
+  if(!scrubberEnabled)return;
+  const scrubber=$('alphaScrubber');
+  scrubber.classList.remove('scroll-fade');
+  clearTimeout(scrubberFadeTimer);
+  scrubberFadeTimer=setTimeout(()=>{scrubber.classList.add('scroll-fade');},1500);
+}
+
+// ── Scroll-hide top & bottom bars ────────────────────────────
+let lastScrollY=0,scrollTicking=false;
+function onScroll(){
+  const y=window.scrollY;const delta=y-lastScrollY;
+  if(Math.abs(delta)<5){scrollTicking=false;return;}
+  if(delta>0&&y>60){
+    $('topBar').classList.add('bar-hidden');
+    $('bottomNav').classList.add('bar-hidden');
+  }else{
+    $('topBar').classList.remove('bar-hidden');
+    $('bottomNav').classList.remove('bar-hidden');
+  }
+  lastScrollY=y;scrollTicking=false;
+}
+window.addEventListener('scroll',()=>{
+  if(!scrollTicking){scrollTicking=true;requestAnimationFrame(onScroll);}
+  showScrubberOnScroll();
+},{ passive:true });
+
+$('fullSyncBtn').onclick=fullSync;
+$('resetCycleBtn').onclick=async()=>{await resetCycle();closeSettings();};
+$('resetConfirmBtn').onclick=async()=>{await resetCycle();$('resetModal').style.display='none';};
+$('clearPlaysBtn').onclick=clearPlayHistory;
+$('clearNotesBtn').onclick=async()=>{
+  if(!confirm('Clear all notes and moods? This cannot be undone.'))return;
+  await dbClear('moods');await dbClear('notes');
+  moodCache={};notesCache={};
+  renderGrid();closeSettings();showToast('Notes and moods cleared');
+};
+$('clearBtn').onclick=()=>{$('clearAllModal').style.display='flex';};
+$('clearAllCancelBtn').onclick=()=>{$('clearAllModal').style.display='none';};
+$('clearAllConfirmBtn').onclick=async()=>{
+  $('clearAllModal').style.display='none';
+  await Promise.all(['meta','art','collection','plays','genres'].map(dbClear));
+  collection=[];filtered=[];artCache={};genreCache={};token='';playCounts={};cycleLog={};lastPlayed={};currentCycle=1;
+  $('collectionView').style.display='none';$('bottomNav').style.display='none';$('hamburgerBtn').style.display='none';$('searchIconBtn').style.display='none';
+  $('setupCard').style.display='block';closeSettings();showToast('Data cleared — notes and moods kept');
+};
+$('modeAllBtn').onclick=()=>{shuffleMode='all';updateCrateProgress();updateShuffleLabel();updateSettingsPanel();};
+$('modeUnplayedBtn').onclick=()=>{shuffleMode='unplayed';updateCrateProgress();updateShuffleLabel();updateSettingsPanel();};
+
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.onclick=()=>{
+    // Capture tab position before switching to prevent page jump
+    const tabBar=tab.parentElement;
+    const overlay=$('sheetOverlay');
+    const tabTop=tabBar.getBoundingClientRect().top;
+    const overlayTop=overlay.getBoundingClientRect().top;
+    const offsetBefore=tabTop-overlayTop;
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+    tab.classList.add('active');$('tab'+tab.dataset.tab).classList.add('active');
+    // Restore scroll so tabs stay in same screen position
+    const offsetAfter=tabBar.getBoundingClientRect().top-overlay.getBoundingClientRect().top;
+    overlay.scrollTop+=offsetAfter-offsetBefore;
+  };
+});
+
+if(window.DeviceMotionEvent){
+  let last=0,lx=0,ly=0,lz=0;
+  window.addEventListener('devicemotion',e=>{
+    const{x,y,z}=e.accelerationIncludingGravity||{};const now=Date.now();
+    if(now-last>600){const d=Math.abs(x-lx)+Math.abs(y-ly)+Math.abs(z-lz);if(d>45)doShuffle();lx=x;ly=y;lz=z;last=now;}
+  });
+}
+
+// Wait for the Supabase module to attach window.crate, then run init().
+// Magic-link callbacks land here with a hash like #access_token=...; the
+// Supabase client picks them up automatically on first construction.
+crateReady.then(crate => {
+  crate.onAuthChange(session => {
+    // Re-render auth state on sign-in / sign-out without full reload.
+    if (typeof renderAuthState === 'function') renderAuthState(session);
+  });
+  init();
+});
+</script>
+</body>
+</html>
