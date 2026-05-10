@@ -346,8 +346,8 @@ let playCounts={},cycleLog={},lastPlayed={},currentCycle=1;
 let sortMode='alpha',sortIdx=0,activeMoodFilter='all';
 let activeView='crate',currentRecord=null;
 
-const sortModes=['alpha','date_desc','date_asc','rating','year','plays'];
-const sortLabels=['Artist A-Z','Date Added \u2193','Date Added \u2191','Rating \u2193','Year \u2193','Play Count \u2193'];
+const sortModes=['alpha','date_desc','date_asc','rating','year','plays','plays_asc'];
+const sortLabels=['Artist A-Z','Date Added \u2193','Date Added \u2191','Rating \u2193','Year \u2193','Play Count \u2193','Play Count \u2191'];
 
 // Wantlist
 let wantlist=[],wantFiltered=[],wantlistArtCache={};
@@ -502,6 +502,7 @@ function applySort(){
   else if(mode==='rating')filtered.sort((a,b)=>(b.rating||0)-(a.rating||0));
   else if(mode==='year')filtered.sort((a,b)=>(parseInt(b.year)||0)-(parseInt(a.year)||0));
   else if(mode==='plays')filtered.sort((a,b)=>(playCounts[b.releaseId]||0)-(playCounts[a.releaseId]||0));
+  else if(mode==='plays_asc')filtered.sort((a,b)=>(playCounts[a.releaseId]||0)-(playCounts[b.releaseId]||0));
 }
 
 $('sortBtn').onclick=()=>{

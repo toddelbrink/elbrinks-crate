@@ -593,8 +593,8 @@ let sortMode='alpha',sortIdx=2,artFetching=false,genreFetching=false;
 let shuffleMode='unplayed',activeMoodFilter='all',currentRecord=null,fromShuffle=false;
 let activeView='crate'; // 'crate','want','stats'
 
-const sortModes=['date_desc','date_asc','alpha','rating','year','plays'];
-const sortLabels=['Date Added ↓','Date Added ↑','Artist A–Z','Rating ↓','Year ↓','Play Count ↓'];
+const sortModes=['date_desc','date_asc','alpha','rating','year','plays','plays_asc'];
+const sortLabels=['Date Added ↓','Date Added ↑','Artist A–Z','Rating ↓','Year ↓','Play Count ↓','Play Count ↑'];
 
 // Wantlist sort
 const wantSortModes=['date_desc','date_asc','alpha','year'];
@@ -1384,6 +1384,7 @@ function sortFiltered(){
   else if(sortMode==='rating')filtered.sort((a,b)=>b.rating-a.rating);
   else if(sortMode==='year')filtered.sort((a,b)=>(b.year||0)-(a.year||0));
   else if(sortMode==='plays')filtered.sort((a,b)=>(playCounts[b.releaseId]||0)-(playCounts[a.releaseId]||0));
+  else if(sortMode==='plays_asc')filtered.sort((a,b)=>(playCounts[a.releaseId]||0)-(playCounts[b.releaseId]||0));
 }
 
 function getMoodColor(id){return MOODS.find(m=>m.id===id)||{color:'#888',bg:'#1f1f1f'};}
