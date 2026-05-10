@@ -694,6 +694,7 @@ async function init(){
   cycleLog=await dbGet('plays','cycleLog')||{};
   lastPlayed=await dbGet('plays','lastPlayed')||{};
   currentCycle=await dbGet('plays','currentCycle')||1;
+  crate.saveSetting('cycle',currentCycle);
   if(token)$('tokenInput').value=token;
   $('usernameInput').value=username;
   const gkeys=await dbGetAllKeys('genres');const gvals=await dbGetAll('genres');
@@ -819,6 +820,7 @@ async function resetCycle(){
   await crate.resetCycle();
   await dbSet('plays','cycleLog',cycleLog);
   await dbSet('plays','currentCycle',currentCycle);
+  crate.saveSetting('cycle',currentCycle);
   updateCrateProgress();renderGrid();
   showToast(`Cycle ${currentCycle} started`);
 }
@@ -831,6 +833,7 @@ async function clearPlayHistory(){
   await dbSet('plays','cycleLog',{});
   await dbSet('plays','lastPlayed',{});
   await dbSet('plays','currentCycle',1);
+  crate.saveSetting('cycle',1);
   updateCrateProgress();renderGrid();closeSettings();
   showToast('Play history cleared');
 }
