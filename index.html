@@ -518,6 +518,9 @@ input:focus,textarea:focus{border-color:var(--accent)}
           <div class="crate-label" id="settingsCrateLabel" style="margin-top:4px"></div>
         </div>
 
+        <div class="section-title">Discogs</div>
+        <div class="settings-row" style="align-items:center"><label>Token</label><button class="btn-ghost-sm" id="updateTokenBtn" style="padding:6px 14px;font-size:12px">Update</button></div>
+
         <div class="section-title">Data</div>
         <div id="syncStatus" style="display:none;margin-bottom:12px;padding:10px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
@@ -2775,6 +2778,18 @@ $('clearNotesBtn').onclick=async()=>{
   await dbClear('moods');await dbClear('notes');
   moodCache={};notesCache={};
   renderGrid();closeSettings();showToast('Notes and moods cleared');
+};
+$('updateTokenBtn').onclick=async()=>{
+  const input=prompt('Paste your new Discogs token:');
+  if(input===null)return;
+  const t=(input||'').trim();
+  if(!t){showToast('Token cannot be empty');return;}
+  $('updateTokenBtn').disabled=true;$('updateTokenBtn').textContent='Updating…';
+  await dbSet('meta','token',t);
+  const res=await crate.saveSetting('token',t);
+  $('updateTokenBtn').disabled=false;$('updateTokenBtn').textContent='Update';
+  if(res.success){token=t;showToast('Discogs token updated');}
+  else showToast('Update failed: '+(res.error||'unknown'),4000);
 };
 $('clearBtn').onclick=()=>{$('clearAllModal').style.display='flex';};
 $('clearAllCancelBtn').onclick=()=>{$('clearAllModal').style.display='none';};
