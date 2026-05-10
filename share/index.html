@@ -132,6 +132,8 @@ input:focus{border-color:var(--accent)}
 .tile-green{background:#0a2e14;color:#4ade80}
 .tile-orange{background:#2e1a00;color:#fb923c}
 .tile-rose{background:#2e0a1a;color:#fb7185}
+.tile-indigo{background:#1a1a3a;color:#818cf8}
+.tile-yellow{background:#2e2a00;color:#facc15}
 .stat-list{margin-bottom:20px}
 .stat-record-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer;border-radius:8px;transition:background .15s;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 .stat-record-item:hover{background:var(--surface2)}
@@ -702,6 +704,17 @@ function renderStats(){
   const uniqueGenres=new Set();
   Object.values(genreCache).forEach(g=>(g||[]).forEach(x=>uniqueGenres.add(x)));
 
+  // Top Decade — bucket by Math.floor(year/10)*10, ignore missing/invalid years
+  const decadeCounts={};
+  collection.forEach(r=>{const y=parseInt(r.year);if(y&&y>=1900){const d=Math.floor(y/10)*10;decadeCounts[d]=(decadeCounts[d]||0)+1;}});
+  const decadesSorted=Object.entries(decadeCounts).sort((a,b)=>b[1]-a[1]);
+  const topDecade=decadesSorted.length?[parseInt(decadesSorted[0][0]),decadesSorted[0][1]]:[null,0];
+  const decadeLabel=topDecade[0]?topDecade[0]+'s':'--';
+  const decadeSub=topDecade[0]?topDecade[1]+' record'+(topDecade[1]!==1?'s':''):'no year data';
+
+  // Lazy-load wantlist if not yet loaded — re-renders Stats when ready
+  if(!wantlistLoaded)loadWantlistForStats();
+
   $('statTiles').innerHTML=`
     <div class="stat-tile tile-red" data-tile="plays">
       <div class="stat-tile-label">Total Plays</div>
@@ -742,10 +755,24 @@ function renderStats(){
       <div class="stat-tile-label">Genres</div>
       <div class="stat-tile-value">${uniqueGenres.size}</div>
       <div class="stat-tile-sub">across collection</div>
+    </div>
+    <div class="stat-tile tile-indigo" data-tile="topdecade">
+      <div class="stat-tile-label">Top Decade</div>
+      <div class="stat-tile-value">${decadeLabel}</div>
+      <div class="stat-tile-sub">${decadeSub}</div>
+    </div>
+    <div class="stat-tile tile-yellow" data-tile="wantlist">
+      <div class="stat-tile-label">Wantlist</div>
+      <div class="stat-tile-value">${wantlist.length}</div>
+      <div class="stat-tile-sub">records hunting</div>
     </div>`;
 
   $('statTiles').querySelectorAll('.stat-tile').forEach(tile=>{
-    tile.onclick=()=>openStatDrill(tile.dataset.tile);
+    tile.onclick=()=>{
+      // Wantlist tile opens the existing Wantlist view (with its own sort/filter/search and Discogs Marketplace links) instead of a stat drill overlay
+      if(tile.dataset.tile==='wantlist'){closeAllOverlays();setActiveNav('navWantlist');switchView('want');loadWantlist();return;}
+      openStatDrill(tile.dataset.tile);
+    };
   });
 }
 
@@ -787,6 +814,17 @@ function openStatDrill(tile){
     title='All Genres';
     const ct={};Object.values(genreCache).forEach(g=>(g||[]).forEach(x=>{ct[x]=(ct[x]||0)+1;}));
     html=renderAggList(Object.entries(ct).sort((a,b)=>b[1]-a[1]).map(([n,c])=>[n,c+' record'+(c!==1?'s':'')]),false);
+  }else if(tile==='topdecade'){
+    // Records from the top decade, sorted by year then artist
+    const decadeCounts={};
+    collection.forEach(r=>{const y=parseInt(r.year);if(y&&y>=1900){const d=Math.floor(y/10)*10;decadeCounts[d]=(decadeCounts[d]||0)+1;}});
+    const top=Object.entries(decadeCounts).sort((a,b)=>b[1]-a[1])[0];
+    if(top){
+      const decade=parseInt(top[0]);
+      title=decade+'s Records';
+      const records=collection.filter(r=>{const y=parseInt(r.year);return y>=decade&&y<decade+10;}).sort((a,b)=>{const ay=parseInt(a.year)||0,by=parseInt(b.year)||0;return ay-by||(a.artist||'').localeCompare(b.artist||'');});
+      html=renderRecordList(records);
+    }
   }
 
   if(!html)html='<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">No records to show</div>';
@@ -965,6 +1003,17 @@ async function loadArtistBio(artistId,artistName,wikiUrl){
 
 // ---- Wantlist ----
 let wantlistLoaded=false;
+
+// Lazy-load wantlist from Supabase so the Wantlist stat tile shows the right count even if the user hasn't visited the Wantlist view. Re-renders Stats when data arrives.
+async function loadWantlistForStats(){
+  if(wantlistLoaded)return;
+  const res=await crate.loadWantlist();
+  if(res.success&&res.data){
+    wantlist=res.data.map(normalizeRelease).filter(Boolean);
+    wantlistLoaded=true;
+    if($('statsView').style.display!=='none')renderStats();
+  }
+}
 
 async function loadWantlist(){
   if(wantlistLoaded){applyWantlistFilters();return;}
