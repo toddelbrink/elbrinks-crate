@@ -341,9 +341,8 @@ input:focus,textarea:focus{border-color:var(--accent)}
   </div>
   <div class="setup-card" id="authCard" style="display:none">
     <h2>Elbrink's Crate</h2>
-    <p>Sign in to manage the collection. We'll email you a one-tap magic link.</p>
-    <div class="field"><label>Email</label><input type="email" id="authEmailInput" placeholder="you@example.com" autocomplete="email"></div>
-    <button class="btn-accent" id="authSendBtn" style="width:100%;padding:12px;font-size:15px">Send magic link</button>
+    <p>Sign in to manage the collection.</p>
+    <button class="btn-accent" id="authGoogleBtn" style="width:100%;padding:12px;font-size:15px">Continue with Google</button>
     <p id="authStatus" style="color:var(--muted);font-size:12px;margin-top:12px"></p>
   </div>
   <div class="setup-card" id="setupCard" style="display:none">
@@ -2154,20 +2153,22 @@ async function updateSettingsPanel(){
 }
 
 // ── Auth events ───────────────────────────────────────────────
-$('authSendBtn').onclick=async()=>{
-  const email=$('authEmailInput').value.trim();
-  if(!email){$('authStatus').textContent='Enter your email';return;}
-  $('authSendBtn').disabled=true;$('authSendBtn').textContent='Sending…';
-  const res=await crate.signIn(email);
-  $('authSendBtn').disabled=false;$('authSendBtn').textContent='Send magic link';
-  $('authStatus').textContent=res.success?'Magic link sent — check your email and tap it on this device.':('Failed: '+res.error);
+$('authGoogleBtn').onclick=async()=>{
+  $('authGoogleBtn').disabled=true;$('authGoogleBtn').textContent='Redirecting…';
+  $('authStatus').textContent='';
+  const res=await crate.signInWithGoogle();
+  if(!res.success){
+    $('authGoogleBtn').disabled=false;$('authGoogleBtn').textContent='Continue with Google';
+    $('authStatus').textContent='Failed: '+res.error;
+  }
+  // On success the browser is navigating to Google — no further UI needed.
 };
 $('hamSignOut').onclick=async()=>{
   await crate.signOut();
   $('hamburgerOverlay').classList.remove('open');
   location.reload();
 };
-// Re-run init() when auth state flips on (magic-link callback) and we're sitting on the auth card.
+// Re-run init() when auth state flips on (OAuth callback) and we're sitting on the auth card.
 function renderAuthState(session){
   if(session&&$('authCard').style.display==='block'){
     $('authCard').style.display='none';
