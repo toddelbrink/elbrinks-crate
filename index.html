@@ -677,24 +677,34 @@ async function init(){
     return;
   }
 
-  // Restore Discogs token/username from Supabase if IndexedDB was cleared.
-  // vinyl_settings is RLS-locked to authenticated; this works because we just gated above.
+  // Pull all settings from Supabase up front. vinyl_settings is RLS-locked to
+  // authenticated; this works because we just gated above. Multi-device user —
+  // Supabase is the cross-device source of truth.
+  const sRes=await crate.loadSettings();
+  const remote=(sRes.success&&sRes.data)?sRes.data:{};
+
+  // Discogs token/username: if local is empty, hydrate from remote; otherwise
+  // push local to remote so other devices stay in sync.
   if(!token){
-    const sRes=await crate.loadSettings();
-    if(sRes.success&&sRes.data){
-      if(sRes.data.token){token=sRes.data.token;await dbSet('meta','token',token);}
-      if(sRes.data.username){username=sRes.data.username;await dbSet('meta','username',username);}
-    }
+    if(remote.token){token=remote.token;await dbSet('meta','token',token);}
+    if(remote.username){username=remote.username;await dbSet('meta','username',username);}
   }else{
-    // Token exists locally — make sure Supabase has the same value for other admin devices.
     crate.saveSetting('token',token);
     crate.saveSetting('username',username);
   }
   playCounts=await dbGet('plays','counts')||{};
   cycleLog=await dbGet('plays','cycleLog')||{};
   lastPlayed=await dbGet('plays','lastPlayed')||{};
-  currentCycle=await dbGet('plays','currentCycle')||1;
-  crate.saveSetting('cycle',currentCycle);
+  // Cycle counter: Supabase wins across devices. If remote has a value, use
+  // it (and update the local cache). If remote is empty (first load after the
+  // cycle-persist fix), seed once from local.
+  if(remote.cycle!=null){
+    currentCycle=parseInt(remote.cycle)||1;
+    await dbSet('plays','currentCycle',currentCycle);
+  }else{
+    currentCycle=await dbGet('plays','currentCycle')||1;
+    crate.saveSetting('cycle',currentCycle);
+  }
   if(token)$('tokenInput').value=token;
   $('usernameInput').value=username;
   const gkeys=await dbGetAllKeys('genres');const gvals=await dbGetAll('genres');
