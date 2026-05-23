@@ -321,6 +321,9 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .feedback-sentiment-btn.selected{background:var(--accent);border-color:var(--accent);color:#fff}
 .feedback-textarea{width:100%;min-height:120px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:var(--font);font-size:14px;padding:12px;resize:vertical;line-height:1.5}
 .feedback-textarea:focus{outline:none;border-color:var(--accent)}
+.feedback-select{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:var(--font);font-size:14px;padding:12px;-webkit-appearance:none;appearance:none;cursor:pointer;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 18px) 50%,calc(100% - 12px) 50%;background-size:6px 6px;background-repeat:no-repeat;padding-right:36px}
+.feedback-select:focus{outline:none;border-color:var(--accent)}
+.feedback-select:invalid{color:var(--muted)}
 /* About */
 .about-hero{display:flex;flex-direction:column;align-items:center;padding:32px 16px 16px;gap:8px}
 .about-logo{width:80px;height:80px;border-radius:18px;overflow:hidden;background:var(--surface2)}
@@ -675,7 +678,7 @@ input:focus,textarea:focus{border-color:var(--accent)}
         <span class="settings-row-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v.01"/><path d="M11 12h1v5h1"/></svg></span>
         <div class="settings-row-content">
           <span class="settings-row-name">About</span>
-          <span class="settings-row-secondary" id="rowAboutSecondary">v1.0.0-step1</span>
+          <span class="settings-row-secondary" id="rowAboutSecondary">v1.0.0-step6</span>
         </div>
         <span class="settings-row-chevron">›</span>
       </button>
@@ -763,6 +766,13 @@ input:focus,textarea:focus{border-color:var(--accent)}
     <div class="mood-edit-list" id="moodEditList"></div>
     <button class="mood-add-btn" id="moodAddBtn">+ Add mood</button>
     <div class="subpanel-foot-note">Renaming a mood preserves the tag on existing records. Deleting one keeps the tag in your history (the pill just stops rendering). Reorder via drag ships in v1.1.</div>
+
+    <div class="subpanel-section-header" style="margin-top:24px">Auto-tagging</div>
+    <div class="subpanel-row" style="border-bottom:none">
+      <span class="subpanel-row-label">Apply mood heuristic</span>
+      <button class="subpanel-row-action" id="applyHeuristicBtn">Run</button>
+    </div>
+    <div class="subpanel-foot-note">Walks your collection and tags any record with no moods. Match is based on each mood's Discogs keyword list (edit a mood to change). Free — runs locally. "Suggest moods" via Claude ships with Step 7b.</div>
   </div>
 </div>
 
@@ -840,13 +850,21 @@ input:focus,textarea:focus{border-color:var(--accent)}
     <div class="subpanel-section-header">Send feedback</div>
     <div class="feedback-form">
       <div class="feedback-sentiments">
-        <button class="feedback-sentiment-btn" data-feedback-sentiment="positive">Working great</button>
-        <button class="feedback-sentiment-btn" data-feedback-sentiment="negative">Something's off</button>
+        <button class="feedback-sentiment-btn" data-feedback-sentiment="up">Working great</button>
+        <button class="feedback-sentiment-btn" data-feedback-sentiment="down">Something's off</button>
       </div>
+      <select class="feedback-select" id="feedbackCategory" required>
+        <option value="" disabled selected>Pick a category…</option>
+        <option value="bug">Bug</option>
+        <option value="idea">Idea</option>
+        <option value="confusion">Confusion</option>
+        <option value="praise">Praise</option>
+        <option value="other">Other</option>
+      </select>
       <textarea class="feedback-textarea" id="feedbackText" placeholder="What worked or didn't? Any thoughts?"></textarea>
       <button class="subpanel-row-action primary" id="feedbackSubmitBtn" style="align-self:flex-end;padding:10px 18px">Send</button>
     </div>
-    <div class="subpanel-foot-note">Feedback storage activates in Step 6. Drafts work today as a preview — submit posts a toast and clears the form.</div>
+    <div class="subpanel-foot-note">Goes straight to Todd. Sentiment and notes are optional; pick a category so it lands in the right pile.</div>
 
     <div class="subpanel-section-header">Telemetry</div>
     <div class="subpanel-row">
@@ -867,12 +885,12 @@ input:focus,textarea:focus{border-color:var(--accent)}
     <div class="about-hero">
       <div class="about-logo"><img src="/vinyl/icon-v2-512.png" alt="EC"></div>
       <div style="font-size:18px;font-weight:700">Elbrink's Crate</div>
-      <div class="about-version" id="aboutVersion">v1.0.0-step1</div>
+      <div class="about-version" id="aboutVersion">v1.0.0-step6</div>
     </div>
     <div class="about-credits">
       <p>A vinyl listening app for Discogs collectors. Built by Todd Elbrink with Vera as co-pilot.</p>
       <p>Collection data from <a href="https://www.discogs.com" target="_blank" rel="noopener" style="color:var(--accent)">Discogs</a>. Wikipedia bios from Wikimedia. Cover art served via Discogs CDN.</p>
-      <p>v1.0 brings multi-user support, per-user moods + themes, mood flipping, Recent Plays, and in-app feedback. Multi-user infrastructure ships across 10 build steps, and this is Step 1.</p>
+      <p>v1.0 brings multi-user support, per-user moods + themes, mood flipping, Recent Plays, and in-app feedback. Multi-user infrastructure ships across 10 build steps; Steps 1–6 are live.</p>
     </div>
   </div>
 </div>
@@ -909,7 +927,10 @@ input:focus,textarea:focus{border-color:var(--accent)}
     <label style="display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Name</label>
     <input type="text" id="moodEditName" maxlength="20" placeholder="e.g. Ragers" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 12px;font-family:var(--font);font-size:14px;margin-bottom:16px">
     <label style="display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Color</label>
-    <div id="moodEditColorPicker" style="display:flex;gap:8px;margin-bottom:20px;justify-content:space-between"></div>
+    <div id="moodEditColorPicker" style="display:flex;gap:8px;margin-bottom:16px;justify-content:space-between"></div>
+    <label style="display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Keywords <span style="text-transform:none;letter-spacing:0;font-weight:400;color:#666">— Discogs genres or styles, comma-separated</span></label>
+    <textarea id="moodEditKeywords" placeholder="e.g. Punk, Hardcore, Metal" style="width:100%;min-height:64px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 12px;font-family:var(--font);font-size:13px;resize:vertical;line-height:1.5;margin-bottom:6px"></textarea>
+    <div style="font-size:11px;color:#666;margin-bottom:20px;line-height:1.4">Used to auto-tag albums at sync time. Match is case-insensitive against the record's Discogs genres and styles.</div>
     <button id="moodEditSaveBtn" style="background:var(--accent);margin-bottom:8px">Save</button>
     <button id="moodEditDeleteBtn" style="background:transparent;color:var(--accent);border:1px solid var(--accent);margin-bottom:8px;display:none">Delete</button>
     <button id="moodEditCancelBtn" style="background:var(--surface2);color:var(--text)">Cancel</button>
@@ -927,6 +948,7 @@ input:focus,textarea:focus{border-color:var(--accent)}
 <script>
 const $=id=>document.getElementById(id);
 const DB='ElbrinksCrate',VER=5;
+const APP_VERSION='v1.0.0-step6';
 
 // Moods config
 // Locked 6-color mood palette (PRD §8.2). Each entry maps a color_key
@@ -959,11 +981,81 @@ async function loadMoodsFromServer(){
   }
   MOODS=(res.data||[]).map(m=>{
     const pal=MOOD_COLOR_PALETTE[m.color_key]||MOOD_COLOR_PALETTE.blue;
-    return {id:m.slug||m.id, label:m.mood_name, color:pal.fg, bg:pal.bg, uuid:m.id, color_key:m.color_key};
+    return {id:m.slug||m.id, label:m.mood_name, color:pal.fg, bg:pal.bg, uuid:m.id, color_key:m.color_key, keywords:Array.isArray(m.keywords)?m.keywords:[], sort_order:m.sort_order||0};
   });
 }
 
-let db,collection=[],filtered=[],artCache={},genreCache={},moodCache={},notesCache={},wikiCache={},artistsDB={},token='',username='telbrink';
+// ── Step 7a: mood heuristic ─────────────────────────────────
+// Parse a comma- or newline-separated keyword string into a deduped array.
+function parseKeywordsInput(str){
+  return [...new Set((str||'').split(/[,\n]/).map(s=>s.trim()).filter(Boolean))];
+}
+
+// Given a release's Discogs genres + styles arrays, return the best-matching
+// mood slug, or null if nothing matches. First match wins by sort_order.
+// Case-insensitive exact-string match against each mood's keywords list.
+// If no keyword match is found, falls back to the 'deepcut' mood if it exists
+// (per PRD §8.3a — Deep Cut is the catch-all).
+function applyMoodHeuristic(genres, styles){
+  if(!MOODS.length)return null;
+  const haystack=[...(genres||[]),...(styles||[])].map(s=>String(s||'').toLowerCase());
+  if(!haystack.length)return null;
+  const sorted=[...MOODS].sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+  for(const m of sorted){
+    if(m.id==='deepcut')continue; // catch-all evaluated last
+    const kws=(m.keywords||[]).map(k=>String(k||'').toLowerCase());
+    for(const k of kws){
+      if(k&&haystack.includes(k))return m.id;
+    }
+  }
+  // Try deepcut's specific keywords first
+  const deep=MOODS.find(m=>m.id==='deepcut');
+  if(deep){
+    const kws=(deep.keywords||[]).map(k=>String(k||'').toLowerCase());
+    for(const k of kws){
+      if(k&&haystack.includes(k))return deep.id;
+    }
+    // Fall back to deepcut even without a keyword match
+    return deep.id;
+  }
+  return null;
+}
+
+// Walks the in-memory collection. For each record with empty moodCache, runs
+// the heuristic and writes the matched slug. Skips records that already have
+// any mood (never overwrites user-set moods unless force=true). Writes all
+// changes in one bulkMeta call. Returns {scanned, changed, perMood}.
+async function applyMoodHeuristicToCollection({force=false, onProgress=null}={}){
+  const result={scanned:0, changed:0, perMood:{}};
+  if(!MOODS.length||!collection.length)return result;
+  const bulk={};
+  for(let i=0;i<collection.length;i++){
+    const r=collection[i];
+    const rid=r.releaseId;
+    if(!rid)continue;
+    result.scanned++;
+    const existing=moodCache[rid]||[];
+    if(!force&&existing.length)continue;
+    const genres=genreCache[rid]||r.genres||[];
+    const styles=stylesCache[rid]||r.styles||[];
+    const slug=applyMoodHeuristic(genres,styles);
+    if(!slug)continue;
+    if(existing.length===1&&existing[0]===slug)continue;
+    const newMoods=[slug];
+    moodCache[rid]=newMoods;
+    try{await dbSet('moods',rid,newMoods);}catch{}
+    bulk[rid]={moods:newMoods};
+    result.changed++;
+    result.perMood[slug]=(result.perMood[slug]||0)+1;
+    if(onProgress)onProgress(result.scanned,collection.length,result.changed);
+  }
+  if(Object.keys(bulk).length){
+    try{await crate.bulkMeta(bulk);}catch(e){console.error('[heuristic] bulkMeta failed',e);}
+  }
+  return result;
+}
+
+let db,collection=[],filtered=[],artCache={},genreCache={},stylesCache={},moodCache={},notesCache={},wikiCache={},artistsDB={},token='',username='telbrink';
 let playCounts={},cycleLog={},lastPlayed={},currentCycle=1;
 let sortMode='alpha',sortIdx=2,artFetching=false,genreFetching=false;
 let shuffleMode='unplayed',activeMoodFilter='all',currentRecord=null,fromShuffle=false;
@@ -1187,6 +1279,8 @@ async function loadMetaFromAPI(){
       // Genres: array wins (even if empty)
       const genres=row.genres||[];
       genreCache[id]=genres;dbSet('genres',id,genres);
+      // Styles: array wins (Discogs narrow labels used by mood heuristic)
+      stylesCache[id]=row.styles||[];
       // Moods: array wins
       const moods=row.moods||[];
       moodCache[id]=moods;dbSet('moods',id,moods);
@@ -1357,6 +1451,7 @@ async function fetchReleaseArt(releaseId){
     const img=data.images&&data.images[0]&&data.images[0].uri||null;
     if(img){artCache[releaseId]=img;await dbSet('art',releaseId,img);updateCardArt(releaseId,img);saveMetaToAPI(releaseId,{art_url:img});}
     if(!genreCache[releaseId]){const genres=data.genres||[];if(genres.length){genreCache[releaseId]=genres;await dbSet('genres',releaseId,genres);saveMetaToAPI(releaseId,{genres});}}
+    if(!stylesCache[releaseId]||!stylesCache[releaseId].length){const styles=data.styles||[];if(styles.length){stylesCache[releaseId]=styles;saveMetaToAPI(releaseId,{styles});}}
   }catch{}
 }
 
@@ -1380,12 +1475,20 @@ async function startGenreFetch(){
       const data=await fetchReleaseDetail(r.releaseId);
       if(data){
         const genres=data.genres||[];genreCache[r.releaseId]=genres;await dbSet('genres',r.releaseId,genres);saveMetaToAPI(r.releaseId,{genres});
+        const styles=data.styles||[];stylesCache[r.releaseId]=styles;if(styles.length)saveMetaToAPI(r.releaseId,{styles});
         if(!artCache[r.releaseId]){const img=data.images&&data.images[0]&&data.images[0].uri||null;if(img){artCache[r.releaseId]=img;await dbSet('art',r.releaseId,img);updateCardArt(r.releaseId,img);saveMetaToAPI(r.releaseId,{art_url:img});}}
       }
     }catch{}
     done++;setProgress(`Loading genres… ${done} of ${missing.length}`,Math.round(done/missing.length*100));await sleep(1100);
   }
-  genreFetching=false;hideProgress();updateSettingsPanel();showToast('Genres loaded');
+  genreFetching=false;hideProgress();updateSettingsPanel();
+  // Auto-apply mood heuristic to any records with empty moods. Free, deterministic.
+  const heuristicResult=await applyMoodHeuristicToCollection();
+  if(heuristicResult.changed>0){
+    showToast(`Genres loaded — auto-tagged ${heuristicResult.changed} album${heuristicResult.changed===1?'':'s'}`);
+  }else{
+    showToast('Genres loaded');
+  }
 }
 
 async function seedDiscogsNotes(){
@@ -3533,9 +3636,32 @@ function renderMoodsSubpanel(){
     addBtn.textContent='+ Add mood';
     addBtn.onclick=()=>openMoodEditModal(null);
   }
+  // Wire Apply Heuristic button (Step 7a)
+  const heurBtn=document.getElementById('applyHeuristicBtn');
+  if(heurBtn){
+    heurBtn.onclick=runHeuristicFromSettings;
+  }
   // Update Moods row secondary text in the main settings list
   const sec=document.getElementById('rowMoodsSecondary');
   if(sec)sec.textContent=`${MOODS.length} mood${MOODS.length===1?'':'s'}`;
+}
+
+async function runHeuristicFromSettings(){
+  const btn=document.getElementById('applyHeuristicBtn');
+  if(!btn)return;
+  if(!collection.length){showToast('No collection loaded yet');return;}
+  btn.disabled=true;
+  const orig=btn.textContent;
+  btn.textContent='Running…';
+  const result=await applyMoodHeuristicToCollection();
+  btn.disabled=false;
+  btn.textContent=orig;
+  if(result.changed===0){
+    showToast(result.scanned?'No new matches — every record already has moods':'Nothing to scan');
+  }else{
+    showToast(`Tagged ${result.changed} of ${result.scanned} records`);
+    if(typeof applyFilters==='function')applyFilters();
+  }
 }
 
 // ── Mood add/edit modal ─────────────────────────────────────
@@ -3547,6 +3673,7 @@ function openMoodEditModal(mood){
   if(!modal)return;
   document.getElementById('moodEditModalTitle').textContent=mood?'Edit mood':'Add mood';
   document.getElementById('moodEditName').value=mood?mood.label:'';
+  document.getElementById('moodEditKeywords').value=mood&&mood.keywords?mood.keywords.join(', '):'';
   // Render color picker
   const picker=document.getElementById('moodEditColorPicker');
   const currentColorKey=mood?mood.color_key:'blue';
@@ -3575,14 +3702,15 @@ async function saveMoodFromModal(){
   const name=document.getElementById('moodEditName').value.trim();
   const colorBtn=document.querySelector('#moodEditColorPicker .mood-color-swatch.selected');
   const colorKey=colorBtn?colorBtn.getAttribute('data-color-key'):'blue';
+  const keywords=parseKeywordsInput(document.getElementById('moodEditKeywords').value);
   if(!name){showToast('Mood needs a name');return;}
   const saveBtn=document.getElementById('moodEditSaveBtn');
   saveBtn.disabled=true;saveBtn.textContent='Saving…';
   let res;
   if(_moodEditTarget){
-    res=await crate.updateMood(_moodEditTarget.uuid,{mood_name:name, color_key:colorKey});
+    res=await crate.updateMood(_moodEditTarget.uuid,{mood_name:name, color_key:colorKey, keywords});
   }else{
-    res=await crate.createMood({mood_name:name, color_key:colorKey});
+    res=await crate.createMood({mood_name:name, color_key:colorKey, keywords});
   }
   saveBtn.disabled=false;saveBtn.textContent='Save';
   if(!res.success){showToast('Save failed: '+(res.error?.message||'unknown'));return;}
@@ -3728,22 +3856,40 @@ $('crateNameEditBtn').onclick=async()=>{
   showToast('Crate name updated');
 };
 
-// ── Feedback form (Step 6 wires real storage; today just toasts) ──
+// ── Feedback form (v1 / Step 6) ──
+// Toggle on click; second click on the same button deselects.
 let _feedbackSentiment=null;
 document.querySelectorAll('[data-feedback-sentiment]').forEach(btn=>{
   btn.addEventListener('click',()=>{
-    _feedbackSentiment=btn.getAttribute('data-feedback-sentiment');
-    document.querySelectorAll('[data-feedback-sentiment]').forEach(b=>b.classList.toggle('selected',b===btn));
+    const v=btn.getAttribute('data-feedback-sentiment');
+    _feedbackSentiment=(_feedbackSentiment===v)?null:v;
+    document.querySelectorAll('[data-feedback-sentiment]').forEach(b=>{
+      b.classList.toggle('selected',b.getAttribute('data-feedback-sentiment')===_feedbackSentiment);
+    });
   });
 });
-$('feedbackSubmitBtn').onclick=()=>{
+$('feedbackSubmitBtn').onclick=async()=>{
+  const category=$('feedbackCategory').value;
   const text=$('feedbackText').value.trim();
-  if(!_feedbackSentiment&&!text){showToast('Pick a sentiment or write something first');return;}
-  console.log('[feedback preview]',{sentiment:_feedbackSentiment,text});
+  if(!category){showToast('Pick a category first');return;}
+  const btn=$('feedbackSubmitBtn');
+  btn.disabled=true;
+  const origLabel=btn.textContent;
+  btn.textContent='Sending…';
+  const res=await crate.submitFeedback({
+    sentiment:_feedbackSentiment,
+    category,
+    body:text||null,
+    app_version:APP_VERSION,
+  });
+  btn.disabled=false;
+  btn.textContent=origLabel;
+  if(!res.success){showToast('Send failed: '+(res.error||'unknown'));return;}
   $('feedbackText').value='';
+  $('feedbackCategory').value='';
   _feedbackSentiment=null;
   document.querySelectorAll('[data-feedback-sentiment]').forEach(b=>b.classList.remove('selected'));
-  showToast('Thanks — feedback storage activates in Step 6');
+  showToast('Thanks. Todd reads every note.');
 };
 
 // Wait for the Supabase module to attach window.crate, then run init().
