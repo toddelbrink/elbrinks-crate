@@ -289,10 +289,9 @@ input:focus,textarea:focus{border-color:var(--accent)}
 /* Theme preset cards */
 .theme-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:16px}
 @media(min-width:600px){.theme-grid{grid-template-columns:1fr 1fr 1fr}}
-.theme-card{background:var(--surface);border:2px solid var(--border);border-radius:12px;padding:12px;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;position:relative}
+.theme-card{background:var(--surface);border:2px solid var(--border);border-radius:12px;padding:12px;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;position:relative;color:inherit;font-family:var(--font);text-align:left;width:100%;display:block}
 .theme-card:active{opacity:.8}
 .theme-card.active{border-color:var(--accent)}
-.theme-card.locked{opacity:.55;cursor:default}
 .theme-card-preview{height:48px;border-radius:6px;margin-bottom:8px;display:flex;overflow:hidden;border:1px solid var(--border)}
 .theme-card-preview-swatch{flex:1}
 .theme-card-name{font-size:14px;color:var(--text);font-weight:600;line-height:1.2}
@@ -746,7 +745,7 @@ input:focus,textarea:focus{border-color:var(--accent)}
   <div class="subpanel-body">
     <div class="subpanel-section-header">Choose a look</div>
     <div class="theme-grid" id="themeGrid"></div>
-    <div class="subpanel-foot-note">Theme switching activates in Step 4. Previews show the palettes that ship with v1.</div>
+    <div class="subpanel-foot-note">Tap a theme to apply it. The change persists across devices when you're signed in. Mood pill colors stay constant across themes so your tags read the same everywhere.</div>
   </div>
 </div>
 
@@ -1055,6 +1054,9 @@ async function init(){
   // Supabase is the cross-device source of truth.
   const sRes=await crate.loadSettings();
   const remote=(sRes.success&&sRes.data)?sRes.data:{};
+
+  // Apply active theme (Step 4). Default 'dark' if user has never picked one.
+  applyTheme(remote.theme||'dark');
 
   // Discogs token/username: if local is empty, hydrate from remote; otherwise
   // push local to remote so other devices stay in sync.
@@ -3236,14 +3238,54 @@ if(window.DeviceMotionEvent){
 // (fullSyncBtn, updateTokenBtn, etc.) continue to work because we preserved
 // every element ID, just relocated them into the appropriate subpanel.
 
-// Theme presets (Step 4 wires actual switching; this just renders cards)
-const THEMES=[
-  {id:'dark',name:'Dark Default',active:true,palette:['#0a0a0a','#1a1a1a','#ef4444','#fafafa']},
-  {id:'midnight',name:'Midnight Blue',active:false,palette:['#050913','#0d1424','#3b82f6','#e0e7ff']},
-  {id:'sunset',name:'Sunset',active:false,palette:['#1a0a05','#2d1208','#f97316','#fef3c7']},
-  {id:'forest',name:'Forest',active:false,palette:['#050f08','#0d1f12','#10b981','#d1fae5']},
-  {id:'paper',name:'Paper',active:false,palette:['#f5f1e8','#ffffff','#7c2d12','#1c1917']},
-];
+// Theme presets (PRD §9.2). Each preset is a full CSS-variable set that
+// gets injected onto :root by applyTheme(). Switching is per-user and
+// persists to vinyl_settings.theme.
+const THEMES={
+  dark: {
+    name:'Dark Default',
+    vars:{bg:'#0a0a0a', surface:'#1a1a1a', surface2:'#2a2a2a', text:'#f5f5f5', muted:'#888888', accent:'#ef4444', border:'#2a2a2a'}
+  },
+  midnight: {
+    name:'Midnight Blue',
+    vars:{bg:'#0a1020', surface:'#131c33', surface2:'#1d2a4a', text:'#f0f4ff', muted:'#7a8aaa', accent:'#3b82f6', border:'#1d2a4a'}
+  },
+  sunset: {
+    name:'Sunset',
+    vars:{bg:'#1a0a05', surface:'#2a140a', surface2:'#3d1e0f', text:'#fff4eb', muted:'#b58970', accent:'#fb923c', border:'#3d1e0f'}
+  },
+  forest: {
+    name:'Forest',
+    vars:{bg:'#0a1408', surface:'#142010', surface2:'#1f3018', text:'#f0fff0', muted:'#7aaa7a', accent:'#22c55e', border:'#1f3018'}
+  },
+  paper: {
+    name:'Paper',
+    vars:{bg:'#fafaf8', surface:'#ffffff', surface2:'#f0f0ec', text:'#1a1a1a', muted:'#666666', accent:'#ef4444', border:'#e0e0dc'}
+  },
+};
+let activeThemeKey='dark';
+
+function applyTheme(key){
+  const t=THEMES[key]||THEMES.dark;
+  const root=document.documentElement;
+  for(const[k,v] of Object.entries(t.vars))root.style.setProperty('--'+k,v);
+  activeThemeKey=key;
+  // Reflect on theme subpanel if open
+  const sec=document.getElementById('rowThemeSecondary');
+  if(sec)sec.textContent=t.name;
+  // Re-paint active card if subpanel rendered
+  document.querySelectorAll('.theme-card').forEach(c=>{
+    c.classList.toggle('active',c.getAttribute('data-theme-id')===key);
+  });
+}
+async function setTheme(key){
+  if(!THEMES[key])return;
+  applyTheme(key);
+  if(typeof crate!=='undefined'&&crate.saveSetting){
+    const res=await crate.saveSetting('theme',key);
+    if(!res.success){console.error('[theme] saveSetting failed:',res.error);showToast('Theme saved locally only');return;}
+  }
+}
 
 function openSubpanel(name){
   const el=document.getElementById('subpanel'+name.charAt(0).toUpperCase()+name.slice(1));
@@ -3390,16 +3432,20 @@ async function deleteMoodFromModal(){
 function renderThemeSubpanel(){
   const grid=document.getElementById('themeGrid');
   if(!grid)return;
-  grid.innerHTML=THEMES.map(t=>`
-    <div class="theme-card ${t.active?'active':'locked'}" data-theme-id="${t.id}">
-      ${!t.active?'<span class="theme-card-badge">Step 4</span>':''}
-      <div class="theme-card-preview">
-        ${t.palette.map(c=>`<span class="theme-card-preview-swatch" style="background:${c}"></span>`).join('')}
-      </div>
-      <div class="theme-card-name">${t.name}</div>
-      <div class="theme-card-status">${t.active?'Active':'Preview only'}</div>
-    </div>
-  `).join('');
+  grid.innerHTML=Object.entries(THEMES).map(([key,t])=>{
+    const preview=[t.vars.bg, t.vars.surface, t.vars.accent, t.vars.text];
+    const isActive=key===activeThemeKey;
+    return `
+      <button class="theme-card${isActive?' active':''}" data-theme-id="${key}" type="button">
+        <div class="theme-card-preview">
+          ${preview.map(c=>`<span class="theme-card-preview-swatch" style="background:${c}"></span>`).join('')}
+        </div>
+        <div class="theme-card-name">${t.name}</div>
+      </button>`;
+  }).join('');
+  grid.querySelectorAll('.theme-card').forEach(card=>{
+    card.addEventListener('click',()=>setTheme(card.getAttribute('data-theme-id')));
+  });
 }
 function renderAccountSubpanel(){
   // Pull email + name from Supabase session if available. crate.getSession()
