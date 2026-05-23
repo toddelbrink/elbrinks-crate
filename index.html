@@ -172,7 +172,10 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .notes-save{margin-top:6px;display:none}
 /* Mood */
 .mood-section{margin-bottom:16px}
-.mood-label{color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;margin-bottom:8px}
+.mood-label{color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between}
+.mood-suggest-btn{background:none;border:none;color:var(--accent);font-family:var(--font);font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;cursor:pointer;padding:2px 0;-webkit-tap-highlight-color:transparent}
+.mood-suggest-btn:disabled{color:var(--muted);cursor:default}
+.mood-suggest-btn .spark{display:inline-block;margin-right:3px}
 .mood-pills{display:flex;gap:6px;justify-content:space-between}
 .mood-pill-btn{flex:1;text-align:center;border:1px solid var(--border);border-radius:16px;cursor:pointer;font-family:var(--font);font-size:12px;font-weight:600;padding:6px 4px;background:var(--surface2);color:var(--muted);transition:all .15s}
 .mood-pill-btn.selected{color:#fff;border-color:transparent}
@@ -569,7 +572,10 @@ input:focus,textarea:focus{border-color:var(--accent)}
       </div>
       <!-- Mood tagging -->
       <div class="mood-section">
-        <div class="mood-label">Mood</div>
+        <div class="mood-label">
+          <span>Mood</span>
+          <button class="mood-suggest-btn" id="moodSuggestBtn" type="button"><span class="spark">✦</span>Suggest</button>
+        </div>
         <div class="mood-pills" id="moodPills"></div>
       </div>
       <!-- External links -->
@@ -768,11 +774,17 @@ input:focus,textarea:focus{border-color:var(--accent)}
     <div class="subpanel-foot-note">Renaming a mood preserves the tag on existing records. Deleting one keeps the tag in your history (the pill just stops rendering). Reorder via drag ships in v1.1.</div>
 
     <div class="subpanel-section-header" style="margin-top:24px">Auto-tagging</div>
-    <div class="subpanel-row" style="border-bottom:none">
+    <div class="subpanel-row">
       <span class="subpanel-row-label">Apply mood heuristic</span>
       <button class="subpanel-row-action" id="applyHeuristicBtn">Run</button>
     </div>
-    <div class="subpanel-foot-note">Walks your collection and tags any record with no moods. Match is based on each mood's Discogs keyword list (edit a mood to change). Free — runs locally. "Suggest moods" via Claude ships with Step 7b.</div>
+    <div class="subpanel-foot-note">Walks your collection and tags any record with no moods. Match is based on each mood's Discogs keyword list (edit a mood to change). Free — runs locally.</div>
+
+    <div class="subpanel-row" style="border-bottom:none;margin-top:12px">
+      <span class="subpanel-row-label">Suggest via Claude</span>
+      <button class="subpanel-row-action" id="bulkSuggestBtn">Run</button>
+    </div>
+    <div class="subpanel-foot-note">Calls Claude Haiku for up to 200 untagged records per session (50/day limit). More nuanced than the heuristic. Costs a few cents per run.</div>
   </div>
 </div>
 
@@ -2051,6 +2063,49 @@ async function openSheet(r,isShuffle=false){
   if(!art&&token&&r.releaseId){fetchReleaseArt(r.releaseId).then(()=>{if(artCache[r.releaseId])$('modalArt').innerHTML=`<img src="${artCache[r.releaseId]}" alt="">`;});}
 }
 
+// Step 7b: Suggest moods via Claude Haiku for the currently open album.
+// Replaces existing moods with the returned set so the click result is predictable.
+async function suggestMoodsForCurrentRecord(){
+  if(!currentRecord)return;
+  const btn=$('moodSuggestBtn');
+  if(!btn)return;
+  const rid=currentRecord.releaseId;
+  btn.disabled=true;
+  const origHTML=btn.innerHTML;
+  btn.innerHTML='<span class="spark">✦</span>Asking…';
+  const res=await crate.suggestMoods({
+    release_id:rid,
+    artist:currentRecord.artist||null,
+    title:currentRecord.title||'',
+    year:currentRecord.year||null,
+    genres:genreCache[rid]||currentRecord.genres||[],
+    styles:stylesCache[rid]||currentRecord.styles||[],
+  });
+  btn.disabled=false;
+  btn.innerHTML=origHTML;
+  if(!res.success){
+    if(res.rateLimited)showToast('Hit the daily suggest limit (50/day)');
+    else showToast('Suggest failed: '+(res.error||'unknown'));
+    return;
+  }
+  const slugs=res.data?.moods||[];
+  if(!slugs.length){showToast('No suggestion');return;}
+  moodCache[rid]=slugs;
+  await dbSet('moods',rid,slugs);
+  try{await crate.bulkMeta({[rid]:{moods:slugs}});}catch{}
+  // Re-render the pills row
+  $('moodPills').querySelectorAll('.mood-pill-btn').forEach(b=>{
+    const mid=b.getAttribute('data-mood');
+    const selected=slugs.includes(mid);
+    const m=MOODS.find(x=>x.id===mid);
+    b.className='mood-pill-btn'+(selected?' selected':'');
+    b.style.cssText=selected&&m?`background:${m.bg};color:${m.color};border-color:${m.color}`:'';
+  });
+  renderGrid();updateShuffleLabel();
+  const labels=slugs.map(s=>MOODS.find(m=>m.id===s)?.label||s).join(', ');
+  showToast(res.data.cached?`Set: ${labels} (cached)`:`Set: ${labels}`);
+}
+
 async function toggleMood(releaseId,moodId,btn){
   let moods=moodCache[releaseId]||[];
   const idx=moods.indexOf(moodId);
@@ -2980,6 +3035,7 @@ async function updatePlayCount(releaseId,count){
 
 // Share a Pick
 $('shareBtn').onclick=()=>{if(currentRecord)shareRecord(currentRecord);};
+$('moodSuggestBtn').onclick=suggestMoodsForCurrentRecord;
 
 function getShareText(r){
   const count=playCounts[r.releaseId]||0;
@@ -3641,9 +3697,60 @@ function renderMoodsSubpanel(){
   if(heurBtn){
     heurBtn.onclick=runHeuristicFromSettings;
   }
+  // Wire bulk Suggest button (Step 7b)
+  const bulkBtn=document.getElementById('bulkSuggestBtn');
+  if(bulkBtn){
+    bulkBtn.onclick=runBulkSuggestFromSettings;
+  }
   // Update Moods row secondary text in the main settings list
   const sec=document.getElementById('rowMoodsSecondary');
   if(sec)sec.textContent=`${MOODS.length} mood${MOODS.length===1?'':'s'}`;
+}
+
+// Step 7b: bulk Suggest via Claude over the unassigned subset of the collection.
+// Iterates serially (one LLM call at a time), caps at 200 records per session,
+// stops cleanly on rate-limit so partial progress is preserved.
+async function runBulkSuggestFromSettings(){
+  const btn=document.getElementById('bulkSuggestBtn');
+  if(!btn)return;
+  if(!collection.length){showToast('No collection loaded yet');return;}
+  const unassigned=collection.filter(r=>r.releaseId&&!(moodCache[r.releaseId]||[]).length);
+  if(!unassigned.length){showToast('Every record already has moods');return;}
+  const cap=Math.min(200,unassigned.length);
+  if(!confirm(`Suggest moods for ${cap} record${cap===1?'':'s'}?\n\nThis calls Claude Haiku once per record. Daily limit is 50/day; the job will stop early if it hits the cap. Cached results don't count against the limit.`))return;
+  btn.disabled=true;
+  const origLabel=btn.textContent;
+  let tagged=0,skipped=0,errored=0;
+  for(let i=0;i<cap;i++){
+    const r=unassigned[i];
+    btn.textContent=`${i+1}/${cap}`;
+    const res=await crate.suggestMoods({
+      release_id:r.releaseId,
+      artist:r.artist||null,
+      title:r.title||'',
+      year:r.year||null,
+      genres:genreCache[r.releaseId]||r.genres||[],
+      styles:stylesCache[r.releaseId]||r.styles||[],
+    });
+    if(!res.success){
+      if(res.rateLimited){
+        showToast(`Stopped at ${i}/${cap} — hit daily limit`);
+        break;
+      }
+      errored++;
+      continue;
+    }
+    const slugs=res.data?.moods||[];
+    if(!slugs.length){skipped++;continue;}
+    moodCache[r.releaseId]=slugs;
+    try{await dbSet('moods',r.releaseId,slugs);}catch{}
+    try{await crate.bulkMeta({[r.releaseId]:{moods:slugs}});}catch{}
+    tagged++;
+  }
+  btn.disabled=false;
+  btn.textContent=origLabel;
+  if(typeof applyFilters==='function')applyFilters();
+  showToast(`Tagged ${tagged}${errored?` · ${errored} errors`:''}${skipped?` · ${skipped} no-match`:''}`);
 }
 
 async function runHeuristicFromSettings(){
