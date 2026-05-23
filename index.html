@@ -431,6 +431,13 @@ input:focus,textarea:focus{border-color:var(--accent)}
     <button class="btn-accent" id="authGoogleBtn" style="width:100%;padding:12px;font-size:15px">Continue with Google</button>
     <p id="authStatus" style="color:var(--muted);font-size:12px;margin-top:12px"></p>
   </div>
+  <div class="setup-card" id="revocationCard" style="display:none">
+    <h2>Access required</h2>
+    <p id="revocationMsg" style="margin-bottom:16px">Your email isn't on the invite list for Crate yet.</p>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:16px">Crate is invite-only. Reach out to Todd if you'd like access.</p>
+    <a href="mailto:toddelbrink@gmail.com?subject=Crate%20access%20request" id="revocationContactBtn" class="btn-accent" style="display:block;text-align:center;width:100%;padding:12px;font-size:14px;text-decoration:none;color:#fff;border-radius:10px">Email Todd</a>
+    <button class="btn-ghost-sm" id="revocationSignOutBtn" style="width:100%;padding:10px;font-size:13px;margin-top:10px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted)">Sign out</button>
+  </div>
   <div class="setup-card" id="setupCard" style="display:none">
     <h2>Elbrink's Crate</h2>
     <p>Connect your Discogs account to load your collection automatically.</p>
@@ -973,6 +980,27 @@ async function init(){
     $('authCard').style.display='block';
     return;
   }
+
+  // Invite gate (Multi-User v1 / Step 3). Every cold init re-checks the
+  // allowlist so a revoked user gets bounced on their next visit even if
+  // their session is still valid. Todd is grandfathered via the seed row.
+  const inv=await crate.checkInvite(session.user.email,session.user.id);
+  if(inv.status==='revoked'||inv.status==='none'){
+    await crate.signOut();
+    $('initLoading').style.display='none';
+    $('revocationMsg').textContent=inv.status==='revoked'
+      ? 'Your access to Crate has been revoked.'
+      : "Your email isn't on the invite list for Crate yet.";
+    $('revocationCard').style.display='block';
+    return;
+  }
+  if(inv.status==='error'){
+    $('initLoading').innerHTML='<div style="color:var(--accent);font-size:13px">Sign-in error: '+(inv.error?.message||'unknown')+'</div>';
+    return;
+  }
+  // inv.status === 'accepted'. If inv.firstTime, the row just flipped from
+  // pending → accepted. Onboarding (Section 6) runs here in Step 4+; for now
+  // accept silently and proceed.
 
   // Pull all settings from Supabase up front. vinyl_settings is RLS-locked to
   // authenticated; this works because we just gated above. Multi-device user —
@@ -2478,6 +2506,14 @@ $('authGoogleBtn').onclick=async()=>{
     $('authStatus').textContent='Failed: '+res.error;
   }
   // On success the browser is navigating to Google — no further UI needed.
+};
+
+// Revocation screen sign-out — drops the session so they're not in a
+// half-state where Supabase has them logged in but the app refuses entry.
+$('revocationSignOutBtn').onclick=async()=>{
+  await crate.signOut();
+  $('revocationCard').style.display='none';
+  $('authCard').style.display='block';
 };
 $('hamSignOut').onclick=async()=>{
   await crate.signOut();
