@@ -3440,8 +3440,10 @@ $('discogsReconnectBtn').onclick=async()=>{
       showToast('Could not start Discogs connection: '+(res.error||'unknown'),4000);
       return;
     }
-    // Open as a popup. width/height are advisory — browsers may open a tab instead, fine.
-    const popup=window.open(res.authorize_url,'discogs-oauth','width=600,height=720,noopener=no');
+    // Open as a popup. 900x800 fits Discogs's authorize page layout without
+    // horizontal clipping of the app description. Mobile browsers ignore the
+    // size hints and open a full-width tab — same flow, postMessage still works.
+    const popup=window.open(res.authorize_url,'discogs-oauth','width=900,height=800,noopener=no');
     if(!popup){
       showToast('Popup blocked. Allow popups for elbrink.com and try again.',5000);
       return;
