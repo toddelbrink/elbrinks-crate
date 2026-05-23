@@ -3223,12 +3223,14 @@ function renderThemeSubpanel(){
   `).join('');
 }
 function renderAccountSubpanel(){
-  // Pull email + name from Supabase session if available
+  // Pull email + name from Supabase session if available. crate.getSession()
+  // returns the session object directly (or null), not the native Supabase
+  // {data:{session}} envelope — see lib/supabase.js.
   if(typeof crate!=='undefined'&&crate.getSession){
-    crate.getSession().then(res=>{
-      if(res&&res.data&&res.data.session){
-        const u=res.data.session.user;
-        const email=u.email||'—';
+    crate.getSession().then(session=>{
+      if(session&&session.user){
+        const u=session.user;
+        const email=u.email||'-';
         const meta=u.user_metadata||{};
         const fullName=meta.full_name||meta.name||(email.split('@')[0]);
         const avatarUrl=meta.avatar_url||meta.picture||'';
@@ -3259,11 +3261,11 @@ function renderDiscogsSubpanel(){
 // Main-list secondary-text updater (called on Settings open + after updateSettingsPanel)
 function updateSettingsMainList(){
   const el=id=>document.getElementById(id);
-  // Account row → email
+  // Account row → email. crate.getSession() returns session directly (or null).
   if(typeof crate!=='undefined'&&crate.getSession){
-    crate.getSession().then(res=>{
-      if(res&&res.data&&res.data.session&&el('rowAccountSecondary'))
-        el('rowAccountSecondary').textContent=res.data.session.user.email||'Signed in';
+    crate.getSession().then(session=>{
+      if(session&&session.user&&el('rowAccountSecondary'))
+        el('rowAccountSecondary').textContent=session.user.email||'Signed in';
     }).catch(()=>{});
   }
   // Discogs row
