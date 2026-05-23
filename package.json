@@ -5,6 +5,7 @@
   "type": "module",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.88.0",
-    "@supabase/supabase-js": "^2.48.0"
+    "@supabase/supabase-js": "^2.48.0",
+    "resend": "^4.0.0"
   }
 }
