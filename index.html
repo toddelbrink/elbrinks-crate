@@ -47,7 +47,7 @@ header.bar-hidden{transform:translateY(-100%)}
 .search-overlay input{flex:1}
 .search-cancel{background:none;border:none;color:var(--accent);font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap}
 .logo{display:flex;align-items:center;gap:10px}
-.logo span{font-size:17px;font-weight:700;letter-spacing:-0.5px;color:#f0f0f0}
+.logo span{font-size:17px;font-weight:700;letter-spacing:-0.5px;color:var(--text)}
 .logo span em{color:#e8372c;font-style:normal}
 .btn-ghost{background:var(--surface2);border:none;border-radius:8px;color:var(--text);cursor:pointer;font-family:var(--font);font-size:13px;font-weight:600;padding:6px 12px}
 .btn-accent{background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:var(--font);font-size:13px;font-weight:600;padding:8px 14px}
@@ -671,9 +671,9 @@ input:focus,textarea:focus{border-color:var(--accent)}
     <div class="subpanel-section-header">Crate name</div>
     <div class="subpanel-row" id="crateNameRow">
       <span class="subpanel-row-label" id="crateNameDisplay">Elbrink's Crate</span>
-      <button class="subpanel-row-action" id="crateNameEditBtn" disabled title="Editable after Step 4 (per-user profiles)">Edit</button>
+      <button class="subpanel-row-action" id="crateNameEditBtn">Edit</button>
     </div>
-    <div class="subpanel-foot-note">Crate name becomes editable in Step 4 (per-user profiles).</div>
+    <div class="subpanel-foot-note">The name renders in the top bar, browser tab, and About panel. Keep it short for a clean fit.</div>
 
     <div class="subpanel-section-header">Session</div>
     <div class="subpanel-cta-row">
@@ -1048,6 +1048,16 @@ async function init(){
 
   // Load per-user moods (Step 4). Powers MOODS global used for pills + filter.
   await loadMoodsFromServer();
+
+  // Load user profile (Step 4). crate_name renders across top bar, browser
+  // tab, Account subpanel, and About hero.
+  if(crate.loadProfile){
+    const pRes=await crate.loadProfile();
+    if(pRes.success&&pRes.data&&pRes.data.crate_name){
+      crateName=pRes.data.crate_name;
+    }
+  }
+  renderCrateName();
 
   // Pull all settings from Supabase up front. vinyl_settings is RLS-locked to
   // authenticated; this works because we just gated above. Multi-device user —
@@ -3265,6 +3275,34 @@ const THEMES={
 };
 let activeThemeKey='dark';
 
+// User's personalized Crate name (PRD §7.8). Defaults to "Elbrink's Crate"
+// for Todd via the profile seed; falls back to "Your Crate" if undefined.
+let crateName="Elbrink's Crate";
+
+function renderCrateName(){
+  const name=crateName||'Your Crate';
+  document.title=name;
+  // Top-bar wordmark: replace existing "Elbrink's <em>Crate</em>" pattern.
+  // Strategy: if name ends with " Crate", split on it so the last word stays
+  // styled as the accent (the brand-red "Crate" lettering). Otherwise render
+  // the whole name un-emphasized.
+  const wordmark=document.querySelector('.logo span');
+  if(wordmark){
+    const idx=name.toLowerCase().lastIndexOf(' crate');
+    if(idx>0 && idx===name.length-6){
+      wordmark.innerHTML=`${name.slice(0,idx)} <em>Crate</em>`;
+    }else{
+      wordmark.innerHTML=name;
+    }
+  }
+  // Settings → Account crate-name display
+  const display=document.getElementById('crateNameDisplay');
+  if(display)display.textContent=name;
+  // Settings → About header (uses the static h2 wordmark)
+  const aboutHero=document.querySelector('#subpanelAbout .about-hero > div[style*="font-size:18px"]');
+  if(aboutHero)aboutHero.textContent=name;
+}
+
 function applyTheme(key){
   const t=THEMES[key]||THEMES.dark;
   const root=document.documentElement;
@@ -3533,6 +3571,18 @@ updateSettingsPanel=async function(){
 $('accountSignOutBtn').onclick=async()=>{
   if(typeof crate!=='undefined'&&crate.signOut)await crate.signOut();
   location.reload();
+};
+
+// ── Account subpanel: edit Crate name ──
+$('crateNameEditBtn').onclick=async()=>{
+  const next=(prompt('Crate name (50 chars max)',crateName||'')||'').trim();
+  if(!next||next===crateName)return;
+  if(next.length>50){showToast('Too long — 50 character max');return;}
+  const res=await crate.updateProfile({crate_name:next});
+  if(!res.success){showToast('Save failed: '+(res.error?.message||res.error||'unknown'));return;}
+  crateName=next;
+  renderCrateName();
+  showToast('Crate name updated');
 };
 
 // ── Feedback form (Step 6 wires real storage; today just toasts) ──
