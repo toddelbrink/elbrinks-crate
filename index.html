@@ -49,10 +49,6 @@ header.bar-hidden{transform:translateY(-100%)}
 .logo{display:flex;align-items:center;gap:10px}
 .logo span{font-size:17px;font-weight:700;letter-spacing:-0.5px;color:var(--text)}
 .logo span em{color:#e8372c;font-style:normal}
-/* Mood indicator pill — appears in top bar between wordmark and Search when a mood filter is active */
-.mood-indicator-pill{height:22px;padding:0 9px;border-radius:11px;border:none;color:#fff;font-family:var(--font);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;display:inline-flex;align-items:center;gap:6px;line-height:1}
-.mood-indicator-pill::after{content:"×";font-size:13px;opacity:.7;font-weight:400}
-.mood-indicator-pill:active{opacity:.7}
 /* Recent Plays view rows */
 .recent-row{display:flex;align-items:center;gap:12px;padding:10px 8px;border-bottom:1px solid var(--border);cursor:pointer;border-radius:8px;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 .recent-row:hover{background:var(--surface2)}
@@ -402,7 +398,6 @@ input:focus,textarea:focus{border-color:var(--accent)}
         <text x="14" y="19" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#e8372c" text-anchor="middle" letter-spacing="1">EC</text>
       </svg>
       <span>Elbrink's <em>Crate</em></span>
-      <button id="moodIndicatorPill" class="mood-indicator-pill" style="display:none" title="Tap to clear mood"></button>
     </div>
   </div>
   <div class="header-right">
@@ -2556,7 +2551,7 @@ $('moodFilterBtn').onclick=()=>{
   const mood=MOODS.find(m=>m.id===activeMoodFilter);
   $('moodFilterBtn').textContent=mood?`Mood: ${mood.label}`:'Mood: All';
   $('moodFilterBtn').className='ctrl-btn'+(activeMoodFilter!=='all'?' active-filter':'');
-  applyFilters();updateShuffleLabel();renderIndicatorPill();
+  applyFilters();updateShuffleLabel();
 };
 
 // ── Settings ──────────────────────────────────────────────────
@@ -2655,7 +2650,7 @@ $('navMoods').onclick=()=>{
   const mood=MOODS.find(m=>m.id===activeMoodFilter);
   $('moodFilterBtn').textContent=mood?`Mood: ${mood.label}`:'Mood: All';
   $('moodFilterBtn').className='ctrl-btn'+(activeMoodFilter!=='all'?' active-filter':'');
-  applyFilters();updateShuffleLabel();renderIndicatorPill();
+  applyFilters();updateShuffleLabel();
   showToast(mood?`Mood: ${mood.label}`:'Mood: All',1500);
 };
 
@@ -3414,27 +3409,15 @@ function renderRecentList(){
   });
 }
 
-// Mood indicator pill — surfaces the active mood filter as a small chip in
-// the top bar (Step 5). Tap clears the filter and hides the pill. The pill
-// uses the mood's full-saturation color so it reads at a glance.
-function renderIndicatorPill(){
-  const pill=document.getElementById('moodIndicatorPill');
-  if(!pill)return;
-  if(activeMoodFilter==='all'){pill.style.display='none';return;}
-  const mood=MOODS.find(m=>m.id===activeMoodFilter);
-  if(!mood){pill.style.display='none';return;}
-  pill.style.display='inline-flex';
-  pill.style.background=mood.color;
-  pill.textContent=mood.label;
-}
-
-// Clear the active mood filter and re-render dependent surfaces. Called by
-// the pill tap + by Wantlist / Stats nav buttons (per PRD §10.2).
+// Clear the active mood filter. Called by Wantlist / Stats / Recent nav
+// buttons (per PRD §10.2 — session mood doesn't survive cross-view nav).
+// No-op visual indicator pill in v1.0; the existing "Mood: <X>" chip on
+// the Crate view is the canonical surface. Revisit pill in v1.1+ when
+// session mood persists across views.
 function clearMoodFilter(){
   activeMoodFilter='all';
   const mFb=document.getElementById('moodFilterBtn');
   if(mFb){mFb.textContent='Mood: All';mFb.className='ctrl-btn';}
-  renderIndicatorPill();
   if(typeof applyFilters==='function')applyFilters();
   if(typeof updateShuffleLabel==='function')updateShuffleLabel();
 }
@@ -3732,9 +3715,6 @@ $('accountSignOutBtn').onclick=async()=>{
   if(typeof crate!=='undefined'&&crate.signOut)await crate.signOut();
   location.reload();
 };
-
-// Mood indicator pill — tap to clear active mood filter
-$('moodIndicatorPill').onclick=()=>clearMoodFilter();
 
 // ── Account subpanel: edit Crate name ──
 $('crateNameEditBtn').onclick=async()=>{
