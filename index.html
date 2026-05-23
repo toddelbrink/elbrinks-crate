@@ -747,17 +747,17 @@ input:focus,textarea:focus{border-color:var(--accent)}
       <span class="subpanel-row-value" id="discogsUsernameValue">-</span>
     </div>
     <div class="subpanel-row">
-      <span class="subpanel-row-label">Reconnect</span>
-      <button class="subpanel-row-action" id="discogsReconnectBtn" disabled title="Discogs OAuth flow ships in Step 8">Reconnect</button>
+      <span class="subpanel-row-label">Connect Discogs</span>
+      <button class="subpanel-row-action" id="discogsReconnectBtn">Connect</button>
     </div>
-    <div class="subpanel-foot-note">OAuth-based reconnect lands in Step 8. Today, use the Personal Access Token update below.</div>
+    <div class="subpanel-foot-note">Opens Discogs in a new window. Sign in there, authorize Crate, you're done.</div>
 
     <div class="subpanel-section-header">Advanced</div>
     <div class="subpanel-row">
       <span class="subpanel-row-label">Personal Access Token</span>
       <button class="subpanel-row-action" id="updateTokenBtn">Update</button>
     </div>
-    <div class="subpanel-foot-note">Token stays in your browser and Supabase only. Get a token at discogs.com/settings/developers.</div>
+    <div class="subpanel-foot-note">Fallback if OAuth doesn't work for you. Paste a token from discogs.com/settings/developers.</div>
   </div>
 </div>
 
@@ -1067,7 +1067,7 @@ async function applyMoodHeuristicToCollection({force=false, onProgress=null}={})
   return result;
 }
 
-let db,collection=[],filtered=[],artCache={},genreCache={},stylesCache={},moodCache={},notesCache={},wikiCache={},artistsDB={},token='',username='telbrink';
+let db,collection=[],filtered=[],artCache={},genreCache={},stylesCache={},moodCache={},notesCache={},wikiCache={},artistsDB={},token='',username='telbrink',discogsMode=null;
 let playCounts={},cycleLog={},lastPlayed={},currentCycle=1;
 let sortMode='alpha',sortIdx=2,artFetching=false,genreFetching=false;
 let shuffleMode='unplayed',activeMoodFilter='all',currentRecord=null,fromShuffle=false;
@@ -1138,10 +1138,18 @@ const dbGetAllKeys=s=>new Promise((r,j)=>{const q=txs(s).getAllKeys();q.onsucces
 const dbClear=s=>new Promise(r=>{txs(s,'readwrite').clear().onsuccess=r});
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function discogsGet(url,retries=3){
+  // Strip the api.discogs.com host — the proxy at /api/discogs-proxy signs
+  // and forwards. Browser never sees the consumer secret. Works for both
+  // OAuth and PAT modes; the proxy reads vinyl_settings to decide.
+  const endpoint = url.replace(/^https?:\/\/api\.discogs\.com/,'');
   for(let i=0;i<retries;i++){
-    const res=await fetch(url,{headers:HDR()});
+    const res = await crate.discogsApiCall(endpoint);
     if(res.ok)return res;
     if(res.status===429){const wait=Math.min(5000*(i+1),15000);console.log(`Rate limited, waiting ${wait}ms…`);await sleep(wait);continue;}
+    if(res.status===401||res.status===403){
+      const j = await res.json().catch(()=>({}));
+      throw new Error(j.error || `Discogs auth failed (HTTP ${res.status}) — reconnect in Settings → Discogs`);
+    }
     throw new Error(`HTTP ${res.status}`);
   }
   throw new Error('Rate limit exceeded after retries');
@@ -1204,12 +1212,21 @@ async function init(){
   // Apply active theme (Step 4). Default 'dark' if user has never picked one.
   applyTheme(remote.theme||'dark');
 
-  // Discogs token/username: if local is empty, hydrate from remote; otherwise
-  // push local to remote so other devices stay in sync.
-  if(!token){
+  // Discogs credentials: Step 8 introduces OAuth mode alongside the legacy PAT.
+  // `discogsMode` ('oauth' | 'pat' | null) drives UI labels; `token` stays as
+  // the truthy "connected" flag the 15 existing call-site gates rely on. For
+  // OAuth users `token` holds the OAuth access token (presence-only — the proxy
+  // reads its own copy from vinyl_settings; this value is never sent in headers).
+  discogsMode = remote.discogs_mode || (remote.discogs_oauth_token ? 'oauth' : (remote.token ? 'pat' : null));
+  if(discogsMode === 'oauth'){
+    token = remote.discogs_oauth_token || '';
+    if(remote.username){username = remote.username; await dbSet('meta','username',username);}
+  }else if(!token){
+    // PAT mode, no local copy — hydrate from remote
     if(remote.token){token=remote.token;await dbSet('meta','token',token);}
     if(remote.username){username=remote.username;await dbSet('meta','username',username);}
   }else{
+    // PAT mode, local copy present — push to remote so other devices stay in sync
     crate.saveSetting('token',token);
     crate.saveSetting('username',username);
   }
@@ -1419,7 +1436,7 @@ window.addEventListener('popstate',()=>{
 });
 
 // ── Discogs ───────────────────────────────────────────────────
-const HDR=()=>({'Authorization':`Discogs token=${token}`,'User-Agent':'ElbrinksCrate/1.0'});
+// HDR() retired in Step 8 — auth now lives server-side in /api/discogs-proxy.
 
 async function fetchCollection(silent=false){
   let page=1,results=[];if(!silent)setProgress('Loading collection…',0);
@@ -3396,11 +3413,81 @@ $('updateTokenBtn').onclick=async()=>{
   if(!t){showToast('Token cannot be empty');return;}
   $('updateTokenBtn').disabled=true;$('updateTokenBtn').textContent='Updating…';
   await dbSet('meta','token',t);
-  const res=await crate.saveSetting('token',t);
+  // Save PAT + flip mode to 'pat' so the proxy uses the PAT path going forward.
+  // Any dormant OAuth tokens stay in vinyl_settings but are ignored when discogs_mode='pat'.
+  const [tokRes,modeRes]=await Promise.all([
+    crate.saveSetting('token',t),
+    crate.saveSetting('discogs_mode','pat')
+  ]);
   $('updateTokenBtn').disabled=false;$('updateTokenBtn').textContent='Update';
-  if(res.success){token=t;showToast('Discogs token updated');}
-  else showToast('Update failed: '+(res.error||'unknown'),4000);
+  if(tokRes.success&&modeRes.success){
+    token=t;discogsMode='pat';
+    if(typeof renderDiscogsSubpanel==='function')renderDiscogsSubpanel();
+    if(typeof updateSettingsMainList==='function')updateSettingsMainList();
+    showToast('Discogs token updated');
+  } else showToast('Update failed: '+((tokRes.error||modeRes.error)||'unknown'),4000);
 };
+
+// Discogs OAuth (Multi-User v1 / Step 8) — opens the handshake in a popup.
+// Server-side handler at /api/discogs-oauth/{request,callback}. On success the
+// popup posts back to this window, we reload credentials and re-render.
+$('discogsReconnectBtn').onclick=async()=>{
+  const btn=$('discogsReconnectBtn');
+  btn.disabled=true;btn.textContent='Opening…';
+  try{
+    const res=await crate.startDiscogsOAuth();
+    if(!res.success){
+      showToast('Could not start Discogs connection: '+(res.error||'unknown'),4000);
+      return;
+    }
+    // Open as a popup. width/height are advisory — browsers may open a tab instead, fine.
+    const popup=window.open(res.authorize_url,'discogs-oauth','width=600,height=720,noopener=no');
+    if(!popup){
+      showToast('Popup blocked. Allow popups for elbrink.com and try again.',5000);
+      return;
+    }
+  }catch(e){
+    showToast('Connection error: '+(e.message||'unknown'),4000);
+  }finally{
+    // Don't re-enable immediately — wait for the message or 60s timeout
+    setTimeout(()=>{if(btn){btn.disabled=false;btn.textContent=discogsMode==='oauth'?'Reconnect':'Connect';}},2000);
+  }
+};
+
+// Listen for the postMessage from /api/discogs-oauth/callback (popup → opener).
+// Same-origin check is the security gate — the callback page lives at our own
+// origin, so any other source is rejected.
+window.addEventListener('message',async (event)=>{
+  if(event.origin!==window.location.origin)return;
+  const d=event.data;
+  if(!d||d.source!=='discogs-oauth')return;
+  if(d.status==='success'){
+    // Pull fresh credentials from Supabase — the popup just wrote them there.
+    await reloadDiscogsCredentials();
+    showToast(d.username?('Connected to Discogs as @'+d.username):'Discogs connected');
+  }else{
+    showToast('Discogs connection failed: '+(d.error||'unknown'),5000);
+  }
+});
+
+// Re-read vinyl_settings after OAuth completes and refresh in-memory state + UI.
+async function reloadDiscogsCredentials(){
+  try{
+    const s=await crate.loadSettings();
+    if(!s.success)return;
+    const r=s.data||{};
+    discogsMode = r.discogs_mode || (r.discogs_oauth_token ? 'oauth' : (r.token ? 'pat' : null));
+    if(discogsMode==='oauth'){
+      token = r.discogs_oauth_token||'';
+    }else if(discogsMode==='pat'){
+      token = r.token||'';
+      await dbSet('meta','token',token);
+    }
+    if(r.username){username=r.username;await dbSet('meta','username',username);}
+    if(typeof renderDiscogsSubpanel==='function')renderDiscogsSubpanel();
+    if(typeof updateSettingsMainList==='function')updateSettingsMainList();
+  }catch(e){console.error('[crate] reloadDiscogsCredentials failed',e);}
+}
 $('clearBtn').onclick=()=>{$('clearAllModal').style.display='flex';};
 $('clearAllCancelBtn').onclick=()=>{$('clearAllModal').style.display='none';};
 // Mood add/edit modal handlers
@@ -3410,7 +3497,7 @@ $('moodEditDeleteBtn').onclick=deleteMoodFromModal;
 $('clearAllConfirmBtn').onclick=async()=>{
   $('clearAllModal').style.display='none';
   await Promise.all(['meta','art','collection','plays','genres'].map(dbClear));
-  collection=[];filtered=[];artCache={};genreCache={};token='';playCounts={};cycleLog={};lastPlayed={};currentCycle=1;
+  collection=[];filtered=[];artCache={};genreCache={};token='';discogsMode=null;playCounts={};cycleLog={};lastPlayed={};currentCycle=1;
   $('collectionView').style.display='none';$('bottomNav').style.display='none';$('hamburgerBtn').style.display='none';$('searchIconBtn').style.display='none';
   $('setupCard').style.display='block';closeSettings();showToast('Data cleared — notes and moods kept');
 };
@@ -3891,12 +3978,14 @@ function renderAccountSubpanel(){
 }
 function renderDiscogsSubpanel(){
   const el=id=>document.getElementById(id);
-  const hasToken=!!(token&&token.length>10);
+  const hasCreds=!!token;
   const hasUser=!!(username&&username.length);
-  const connected=hasToken&&hasUser;
+  const connected=hasCreds&&hasUser;
+  const modeLabel = discogsMode==='oauth' ? 'OAuth' : (discogsMode==='pat' ? 'Token' : '');
   if(el('discogsStatusDot'))el('discogsStatusDot').className='status-dot '+(connected?'connected':'disconnected');
-  if(el('discogsStatusText'))el('discogsStatusText').textContent=connected?'Connected':'Not connected';
+  if(el('discogsStatusText'))el('discogsStatusText').textContent=connected?(modeLabel?('Connected ('+modeLabel+')'):'Connected'):'Not connected';
   if(el('discogsUsernameValue'))el('discogsUsernameValue').textContent=hasUser?('@'+username):'—';
+  if(el('discogsReconnectBtn'))el('discogsReconnectBtn').textContent=(discogsMode==='oauth')?'Reconnect':'Connect';
 }
 
 // Main-list secondary-text updater (called on Settings open + after updateSettingsPanel)
@@ -3911,9 +4000,9 @@ function updateSettingsMainList(){
   }
   // Discogs row
   if(el('rowDiscogsSecondary')){
-    const hasToken=!!(token&&token.length>10);
+    const hasCreds=!!token;
     const hasUser=!!(username&&username.length);
-    el('rowDiscogsSecondary').textContent=(hasToken&&hasUser)?('Connected as @'+username):'Not connected';
+    el('rowDiscogsSecondary').textContent=(hasCreds&&hasUser)?('Connected as @'+username):'Not connected';
   }
   // Moods row → count
   if(el('rowMoodsSecondary'))el('rowMoodsSecondary').textContent=`${MOODS.length} moods`;
