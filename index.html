@@ -917,13 +917,24 @@ const MOOD_COLOR_PALETTE={
 let MOODS=[];
 
 async function loadMoodsFromServer(){
-  if(typeof crate==='undefined'||!crate.loadMoods){MOODS=[];return;}
+  console.log('[moods] loadMoodsFromServer start. crate?',typeof crate,'crate.loadMoods?',typeof crate?.loadMoods);
+  if(typeof crate==='undefined'||!crate.loadMoods){
+    console.error('[moods] crate.loadMoods not available — stale lib/supabase.js?');
+    try{showToast('Mood load skipped: client not ready');}catch(e){}
+    MOODS=[];return;
+  }
   const res=await crate.loadMoods();
-  if(!res.success){console.warn('loadMoods failed:',res.error);MOODS=[];return;}
+  console.log('[moods] crate.loadMoods response:',res);
+  if(!res.success){
+    console.error('[moods] loadMoods failed:',res.error);
+    try{showToast('Moods failed: '+(res.error?.message||res.error||'unknown'),5000);}catch(e){}
+    MOODS=[];return;
+  }
   MOODS=(res.data||[]).map(m=>{
     const pal=MOOD_COLOR_PALETTE[m.color_key]||MOOD_COLOR_PALETTE.blue;
     return {id:m.slug||m.id, label:m.mood_name, color:pal.fg, bg:pal.bg, uuid:m.id, color_key:m.color_key};
   });
+  console.log('[moods] MOODS populated, count:',MOODS.length);
 }
 
 let db,collection=[],filtered=[],artCache={},genreCache={},moodCache={},notesCache={},wikiCache={},artistsDB={},token='',username='telbrink';
