@@ -725,9 +725,31 @@ input:focus,textarea:focus{border-color:var(--accent)}
       <button class="danger" id="clearBtn">Clear All Data</button>
     </div>
 
-    <div class="subpanel-foot-note" style="margin-top:24px;border-top:1px solid var(--border);padding-top:20px">
-      Account deletion ships in Step 9.
+    <div class="subpanel-section-header" style="margin-top:24px;color:var(--accent)">Delete account</div>
+    <div class="subpanel-foot-note">Permanently removes your collection sync, plays, listening history, moods, theme, settings, feedback, and your account itself. There is no undo.</div>
+    <div class="subpanel-cta-row">
+      <button class="danger" id="deleteAccountBtn">Delete account</button>
     </div>
+  </div>
+</div>
+
+<!-- Delete account confirmation modal (Step 9) -->
+<div id="deleteAccountModal" class="reset-modal" style="display:none">
+  <div class="reset-card" style="text-align:left;max-width:400px">
+    <h2 style="text-align:center;color:var(--accent);margin-bottom:12px">Delete account?</h2>
+    <p style="text-align:left;margin-bottom:14px">This permanently removes:</p>
+    <ul style="color:var(--muted);font-size:13px;line-height:1.6;margin:0 0 18px 18px;padding:0">
+      <li>Your collection sync, plays, and listening history</li>
+      <li>Your moods, theme, and settings</li>
+      <li>Your feedback submissions</li>
+      <li>Your account itself</li>
+    </ul>
+    <p style="text-align:left;font-size:13px;color:var(--muted);margin-bottom:18px">There is no undo. Todd cannot recover this data.</p>
+    <label style="display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Type DELETE to confirm</label>
+    <input type="text" id="deleteAccountConfirmInput" autocomplete="off" autocapitalize="characters" spellcheck="false" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 12px;font-family:var(--font);font-size:14px;margin-bottom:14px">
+    <div id="deleteAccountError" style="display:none;color:var(--accent);font-size:13px;margin-bottom:12px;line-height:1.4"></div>
+    <button id="deleteAccountConfirmBtn" disabled style="background:var(--accent);margin-bottom:8px;opacity:.4">Delete forever</button>
+    <button id="deleteAccountCancelBtn" style="background:var(--surface2);color:var(--text)">Cancel</button>
   </div>
 </div>
 
@@ -3502,6 +3524,58 @@ $('clearAllConfirmBtn').onclick=async()=>{
   collection=[];filtered=[];artCache={};genreCache={};token='';discogsMode=null;playCounts={};cycleLog={};lastPlayed={};currentCycle=1;
   $('collectionView').style.display='none';$('bottomNav').style.display='none';$('hamburgerBtn').style.display='none';$('searchIconBtn').style.display='none';
   $('setupCard').style.display='block';closeSettings();showToast('Data cleared — notes and moods kept');
+};
+
+// ── Delete account (Multi-User v1 / Step 9) ──────────────────
+// Opens confirmation modal with "type DELETE" guard. On confirm, calls
+// /api/delete-account via crate.deleteAccount(). On success, sign out
+// and reload to the sign-in screen. On 403 (last admin), show inline
+// error and keep modal open. On other failures, same — let the user retry.
+function openDeleteAccountModal(){
+  const input=$('deleteAccountConfirmInput');
+  const btn=$('deleteAccountConfirmBtn');
+  const err=$('deleteAccountError');
+  input.value='';
+  btn.disabled=true;btn.style.opacity='.4';btn.textContent='Delete forever';
+  err.style.display='none';err.textContent='';
+  $('deleteAccountModal').style.display='flex';
+  setTimeout(()=>input.focus(),50);
+}
+function closeDeleteAccountModal(){
+  $('deleteAccountModal').style.display='none';
+}
+$('deleteAccountBtn').onclick=openDeleteAccountModal;
+$('deleteAccountCancelBtn').onclick=closeDeleteAccountModal;
+$('deleteAccountConfirmInput').addEventListener('input',e=>{
+  const ok=e.target.value==='DELETE';
+  const btn=$('deleteAccountConfirmBtn');
+  btn.disabled=!ok;
+  btn.style.opacity=ok?'1':'.4';
+});
+$('deleteAccountConfirmBtn').onclick=async()=>{
+  const btn=$('deleteAccountConfirmBtn');
+  const err=$('deleteAccountError');
+  if(btn.disabled)return;
+  btn.disabled=true;btn.style.opacity='.6';btn.textContent='Deleting…';
+  err.style.display='none';err.textContent='';
+  try{
+    const res=await crate.deleteAccount();
+    if(!res.success){
+      const msg=res.error?.message||res.error||'Deletion failed';
+      err.textContent=msg;err.style.display='block';
+      btn.disabled=false;btn.style.opacity='1';btn.textContent='Delete forever';
+      return;
+    }
+    // Success — sign out and hard reload so the app re-initializes
+    // to the unauthenticated sign-in screen. localStorage clears with
+    // signOut(); reload guarantees no in-memory state lingers.
+    await crate.signOut();
+    closeDeleteAccountModal();
+    location.replace(location.pathname);
+  }catch(e){
+    err.textContent=e?.message||'Unexpected error';err.style.display='block';
+    btn.disabled=false;btn.style.opacity='1';btn.textContent='Delete forever';
+  }
 };
 $('modeAllBtn').onclick=()=>{shuffleMode='all';updateCrateProgress();updateShuffleLabel();updateSettingsPanel();};
 $('modeUnplayedBtn').onclick=()=>{shuffleMode='unplayed';updateCrateProgress();updateShuffleLabel();updateSettingsPanel();};
