@@ -281,6 +281,11 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .mood-edit-actions{display:flex;gap:6px}
 .mood-add-btn{margin:16px;padding:14px;border:1px dashed var(--border);background:transparent;color:var(--muted);border-radius:10px;font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer;width:calc(100% - 32px);-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 .mood-add-btn:disabled{opacity:.5;cursor:default}
+.mood-add-btn:not(:disabled):hover{color:var(--text);border-color:var(--text)}
+/* Mood add/edit modal color picker — needs higher specificity than .reset-card button */
+.reset-card .mood-color-swatch{width:40px;height:40px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0;flex-shrink:0;-webkit-tap-highlight-color:transparent;touch-action:manipulation;display:block}
+.reset-card .mood-color-swatch.selected{border-color:var(--text);box-shadow:0 0 0 2px var(--bg) inset}
+.reset-card .mood-color-swatch:active{opacity:.7}
 /* Theme preset cards */
 .theme-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:16px}
 @media(min-width:600px){.theme-grid{grid-template-columns:1fr 1fr 1fr}}
@@ -727,8 +732,8 @@ input:focus,textarea:focus{border-color:var(--accent)}
   <div class="subpanel-body">
     <div class="subpanel-section-header">Your moods</div>
     <div class="mood-edit-list" id="moodEditList"></div>
-    <button class="mood-add-btn" id="moodAddBtn" disabled>+ Add mood (enabled in Step 4)</button>
-    <div class="subpanel-foot-note">Per-user mood CRUD with rename, recolor, reorder, and delete ships in Step 4. Today this list shows the global moods baked into v1.0.</div>
+    <button class="mood-add-btn" id="moodAddBtn">+ Add mood</button>
+    <div class="subpanel-foot-note">Renaming a mood preserves the tag on existing records. Deleting one keeps the tag in your history (the pill just stops rendering). Reorder via drag ships in v1.1.</div>
   </div>
 </div>
 
@@ -868,6 +873,20 @@ input:focus,textarea:focus{border-color:var(--accent)}
   </div>
 </div>
 
+<!-- Mood add/edit modal (Step 4) -->
+<div id="moodEditModal" class="reset-modal" style="display:none">
+  <div class="reset-card" style="text-align:left">
+    <h2 id="moodEditModalTitle" style="text-align:center;margin-bottom:16px">Edit mood</h2>
+    <label style="display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Name</label>
+    <input type="text" id="moodEditName" maxlength="20" placeholder="e.g. Ragers" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 12px;font-family:var(--font);font-size:14px;margin-bottom:16px">
+    <label style="display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Color</label>
+    <div id="moodEditColorPicker" style="display:flex;gap:8px;margin-bottom:20px;justify-content:space-between"></div>
+    <button id="moodEditSaveBtn" style="background:var(--accent);margin-bottom:8px">Save</button>
+    <button id="moodEditDeleteBtn" style="background:transparent;color:var(--accent);border:1px solid var(--accent);margin-bottom:8px;display:none">Delete</button>
+    <button id="moodEditCancelBtn" style="background:var(--surface2);color:var(--text)">Cancel</button>
+  </div>
+</div>
+
 <div class="alpha-scrubber" id="alphaScrubber"></div>
 <div class="alpha-jump-toast" id="alphaJumpToast"></div>
 <div class="toast" id="toast"></div>
@@ -881,13 +900,31 @@ const $=id=>document.getElementById(id);
 const DB='ElbrinksCrate',VER=5;
 
 // Moods config
-const MOODS=[
-  {id:'mellow',label:'Mellow',color:'#3b82f6',bg:'#1e3a5f'},
-  {id:'energy',label:'Energy',color:'#ef4444',bg:'#4a1515'},
-  {id:'latenight',label:'Late',color:'#8b5cf6',bg:'#2d1b5e'},
-  {id:'sunday',label:'Sunday',color:'#f59e0b',bg:'#3d2800'},
-  {id:'deepcut',label:'Deep',color:'#10b981',bg:'#0a2e20'},
-];
+// Locked 6-color mood palette (PRD §8.2). Each entry maps a color_key
+// from vinyl_user_moods to a {fg, bg} pair used by mood pills app-wide.
+const MOOD_COLOR_PALETTE={
+  red:    {fg:'#ef4444', bg:'#4a1515'},
+  amber:  {fg:'#fbbf24', bg:'#3d2800'},
+  teal:   {fg:'#2dd4bf', bg:'#0a2e20'},
+  blue:   {fg:'#3b82f6', bg:'#1e3a5f'},
+  indigo: {fg:'#818cf8', bg:'#2d1b5e'},
+  rose:   {fg:'#fb7185', bg:'#4a0a1a'},
+};
+// Backward-compat shape: {id (slug), label, color, bg, uuid}. Slug is the
+// id used everywhere in vinyl_meta.moods JSONB arrays — keep stable across
+// renames so historical tags survive. uuid is only used for CRUD operations.
+// Populated by loadMoodsFromServer() in init(); empty until then.
+let MOODS=[];
+
+async function loadMoodsFromServer(){
+  if(typeof crate==='undefined'||!crate.loadMoods){MOODS=[];return;}
+  const res=await crate.loadMoods();
+  if(!res.success){console.warn('loadMoods failed:',res.error);MOODS=[];return;}
+  MOODS=(res.data||[]).map(m=>{
+    const pal=MOOD_COLOR_PALETTE[m.color_key]||MOOD_COLOR_PALETTE.blue;
+    return {id:m.slug||m.id, label:m.mood_name, color:pal.fg, bg:pal.bg, uuid:m.id, color_key:m.color_key};
+  });
+}
 
 let db,collection=[],filtered=[],artCache={},genreCache={},moodCache={},notesCache={},wikiCache={},artistsDB={},token='',username='telbrink';
 let playCounts={},cycleLog={},lastPlayed={},currentCycle=1;
@@ -1001,6 +1038,9 @@ async function init(){
   // inv.status === 'accepted'. If inv.firstTime, the row just flipped from
   // pending → accepted. Onboarding (Section 6) runs here in Step 4+; for now
   // accept silently and proceed.
+
+  // Load per-user moods (Step 4). Powers MOODS global used for pills + filter.
+  await loadMoodsFromServer();
 
   // Pull all settings from Supabase up front. vinyl_settings is RLS-locked to
   // authenticated; this works because we just gated above. Multi-device user —
@@ -3142,6 +3182,10 @@ $('updateTokenBtn').onclick=async()=>{
 };
 $('clearBtn').onclick=()=>{$('clearAllModal').style.display='flex';};
 $('clearAllCancelBtn').onclick=()=>{$('clearAllModal').style.display='none';};
+// Mood add/edit modal handlers
+$('moodEditCancelBtn').onclick=closeMoodEditModal;
+$('moodEditSaveBtn').onclick=saveMoodFromModal;
+$('moodEditDeleteBtn').onclick=deleteMoodFromModal;
 $('clearAllConfirmBtn').onclick=async()=>{
   $('clearAllModal').style.display='none';
   await Promise.all(['meta','art','collection','plays','genres'].map(dbClear));
@@ -3237,12 +3281,103 @@ function renderMoodsSubpanel(){
   const list=document.getElementById('moodEditList');
   if(!list)return;
   list.innerHTML=MOODS.map(m=>`
-    <div class="mood-edit-row">
+    <div class="mood-edit-row" data-mood-uuid="${m.uuid||''}">
       <span class="mood-swatch" style="background:${m.color}"></span>
       <span class="mood-edit-name">${m.label}</span>
-      <button class="subpanel-row-action" disabled title="Editable in Step 4">Edit</button>
+      <button class="subpanel-row-action mood-edit-btn-row" data-mood-uuid="${m.uuid||''}">Edit</button>
     </div>
   `).join('');
+  // Wire Edit buttons
+  list.querySelectorAll('.mood-edit-btn-row').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const uuid=btn.getAttribute('data-mood-uuid');
+      const mood=MOODS.find(m=>m.uuid===uuid);
+      if(mood)openMoodEditModal(mood);
+    });
+  });
+  // Enable + wire Add Mood button
+  const addBtn=document.getElementById('moodAddBtn');
+  if(addBtn){
+    addBtn.disabled=false;
+    addBtn.textContent='+ Add mood';
+    addBtn.onclick=()=>openMoodEditModal(null);
+  }
+  // Update Moods row secondary text in the main settings list
+  const sec=document.getElementById('rowMoodsSecondary');
+  if(sec)sec.textContent=`${MOODS.length} mood${MOODS.length===1?'':'s'}`;
+}
+
+// ── Mood add/edit modal ─────────────────────────────────────
+// One modal handles both Add (mood=null) and Edit (mood={uuid,...}).
+let _moodEditTarget=null; // null = add mode; mood object = edit mode
+function openMoodEditModal(mood){
+  _moodEditTarget=mood;
+  const modal=document.getElementById('moodEditModal');
+  if(!modal)return;
+  document.getElementById('moodEditModalTitle').textContent=mood?'Edit mood':'Add mood';
+  document.getElementById('moodEditName').value=mood?mood.label:'';
+  // Render color picker
+  const picker=document.getElementById('moodEditColorPicker');
+  const currentColorKey=mood?mood.color_key:'blue';
+  picker.innerHTML=Object.keys(MOOD_COLOR_PALETTE).map(k=>{
+    const pal=MOOD_COLOR_PALETTE[k];
+    const sel=k===currentColorKey?' selected':'';
+    return `<button type="button" class="mood-color-swatch${sel}" data-color-key="${k}" style="background:${pal.fg}"></button>`;
+  }).join('');
+  picker.querySelectorAll('.mood-color-swatch').forEach(s=>{
+    s.addEventListener('click',()=>{
+      picker.querySelectorAll('.mood-color-swatch').forEach(x=>x.classList.remove('selected'));
+      s.classList.add('selected');
+    });
+  });
+  // Show / hide Delete button (only for Edit mode)
+  document.getElementById('moodEditDeleteBtn').style.display=mood?'inline-block':'none';
+  modal.style.display='flex';
+  // Focus name input on next paint
+  setTimeout(()=>document.getElementById('moodEditName').focus(),50);
+}
+function closeMoodEditModal(){
+  document.getElementById('moodEditModal').style.display='none';
+  _moodEditTarget=null;
+}
+async function saveMoodFromModal(){
+  const name=document.getElementById('moodEditName').value.trim();
+  const colorBtn=document.querySelector('#moodEditColorPicker .mood-color-swatch.selected');
+  const colorKey=colorBtn?colorBtn.getAttribute('data-color-key'):'blue';
+  if(!name){showToast('Mood needs a name');return;}
+  const saveBtn=document.getElementById('moodEditSaveBtn');
+  saveBtn.disabled=true;saveBtn.textContent='Saving…';
+  let res;
+  if(_moodEditTarget){
+    res=await crate.updateMood(_moodEditTarget.uuid,{mood_name:name, color_key:colorKey});
+  }else{
+    res=await crate.createMood({mood_name:name, color_key:colorKey});
+  }
+  saveBtn.disabled=false;saveBtn.textContent='Save';
+  if(!res.success){showToast('Save failed: '+(res.error?.message||'unknown'));return;}
+  await loadMoodsFromServer();
+  renderMoodsSubpanel();
+  // Re-render mood pills in current view + filter chips
+  if(typeof applyFilters==='function')applyFilters();
+  if(typeof renderMoodPills==='function')renderMoodPills();
+  closeMoodEditModal();
+  showToast(_moodEditTarget?'Mood updated':'Mood added');
+}
+async function deleteMoodFromModal(){
+  if(!_moodEditTarget)return;
+  const name=_moodEditTarget.label;
+  if(!confirm(`Delete "${name}"?\n\nThe mood disappears from your list. Albums tagged with it keep the tag (so your history is preserved), the pill just won't render anymore.`))return;
+  const delBtn=document.getElementById('moodEditDeleteBtn');
+  delBtn.disabled=true;delBtn.textContent='Deleting…';
+  const res=await crate.deleteMood(_moodEditTarget.uuid);
+  delBtn.disabled=false;delBtn.textContent='Delete';
+  if(!res.success){showToast('Delete failed: '+(res.error?.message||'unknown'));return;}
+  await loadMoodsFromServer();
+  renderMoodsSubpanel();
+  if(typeof applyFilters==='function')applyFilters();
+  if(typeof renderMoodPills==='function')renderMoodPills();
+  closeMoodEditModal();
+  showToast('Mood deleted');
 }
 function renderThemeSubpanel(){
   const grid=document.getElementById('themeGrid');
