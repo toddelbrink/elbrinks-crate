@@ -221,10 +221,96 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .stat-agg-item:last-child{border-bottom:none}
 .stat-agg-name{font-size:13px;font-weight:600;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .stat-agg-count{color:var(--muted);font-size:12px;white-space:nowrap;margin-left:12px}
-/* Settings */
+/* Settings — legacy classes (kept for any inline residual use) */
 .settings-row{display:flex;gap:8px;align-items:center;margin-bottom:12px}
 .settings-row label{color:var(--muted);font-size:13px;min-width:110px}
 .section-title{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin:16px 0 8px;padding-top:12px;border-top:1px solid var(--border)}
+/* Settings IA (v1) — 7-subpanel system */
+.settings-list{display:flex;flex-direction:column}
+.settings-row-item{display:flex;align-items:center;height:64px;padding:0 16px;border:none;border-bottom:1px solid var(--border);background:transparent;color:inherit;width:100%;text-align:left;cursor:pointer;font-family:var(--font);-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.settings-row-item:active{background:var(--surface2)}
+.settings-row-icon{width:24px;height:24px;display:flex;align-items:center;justify-content:center;color:var(--muted);flex-shrink:0}
+.settings-row-icon svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.settings-row-content{flex:1;min-width:0;margin-left:16px;display:flex;flex-direction:column;align-items:flex-start;gap:2px;overflow:hidden}
+.settings-row-name{font-size:16px;color:var(--text);font-weight:500;line-height:1.2}
+.settings-row-secondary{font-size:12px;color:var(--muted);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.settings-row-chevron{color:var(--muted);flex-shrink:0;margin-left:8px;font-size:18px;line-height:1;opacity:.6}
+/* Subpanel — slides in from right */
+.settings-subpanel{position:fixed;inset:0;background:var(--bg);z-index:205;transform:translateX(100%);transition:transform .25s ease-out;display:flex;flex-direction:column;overflow:hidden;padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom))}
+.settings-subpanel.open{transform:translateX(0)}
+.settings-subpanel.swiping{transition:none}
+.subpanel-header{display:flex;align-items:center;gap:8px;padding:14px 16px 10px;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--bg);position:sticky;top:0;z-index:5}
+.subpanel-back{background:none;border:none;color:var(--text);padding:4px 6px;cursor:pointer;font-size:22px;line-height:1;-webkit-tap-highlight-color:transparent;touch-action:manipulation;display:flex;align-items:center}
+.subpanel-title{font-size:18px;font-weight:700;flex:1}
+.subpanel-body{flex:1;overflow-y:auto}
+.subpanel-section-header{padding:24px 16px 8px;font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.subpanel-section-header:first-child{padding-top:16px}
+.subpanel-row{display:flex;align-items:center;min-height:64px;padding:0 16px;border-bottom:1px solid var(--border);gap:12px}
+.subpanel-row-label{flex:1;font-size:15px;color:var(--text);line-height:1.3}
+.subpanel-row-value{font-size:13px;color:var(--muted);text-align:right;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.subpanel-row-action{background:none;border:1px solid var(--border);color:var(--text);padding:7px 14px;font-size:12px;border-radius:6px;cursor:pointer;font-family:var(--font);font-weight:600;-webkit-tap-highlight-color:transparent;touch-action:manipulation;flex-shrink:0}
+.subpanel-row-action:active{opacity:.7}
+.subpanel-row-action.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.subpanel-row-action.danger{color:var(--accent);border-color:transparent}
+.subpanel-row-action[disabled]{opacity:.4;cursor:default}
+.subpanel-foot-note{padding:12px 16px;font-size:12px;color:var(--muted);line-height:1.5}
+.subpanel-cta-row{padding:16px}
+.subpanel-cta-row button{width:100%;padding:14px;border-radius:10px;border:none;font-family:var(--font);font-size:15px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.subpanel-cta-row button.primary{background:var(--accent);color:#fff}
+.subpanel-cta-row button.ghost{background:var(--surface2);color:var(--text)}
+.subpanel-cta-row button.danger{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+/* Status dot for Discogs connection */
+.status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:8px;vertical-align:middle}
+.status-dot.connected{background:#10b981}
+.status-dot.disconnected{background:#ef4444}
+/* Account avatar */
+.account-hero{display:flex;flex-direction:column;align-items:center;padding:24px 16px;gap:8px;border-bottom:1px solid var(--border)}
+.account-avatar{width:72px;height:72px;border-radius:50%;background:var(--surface2);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:var(--muted)}
+.account-avatar img{width:100%;height:100%;object-fit:cover}
+.account-name{font-size:18px;font-weight:600;color:var(--text)}
+.account-email{font-size:13px;color:var(--muted)}
+/* Inline edit input (crate name etc.) */
+.inline-edit{display:flex;gap:8px;flex:1;align-items:center}
+.inline-edit input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px 10px;font-family:var(--font);font-size:14px}
+.inline-edit input:focus{outline:none;border-color:var(--accent)}
+/* Mood edit rows */
+.mood-edit-list{display:flex;flex-direction:column}
+.mood-edit-row{display:flex;align-items:center;min-height:64px;padding:0 16px;border-bottom:1px solid var(--border);gap:12px}
+.mood-swatch{width:24px;height:24px;border-radius:6px;flex-shrink:0;border:1px solid rgba(255,255,255,.08)}
+.mood-edit-name{flex:1;color:var(--text);font-size:15px}
+.mood-edit-actions{display:flex;gap:6px}
+.mood-add-btn{margin:16px;padding:14px;border:1px dashed var(--border);background:transparent;color:var(--muted);border-radius:10px;font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer;width:calc(100% - 32px);-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.mood-add-btn:disabled{opacity:.5;cursor:default}
+/* Theme preset cards */
+.theme-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:16px}
+@media(min-width:600px){.theme-grid{grid-template-columns:1fr 1fr 1fr}}
+.theme-card{background:var(--surface);border:2px solid var(--border);border-radius:12px;padding:12px;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;position:relative}
+.theme-card:active{opacity:.8}
+.theme-card.active{border-color:var(--accent)}
+.theme-card.locked{opacity:.55;cursor:default}
+.theme-card-preview{height:48px;border-radius:6px;margin-bottom:8px;display:flex;overflow:hidden;border:1px solid var(--border)}
+.theme-card-preview-swatch{flex:1}
+.theme-card-name{font-size:14px;color:var(--text);font-weight:600;line-height:1.2}
+.theme-card-status{font-size:11px;color:var(--muted);margin-top:2px}
+.theme-card-badge{position:absolute;top:6px;right:6px;background:var(--surface2);color:var(--muted);font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;letter-spacing:.04em;text-transform:uppercase}
+/* Sync stats — dense rows in subpanel */
+.sync-stat-row{display:flex;align-items:center;justify-content:space-between;min-height:44px;padding:0 16px;border-bottom:1px solid var(--border)}
+.sync-stat-label{font-size:13px;color:var(--muted)}
+.sync-stat-value{font-size:13px;color:var(--text);font-weight:500}
+/* Feedback form */
+.feedback-form{padding:16px;display:flex;flex-direction:column;gap:12px}
+.feedback-sentiments{display:flex;gap:8px}
+.feedback-sentiment-btn{flex:1;padding:14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.feedback-sentiment-btn.selected{background:var(--accent);border-color:var(--accent);color:#fff}
+.feedback-textarea{width:100%;min-height:120px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:var(--font);font-size:14px;padding:12px;resize:vertical;line-height:1.5}
+.feedback-textarea:focus{outline:none;border-color:var(--accent)}
+/* About */
+.about-hero{display:flex;flex-direction:column;align-items:center;padding:32px 16px 16px;gap:8px}
+.about-logo{width:80px;height:80px;border-radius:18px;overflow:hidden;background:var(--surface2)}
+.about-logo img{width:100%;height:100%;object-fit:cover}
+.about-version{font-size:14px;color:var(--muted);margin-top:4px}
+.about-credits{padding:16px;color:var(--muted);font-size:13px;line-height:1.6}
+.about-credits p{margin-bottom:10px}
 /* Toast */
 .toast{position:fixed;bottom:calc(var(--nav-h) + 12px);left:50%;transform:translateX(-50%);background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;padding:10px 18px;z-index:300;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap}
 .toast.show{opacity:1}
@@ -488,61 +574,270 @@ input:focus,textarea:focus{border-color:var(--accent)}
   <div class="fullpage-body" id="artistBody" style="padding:0 16px 40px"></div>
 </div>
 
-<!-- Settings page -->
+<!-- Settings page (main list) -->
 <div id="settingsOverlay" class="fullpage-overlay">
   <div class="fullpage-header">
     <span class="fullpage-title">Settings</span>
     <button class="fullpage-close" id="settingsClose">&#10005;</button>
   </div>
-  <div class="fullpage-body">
-        <div class="settings-row"><label>Username</label><span id="sUsername" style="color:var(--muted);font-size:13px"></span></div>
-        <div class="settings-row"><label>Collection</label><span id="sCount" style="color:var(--muted);font-size:13px"></span></div>
-        <div class="settings-row"><label>Art cached</label><span id="sArt" style="color:var(--muted);font-size:13px"></span></div>
-        <div class="settings-row"><label>Genres loaded</label><span id="sGenres" style="color:var(--muted);font-size:13px"></span></div>
-        <div class="settings-row"><label>About / Wiki</label><span id="sWiki" style="color:var(--muted);font-size:13px"></span></div>
-        <div class="settings-row"><label>Conditions</label><span id="sConditions" style="color:var(--muted);font-size:13px"></span></div>
-        <div class="settings-row"><label>Moods tagged</label><span id="sMoods" style="color:var(--muted);font-size:13px"></span></div>
-        <div class="settings-row"><label>Wantlist</label><span id="sWantlist" style="color:var(--muted);font-size:13px"></span></div>
-        <div class="settings-row"><label>Notes</label><span id="sNotes" style="color:var(--muted);font-size:13px"></span></div>
-        <div class="settings-row"><label>Last synced</label><span id="sSync" style="color:var(--muted);font-size:13px"></span></div>
-        <div class="settings-row"><label>Total plays</label><span id="sTotalPlays" style="color:var(--muted);font-size:13px"></span></div>
-        <div class="settings-row"><label>Crate cycle</label><span id="sCycle" style="color:var(--muted);font-size:13px"></span></div>
-
-        <div class="section-title">Shuffle Mode</div>
-        <div style="display:flex;gap:8px;margin-bottom:4px">
-          <button class="btn-ghost-sm" id="modeAllBtn" style="flex:1;padding:10px">Shuffle All</button>
-          <button class="btn-accent" id="modeUnplayedBtn" style="flex:1;padding:10px">Shuffle Unplayed</button>
+  <div class="fullpage-body" style="padding:0">
+    <div class="settings-list">
+      <button class="settings-row-item" data-subpanel="account">
+        <span class="settings-row-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg></span>
+        <div class="settings-row-content">
+          <span class="settings-row-name">Account</span>
+          <span class="settings-row-secondary" id="rowAccountSecondary">—</span>
         </div>
-        <div id="settingsCrateProgress" style="margin-top:8px">
-          <div class="crate-bar-wrap" style="max-width:100%"><div class="crate-bar" id="settingsCrateBar" style="width:0%"></div></div>
-          <div class="crate-label" id="settingsCrateLabel" style="margin-top:4px"></div>
+        <span class="settings-row-chevron">›</span>
+      </button>
+      <button class="settings-row-item" data-subpanel="discogs">
+        <span class="settings-row-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></svg></span>
+        <div class="settings-row-content">
+          <span class="settings-row-name">Discogs</span>
+          <span class="settings-row-secondary" id="rowDiscogsSecondary">Not connected</span>
         </div>
-
-        <div class="section-title">Discogs</div>
-        <div class="settings-row" style="align-items:center"><label>Token</label><button class="btn-ghost-sm" id="updateTokenBtn" style="padding:6px 14px;font-size:12px">Update</button></div>
-
-        <div class="section-title">Data</div>
-        <div id="syncStatus" style="display:none;margin-bottom:12px;padding:10px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-            <span id="syncSpinner" style="display:inline-block;width:14px;height:14px;border:2px solid var(--muted);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite"></span>
-            <span id="syncLabel" style="color:var(--text);font-size:13px;font-weight:600"></span>
-          </div>
-          <div style="height:3px;background:var(--surface);border-radius:2px;overflow:hidden"><div id="syncFill" style="height:100%;background:var(--accent);border-radius:2px;transition:width .3s;width:0%"></div></div>
+        <span class="settings-row-chevron">›</span>
+      </button>
+      <button class="settings-row-item" data-subpanel="moods">
+        <span class="settings-row-icon"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 109 9c0-1.5-1-2-2.5-2H17a2 2 0 010-4 2 2 0 002-2c0-1.7-2.7-3-7-3z"/><circle cx="7.5" cy="10.5" r="1"/><circle cx="11.5" cy="7.5" r="1"/><circle cx="16.5" cy="10.5" r="1"/></svg></span>
+        <div class="settings-row-content">
+          <span class="settings-row-name">Moods</span>
+          <span class="settings-row-secondary" id="rowMoodsSecondary">—</span>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
-          <button class="btn-accent" id="fullSyncBtn" style="padding:10px">Full Sync</button>
-          <button class="btn-ghost-sm" id="resetCycleBtn" style="padding:10px">Reset Cycle</button>
-          <button class="btn-ghost-sm" id="clearPlaysBtn" style="padding:10px;color:#f59e0b">Clear Play History</button>
-          <button class="btn-ghost-sm" id="clearNotesBtn" style="padding:10px;color:var(--muted)">Clear Notes & Moods</button>
+        <span class="settings-row-chevron">›</span>
+      </button>
+      <button class="settings-row-item" data-subpanel="theme">
+        <span class="settings-row-icon"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 100 18 9 9 0 000-18z"/><path d="M12 3a9 9 0 010 18" fill="currentColor" stroke="none"/></svg></span>
+        <div class="settings-row-content">
+          <span class="settings-row-name">Theme</span>
+          <span class="settings-row-secondary" id="rowThemeSecondary">Dark Default</span>
         </div>
-        <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
-          <button class="btn-ghost-sm" id="clearBtn" style="width:100%;padding:10px;color:var(--accent)">Clear All Data</button>
+        <span class="settings-row-chevron">›</span>
+      </button>
+      <button class="settings-row-item" data-subpanel="sync">
+        <span class="settings-row-icon"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0115-6.7l3-3"/><path d="M21 4v5h-5"/><path d="M21 12a9 9 0 01-15 6.7l-3 3"/><path d="M3 20v-5h5"/></svg></span>
+        <div class="settings-row-content">
+          <span class="settings-row-name">Sync</span>
+          <span class="settings-row-secondary" id="rowSyncSecondary">—</span>
         </div>
-        <div style="margin-top:24px;padding-top:16px;border-top:1px solid var(--border)">
-          <button class="btn-accent" id="settingsDoneBtn" style="width:100%;padding:14px;font-size:15px">Done</button>
+        <span class="settings-row-chevron">›</span>
+      </button>
+      <button class="settings-row-item" data-subpanel="feedback">
+        <span class="settings-row-icon"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4V5z"/></svg></span>
+        <div class="settings-row-content">
+          <span class="settings-row-name">Feedback</span>
+          <span class="settings-row-secondary">Send feedback</span>
         </div>
+        <span class="settings-row-chevron">›</span>
+      </button>
+      <button class="settings-row-item" data-subpanel="about">
+        <span class="settings-row-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v.01"/><path d="M11 12h1v5h1"/></svg></span>
+        <div class="settings-row-content">
+          <span class="settings-row-name">About</span>
+          <span class="settings-row-secondary" id="rowAboutSecondary">v1.0.0-step1</span>
+        </div>
+        <span class="settings-row-chevron">›</span>
+      </button>
+    </div>
   </div>
 </div>
+
+<!-- ─── Settings subpanels (each slides in from right) ─── -->
+
+<!-- Account subpanel -->
+<div id="subpanelAccount" class="settings-subpanel" data-subpanel-name="account">
+  <div class="subpanel-header">
+    <button class="subpanel-back" data-subpanel-close>‹</button>
+    <span class="subpanel-title">Account</span>
+  </div>
+  <div class="subpanel-body">
+    <div class="account-hero">
+      <div class="account-avatar" id="accountAvatar"><span id="accountAvatarLetter">T</span></div>
+      <div class="account-name" id="accountName">Todd Elbrink</div>
+      <div class="account-email" id="accountEmail">toddelbrink@gmail.com</div>
+    </div>
+
+    <div class="subpanel-section-header">Crate name</div>
+    <div class="subpanel-row" id="crateNameRow">
+      <span class="subpanel-row-label" id="crateNameDisplay">Elbrink's Crate</span>
+      <button class="subpanel-row-action" id="crateNameEditBtn" disabled title="Editable after Step 4 (per-user profiles)">Edit</button>
+    </div>
+    <div class="subpanel-foot-note">Crate name becomes editable in Step 4 (per-user profiles).</div>
+
+    <div class="subpanel-section-header">Session</div>
+    <div class="subpanel-cta-row">
+      <button class="ghost" id="accountSignOutBtn">Sign out</button>
+    </div>
+
+    <div class="subpanel-section-header">Data</div>
+    <div class="subpanel-foot-note">"Clear All Data" wipes IndexedDB and Supabase records. Re-sync from Discogs after to restore.</div>
+    <div class="subpanel-cta-row">
+      <button class="danger" id="clearBtn">Clear All Data</button>
+    </div>
+
+    <div class="subpanel-foot-note" style="margin-top:24px;border-top:1px solid var(--border);padding-top:20px">
+      Account deletion ships in Step 9.
+    </div>
+  </div>
+</div>
+
+<!-- Discogs subpanel -->
+<div id="subpanelDiscogs" class="settings-subpanel" data-subpanel-name="discogs">
+  <div class="subpanel-header">
+    <button class="subpanel-back" data-subpanel-close>‹</button>
+    <span class="subpanel-title">Discogs</span>
+  </div>
+  <div class="subpanel-body">
+    <div class="subpanel-section-header">Connection</div>
+    <div class="subpanel-row">
+      <span class="subpanel-row-label"><span class="status-dot connected" id="discogsStatusDot"></span><span id="discogsStatusText">Connected</span></span>
+    </div>
+    <div class="subpanel-row">
+      <span class="subpanel-row-label">Username</span>
+      <span class="subpanel-row-value" id="discogsUsernameValue">—</span>
+    </div>
+    <div class="subpanel-row">
+      <span class="subpanel-row-label">Reconnect</span>
+      <button class="subpanel-row-action" id="discogsReconnectBtn" disabled title="Discogs OAuth flow ships in Step 8">Reconnect</button>
+    </div>
+    <div class="subpanel-foot-note">OAuth-based reconnect lands in Step 8. Today, use the Personal Access Token update below.</div>
+
+    <div class="subpanel-section-header">Advanced</div>
+    <div class="subpanel-row">
+      <span class="subpanel-row-label">Personal Access Token</span>
+      <button class="subpanel-row-action" id="updateTokenBtn">Update</button>
+    </div>
+    <div class="subpanel-foot-note">Token stays in your browser and Supabase only. Get a token at discogs.com/settings/developers.</div>
+  </div>
+</div>
+
+<!-- Moods subpanel -->
+<div id="subpanelMoods" class="settings-subpanel" data-subpanel-name="moods">
+  <div class="subpanel-header">
+    <button class="subpanel-back" data-subpanel-close>‹</button>
+    <span class="subpanel-title">Moods</span>
+  </div>
+  <div class="subpanel-body">
+    <div class="subpanel-section-header">Your moods</div>
+    <div class="mood-edit-list" id="moodEditList"></div>
+    <button class="mood-add-btn" id="moodAddBtn" disabled>+ Add mood (enabled in Step 4)</button>
+    <div class="subpanel-foot-note">Per-user mood CRUD with rename, recolor, reorder, and delete ships in Step 4. Today this list shows the global moods baked into v1.0.</div>
+  </div>
+</div>
+
+<!-- Theme subpanel -->
+<div id="subpanelTheme" class="settings-subpanel" data-subpanel-name="theme">
+  <div class="subpanel-header">
+    <button class="subpanel-back" data-subpanel-close>‹</button>
+    <span class="subpanel-title">Theme</span>
+  </div>
+  <div class="subpanel-body">
+    <div class="subpanel-section-header">Choose a look</div>
+    <div class="theme-grid" id="themeGrid"></div>
+    <div class="subpanel-foot-note">Theme switching activates in Step 4. Previews show the palettes that ship with v1.</div>
+  </div>
+</div>
+
+<!-- Sync subpanel -->
+<div id="subpanelSync" class="settings-subpanel" data-subpanel-name="sync">
+  <div class="subpanel-header">
+    <button class="subpanel-back" data-subpanel-close>‹</button>
+    <span class="subpanel-title">Sync</span>
+  </div>
+  <div class="subpanel-body">
+    <div id="syncStatus" style="display:none;margin:12px 16px;padding:10px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span id="syncSpinner" style="display:inline-block;width:14px;height:14px;border:2px solid var(--muted);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite"></span>
+        <span id="syncLabel" style="color:var(--text);font-size:13px;font-weight:600"></span>
+      </div>
+      <div style="height:3px;background:var(--surface);border-radius:2px;overflow:hidden"><div id="syncFill" style="height:100%;background:var(--accent);border-radius:2px;transition:width .3s;width:0%"></div></div>
+    </div>
+
+    <div class="subpanel-section-header">Actions</div>
+    <div style="padding:0 16px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <button class="btn-accent" id="fullSyncBtn" style="padding:10px;border:none;border-radius:8px;font-family:var(--font);font-size:13px;font-weight:600;color:#fff;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation">Full Sync</button>
+      <button class="btn-ghost-sm" id="resetCycleBtn" style="padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation">Reset Cycle</button>
+      <button class="btn-ghost-sm" id="clearPlaysBtn" style="padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:#f59e0b;font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation">Clear Plays</button>
+      <button class="btn-ghost-sm" id="clearNotesBtn" style="padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation">Clear Notes & Moods</button>
+    </div>
+
+    <div class="subpanel-section-header">Cycle</div>
+    <div id="settingsCrateProgress" style="padding:8px 16px 16px">
+      <div class="crate-bar-wrap" style="max-width:100%"><div class="crate-bar" id="settingsCrateBar" style="width:0%"></div></div>
+      <div class="crate-label" id="settingsCrateLabel" style="margin-top:6px"></div>
+    </div>
+
+    <div class="subpanel-section-header">Playback</div>
+    <div style="padding:0 16px;display:flex;gap:8px">
+      <button id="modeAllBtn" style="flex:1;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation">Shuffle All</button>
+      <button id="modeUnplayedBtn" style="flex:1;padding:10px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation">Shuffle Unplayed</button>
+    </div>
+
+    <div class="subpanel-section-header">Library stats</div>
+    <div class="sync-stat-row"><span class="sync-stat-label">Discogs username</span><span class="sync-stat-value" id="sUsername">—</span></div>
+    <div class="sync-stat-row"><span class="sync-stat-label">Collection</span><span class="sync-stat-value" id="sCount">—</span></div>
+    <div class="sync-stat-row"><span class="sync-stat-label">Cover art</span><span class="sync-stat-value" id="sArt">—</span></div>
+    <div class="sync-stat-row"><span class="sync-stat-label">Genres</span><span class="sync-stat-value" id="sGenres">—</span></div>
+    <div class="sync-stat-row"><span class="sync-stat-label">About / Wiki</span><span class="sync-stat-value" id="sWiki">—</span></div>
+    <div class="sync-stat-row"><span class="sync-stat-label">Conditions</span><span class="sync-stat-value" id="sConditions">—</span></div>
+    <div class="sync-stat-row"><span class="sync-stat-label">Moods tagged</span><span class="sync-stat-value" id="sMoods">—</span></div>
+    <div class="sync-stat-row"><span class="sync-stat-label">Wantlist</span><span class="sync-stat-value" id="sWantlist">—</span></div>
+    <div class="sync-stat-row"><span class="sync-stat-label">Notes</span><span class="sync-stat-value" id="sNotes">—</span></div>
+    <div class="sync-stat-row"><span class="sync-stat-label">Last sync</span><span class="sync-stat-value" id="sSync">—</span></div>
+    <div class="sync-stat-row"><span class="sync-stat-label">Total plays</span><span class="sync-stat-value" id="sTotalPlays">—</span></div>
+    <div class="sync-stat-row"><span class="sync-stat-label">Crate cycle</span><span class="sync-stat-value" id="sCycle">—</span></div>
+  </div>
+</div>
+
+<!-- Feedback subpanel -->
+<div id="subpanelFeedback" class="settings-subpanel" data-subpanel-name="feedback">
+  <div class="subpanel-header">
+    <button class="subpanel-back" data-subpanel-close>‹</button>
+    <span class="subpanel-title">Feedback</span>
+  </div>
+  <div class="subpanel-body">
+    <div class="subpanel-section-header">Send feedback</div>
+    <div class="feedback-form">
+      <div class="feedback-sentiments">
+        <button class="feedback-sentiment-btn" data-feedback-sentiment="positive">👍 Working great</button>
+        <button class="feedback-sentiment-btn" data-feedback-sentiment="negative">👎 Something's off</button>
+      </div>
+      <textarea class="feedback-textarea" id="feedbackText" placeholder="What worked or didn't? Any thoughts?"></textarea>
+      <button class="subpanel-row-action primary" id="feedbackSubmitBtn" style="align-self:flex-end;padding:10px 18px">Send</button>
+    </div>
+    <div class="subpanel-foot-note">Feedback storage activates in Step 6. Drafts work today as a preview — submit posts a toast and clears the form.</div>
+
+    <div class="subpanel-section-header">Telemetry</div>
+    <div class="subpanel-row">
+      <span class="subpanel-row-label">Share anonymous usage data</span>
+      <button class="subpanel-row-action" id="telemetryToggleBtn" disabled title="Activates with Step 6">Off</button>
+    </div>
+    <div class="subpanel-foot-note">When on, Crate logs which features you use to help improve the product. No personal data leaves your collection.</div>
+  </div>
+</div>
+
+<!-- About subpanel -->
+<div id="subpanelAbout" class="settings-subpanel" data-subpanel-name="about">
+  <div class="subpanel-header">
+    <button class="subpanel-back" data-subpanel-close>‹</button>
+    <span class="subpanel-title">About</span>
+  </div>
+  <div class="subpanel-body">
+    <div class="about-hero">
+      <div class="about-logo"><img src="/vinyl/icon-v2-512.png" alt="EC"></div>
+      <div style="font-size:18px;font-weight:700">Elbrink's Crate</div>
+      <div class="about-version" id="aboutVersion">v1.0.0-step1</div>
+    </div>
+    <div class="about-credits">
+      <p>A vinyl listening app for Discogs collectors. Built by Todd Elbrink with Vera as co-pilot.</p>
+      <p>Collection data from <a href="https://www.discogs.com" target="_blank" rel="noopener" style="color:var(--accent)">Discogs</a>. Wikipedia bios from Wikimedia. Cover art served via Discogs CDN.</p>
+      <p>v1.0 brings multi-user support, per-user moods + themes, mood flipping, Recent Plays, and in-app feedback. Multi-user infrastructure ships across 10 build steps — this is Step 1.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Legacy Done button (kept hidden so existing handler doesn't error) -->
+<button id="settingsDoneBtn" style="display:none"></button>
 
 <!-- Wantlist page (removed, now inline in mainContent) -->
 
@@ -615,7 +910,9 @@ function sortPlaysList(records){
 }
 
 function closeAllOverlays(){
-  const wasOpen=$('sheetOverlay').classList.contains('open')||$('statDrillOverlay').classList.contains('open')||$('settingsOverlay').classList.contains('open')||$('artistOverlay').classList.contains('open');
+  const subpanelWasOpen=document.querySelectorAll('.settings-subpanel.open').length>0;
+  const wasOpen=subpanelWasOpen||$('sheetOverlay').classList.contains('open')||$('statDrillOverlay').classList.contains('open')||$('settingsOverlay').classList.contains('open')||$('artistOverlay').classList.contains('open');
+  document.querySelectorAll('.settings-subpanel.open').forEach(el=>el.classList.remove('open'));
   $('sheetOverlay').classList.remove('open');currentRecord=null;
   $('statDrillOverlay').classList.remove('open');
   $('settingsOverlay').classList.remove('open');
@@ -878,6 +1175,8 @@ function closeSheet(){
 function closeStats(){switchView('crate');setActiveNav('navCrate');}
 function closeSettings(){$('settingsOverlay').classList.remove('open');setActiveNav('navCrate');}
 window.addEventListener('popstate',()=>{
+  // Settings subpanels close first (so back goes subpanel → settings → main)
+  if(typeof anySubpanelOpen==='function'&&anySubpanelOpen()){closeSubpanel();return;}
   if($('artistOverlay').classList.contains('open'))closeArtistPage();
   else if($('statDrillOverlay').classList.contains('open'))closeStatDrill();
   else if($('sheetOverlay').classList.contains('open'))closeSheet();
@@ -2841,6 +3140,191 @@ if(window.DeviceMotionEvent){
     if(now-last>600){const d=Math.abs(x-lx)+Math.abs(y-ly)+Math.abs(z-lz);if(d>45)doShuffle();lx=x;ly=y;lz=z;last=now;}
   });
 }
+
+// ── Settings IA v1 (7-subpanel system) ───────────────────────
+// Step 1 of Multi-User v1 PRD. Replaces the flat Settings panel with a 7-row
+// main list whose rows open fullpage subpanels (slide-from-right). Each
+// subpanel is its own .settings-subpanel overlay; existing JS handlers
+// (fullSyncBtn, updateTokenBtn, etc.) continue to work because we preserved
+// every element ID, just relocated them into the appropriate subpanel.
+
+// Theme presets (Step 4 wires actual switching; this just renders cards)
+const THEMES=[
+  {id:'dark',name:'Dark Default',active:true,palette:['#0a0a0a','#1a1a1a','#ef4444','#fafafa']},
+  {id:'midnight',name:'Midnight Blue',active:false,palette:['#050913','#0d1424','#3b82f6','#e0e7ff']},
+  {id:'sunset',name:'Sunset',active:false,palette:['#1a0a05','#2d1208','#f97316','#fef3c7']},
+  {id:'forest',name:'Forest',active:false,palette:['#050f08','#0d1f12','#10b981','#d1fae5']},
+  {id:'paper',name:'Paper',active:false,palette:['#f5f1e8','#ffffff','#7c2d12','#1c1917']},
+];
+
+function openSubpanel(name){
+  const el=document.getElementById('subpanel'+name.charAt(0).toUpperCase()+name.slice(1));
+  if(!el)return;
+  // Render lazy content on first open
+  if(name==='moods')renderMoodsSubpanel();
+  if(name==='theme')renderThemeSubpanel();
+  if(name==='account')renderAccountSubpanel();
+  if(name==='discogs')renderDiscogsSubpanel();
+  el.classList.add('open');
+  pushModalState();
+}
+function closeSubpanel(name){
+  const el=name?document.getElementById('subpanel'+name.charAt(0).toUpperCase()+name.slice(1))
+                :document.querySelector('.settings-subpanel.open');
+  if(!el)return;
+  el.classList.remove('open');
+}
+function anySubpanelOpen(){return !!document.querySelector('.settings-subpanel.open');}
+
+// Wire row buttons → openSubpanel(name)
+document.querySelectorAll('.settings-row-item').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    const name=btn.getAttribute('data-subpanel');
+    if(name)openSubpanel(name);
+  });
+});
+
+// Wire back buttons via event delegation
+document.addEventListener('click',e=>{
+  if(e.target.closest('[data-subpanel-close]')){
+    if(history.state?.modal)history.back();
+    else closeSubpanel();
+  }
+});
+
+// Subpanel popstate handling lives inside the main popstate listener at the
+// top of the script (it checks anySubpanelOpen() before falling through to
+// closing the parent Settings overlay).
+
+// ── Subpanel content renderers ──
+function renderMoodsSubpanel(){
+  const list=document.getElementById('moodEditList');
+  if(!list)return;
+  list.innerHTML=MOODS.map(m=>`
+    <div class="mood-edit-row">
+      <span class="mood-swatch" style="background:${m.color}"></span>
+      <span class="mood-edit-name">${m.label}</span>
+      <button class="subpanel-row-action" disabled title="Editable in Step 4">Edit</button>
+    </div>
+  `).join('');
+}
+function renderThemeSubpanel(){
+  const grid=document.getElementById('themeGrid');
+  if(!grid)return;
+  grid.innerHTML=THEMES.map(t=>`
+    <div class="theme-card ${t.active?'active':'locked'}" data-theme-id="${t.id}">
+      ${!t.active?'<span class="theme-card-badge">Step 4</span>':''}
+      <div class="theme-card-preview">
+        ${t.palette.map(c=>`<span class="theme-card-preview-swatch" style="background:${c}"></span>`).join('')}
+      </div>
+      <div class="theme-card-name">${t.name}</div>
+      <div class="theme-card-status">${t.active?'Active':'Preview only'}</div>
+    </div>
+  `).join('');
+}
+function renderAccountSubpanel(){
+  // Pull email + name from Supabase session if available
+  if(typeof crate!=='undefined'&&crate.getSession){
+    crate.getSession().then(res=>{
+      if(res&&res.data&&res.data.session){
+        const u=res.data.session.user;
+        const email=u.email||'—';
+        const meta=u.user_metadata||{};
+        const fullName=meta.full_name||meta.name||(email.split('@')[0]);
+        const avatarUrl=meta.avatar_url||meta.picture||'';
+        const el=id=>document.getElementById(id);
+        if(el('accountEmail'))el('accountEmail').textContent=email;
+        if(el('accountName'))el('accountName').textContent=fullName;
+        if(el('accountAvatarLetter'))el('accountAvatarLetter').textContent=(fullName.charAt(0)||'?').toUpperCase();
+        if(avatarUrl){
+          const av=el('accountAvatar');
+          if(av&&!av.querySelector('img'))av.innerHTML=`<img src="${avatarUrl}" alt="">`;
+        }
+        // Reflect into main row secondary text too
+        if(el('rowAccountSecondary'))el('rowAccountSecondary').textContent=email;
+      }
+    }).catch(()=>{});
+  }
+}
+function renderDiscogsSubpanel(){
+  const el=id=>document.getElementById(id);
+  const hasToken=!!(token&&token.length>10);
+  const hasUser=!!(username&&username.length);
+  const connected=hasToken&&hasUser;
+  if(el('discogsStatusDot'))el('discogsStatusDot').className='status-dot '+(connected?'connected':'disconnected');
+  if(el('discogsStatusText'))el('discogsStatusText').textContent=connected?'Connected':'Not connected';
+  if(el('discogsUsernameValue'))el('discogsUsernameValue').textContent=hasUser?('@'+username):'—';
+}
+
+// Main-list secondary-text updater (called on Settings open + after updateSettingsPanel)
+function updateSettingsMainList(){
+  const el=id=>document.getElementById(id);
+  // Account row → email
+  if(typeof crate!=='undefined'&&crate.getSession){
+    crate.getSession().then(res=>{
+      if(res&&res.data&&res.data.session&&el('rowAccountSecondary'))
+        el('rowAccountSecondary').textContent=res.data.session.user.email||'Signed in';
+    }).catch(()=>{});
+  }
+  // Discogs row
+  if(el('rowDiscogsSecondary')){
+    const hasToken=!!(token&&token.length>10);
+    const hasUser=!!(username&&username.length);
+    el('rowDiscogsSecondary').textContent=(hasToken&&hasUser)?('Connected as @'+username):'Not connected';
+  }
+  // Moods row → count
+  if(el('rowMoodsSecondary'))el('rowMoodsSecondary').textContent=`${MOODS.length} moods`;
+  // Sync row → last sync time (best-effort, dbGet returns a Promise)
+  if(el('rowSyncSecondary')&&typeof dbGet==='function'){
+    dbGet('meta','lastSync').then(ts=>{
+      if(!el('rowSyncSecondary'))return;
+      if(!ts){el('rowSyncSecondary').textContent='Never synced';return;}
+      const ago=Date.now()-new Date(ts).getTime();
+      const mins=Math.floor(ago/60000);
+      if(mins<1)el('rowSyncSecondary').textContent='Just now';
+      else if(mins<60)el('rowSyncSecondary').textContent=`${mins} min ago`;
+      else if(mins<1440)el('rowSyncSecondary').textContent=`${Math.floor(mins/60)} hr ago`;
+      else el('rowSyncSecondary').textContent=new Date(ts).toLocaleDateString();
+    }).catch(()=>{});
+  }
+}
+
+// Hook into Settings open so main-list rows are fresh
+const _origHamSettings=$('hamSettings').onclick;
+$('hamSettings').onclick=function(e){
+  if(_origHamSettings)_origHamSettings.call(this,e);
+  updateSettingsMainList();
+};
+// Also refresh after updateSettingsPanel runs (which is called in many places)
+const _origUpdateSettingsPanel=updateSettingsPanel;
+updateSettingsPanel=async function(){
+  await _origUpdateSettingsPanel.apply(this,arguments);
+  updateSettingsMainList();
+};
+
+// ── Account subpanel: Sign Out ──
+$('accountSignOutBtn').onclick=async()=>{
+  if(typeof crate!=='undefined'&&crate.signOut)await crate.signOut();
+  location.reload();
+};
+
+// ── Feedback form (Step 6 wires real storage; today just toasts) ──
+let _feedbackSentiment=null;
+document.querySelectorAll('[data-feedback-sentiment]').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    _feedbackSentiment=btn.getAttribute('data-feedback-sentiment');
+    document.querySelectorAll('[data-feedback-sentiment]').forEach(b=>b.classList.toggle('selected',b===btn));
+  });
+});
+$('feedbackSubmitBtn').onclick=()=>{
+  const text=$('feedbackText').value.trim();
+  if(!_feedbackSentiment&&!text){showToast('Pick a sentiment or write something first');return;}
+  console.log('[feedback preview]',{sentiment:_feedbackSentiment,text});
+  $('feedbackText').value='';
+  _feedbackSentiment=null;
+  document.querySelectorAll('[data-feedback-sentiment]').forEach(b=>b.classList.remove('selected'));
+  showToast('Thanks — feedback storage activates in Step 6');
+};
 
 // Wait for the Supabase module to attach window.crate, then run init().
 // Magic-link callbacks land here with a hash like #access_token=...; the
