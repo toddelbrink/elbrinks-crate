@@ -49,6 +49,23 @@ header.bar-hidden{transform:translateY(-100%)}
 .logo{display:flex;align-items:center;gap:10px}
 .logo span{font-size:17px;font-weight:700;letter-spacing:-0.5px;color:var(--text)}
 .logo span em{color:#e8372c;font-style:normal}
+/* Mood indicator pill — appears in top bar between wordmark and Search when a mood filter is active */
+.mood-indicator-pill{height:22px;padding:0 9px;border-radius:11px;border:none;color:#fff;font-family:var(--font);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;display:inline-flex;align-items:center;gap:6px;line-height:1}
+.mood-indicator-pill::after{content:"×";font-size:13px;opacity:.7;font-weight:400}
+.mood-indicator-pill:active{opacity:.7}
+/* Recent Plays view rows */
+.recent-row{display:flex;align-items:center;gap:12px;padding:10px 8px;border-bottom:1px solid var(--border);cursor:pointer;border-radius:8px;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.recent-row:hover{background:var(--surface2)}
+.recent-row:active{opacity:.7}
+.recent-art{width:48px;height:48px;border-radius:6px;background:var(--surface2);overflow:hidden;flex-shrink:0}
+.recent-art img{width:100%;height:100%;object-fit:cover;display:block}
+.recent-info{flex:1;min-width:0}
+.recent-title{font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.recent-artist{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.recent-meta{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.recent-when{font-size:11px;color:var(--muted);text-align:right;white-space:nowrap}
+.recent-mood-pill{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#fff;padding:3px 8px;border-radius:10px;line-height:1}
+.recent-source{color:var(--muted);opacity:.6;font-size:11px}
 .btn-ghost{background:var(--surface2);border:none;border-radius:8px;color:var(--text);cursor:pointer;font-family:var(--font);font-size:13px;font-weight:600;padding:6px 12px}
 .btn-accent{background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:var(--font);font-size:13px;font-weight:600;padding:8px 14px}
 .btn-ghost-sm{background:var(--surface2);border:none;border-radius:8px;color:var(--text);cursor:pointer;font-family:var(--font);font-size:13px;font-weight:600;padding:8px 14px}
@@ -385,6 +402,7 @@ input:focus,textarea:focus{border-color:var(--accent)}
         <text x="14" y="19" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#e8372c" text-anchor="middle" letter-spacing="1">EC</text>
       </svg>
       <span>Elbrink's <em>Crate</em></span>
+      <button id="moodIndicatorPill" class="mood-indicator-pill" style="display:none" title="Tap to clear mood"></button>
     </div>
   </div>
   <div class="header-right">
@@ -489,6 +507,19 @@ input:focus,textarea:focus{border-color:var(--accent)}
     <div class="stat-tiles" id="statTiles"></div>
     <div style="text-align:center;margin-top:8px"><button class="btn-ghost-sm" id="shareStatsBtn" style="padding:10px 20px">Share My Stats</button></div>
   </div>
+  <div id="recentView" style="display:none">
+    <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px">
+      <h2 style="font-size:20px;font-weight:700">Recent plays</h2>
+      <span id="recentCount" style="color:var(--muted);font-size:12px"></span>
+    </div>
+    <div id="recentList"></div>
+    <div id="recentLoadMore" style="text-align:center;padding:16px;display:none">
+      <button class="btn-ghost-sm" id="recentLoadMoreBtn" style="padding:8px 16px">Load more</button>
+    </div>
+    <div id="recentEmpty" style="text-align:center;padding:40px 16px;color:var(--muted);font-size:13px;line-height:1.6;display:none">
+      No plays yet.<br>Your listening history shows up here as you play records.
+    </div>
+  </div>
 </div>
 
 <!-- Bottom nav: Crate, Want, Shuffle (center), Moods, Stats -->
@@ -515,6 +546,10 @@ input:focus,textarea:focus{border-color:var(--accent)}
   <button class="nav-btn" id="navStats">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
     Stats
+  </button>
+  <button class="nav-btn" id="navRecent">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    Recent
   </button>
 </nav>
 
@@ -974,10 +1009,12 @@ function switchView(view){
   $('collectionView').style.display='none';
   $('wantlistView').style.display='none';
   $('statsView').style.display='none';
+  if($('recentView'))$('recentView').style.display='none';
   activeView=view;
   if(view==='crate')$('collectionView').style.display='block';
   else if(view==='want')$('wantlistView').style.display='block';
   else if(view==='stats')$('statsView').style.display='block';
+  else if(view==='recent')$('recentView').style.display='block';
   window.scrollTo(0,0);
   // Scrubber might not exist yet at init, so guard the call
   if(typeof updateAlphaScrubber==='function')updateAlphaScrubber();
@@ -1202,6 +1239,14 @@ async function logPlay(releaseId){
   cycleLog[releaseId]=true;
   lastPlayed[releaseId]=new Date().toISOString();
   await crate.recordPlay(releaseId);
+  // Step 5: also insert per-event row for Recent Plays + future patterns.
+  // Source derived from app state: active mood filter + fromShuffle flag.
+  const moodActive=activeMoodFilter!=='all'?activeMoodFilter:null;
+  let source='manual';
+  if(fromShuffle&&moodActive)source='shuffle_by_mood';
+  else if(fromShuffle)source='shuffle';
+  else if(moodActive)source='mood_filter';
+  if(crate.recordPlayEvent)crate.recordPlayEvent(releaseId,{mood_active:moodActive,source}).catch(e=>console.error('[play_event]',e));
   await dbSet('plays','counts',playCounts);
   await dbSet('plays','cycleLog',cycleLog);
   await dbSet('plays','lastPlayed',lastPlayed);
@@ -2511,7 +2556,7 @@ $('moodFilterBtn').onclick=()=>{
   const mood=MOODS.find(m=>m.id===activeMoodFilter);
   $('moodFilterBtn').textContent=mood?`Mood: ${mood.label}`:'Mood: All';
   $('moodFilterBtn').className='ctrl-btn'+(activeMoodFilter!=='all'?' active-filter':'');
-  applyFilters();updateShuffleLabel();
+  applyFilters();updateShuffleLabel();renderIndicatorPill();
 };
 
 // ── Settings ──────────────────────────────────────────────────
@@ -2594,11 +2639,13 @@ $('connectBtn').onclick=connect;
 
 // Nav buttons
 function setActiveNav(id){document.querySelectorAll('#bottomNav .nav-btn').forEach(b=>b.classList.remove('active'));if(id)$(id).classList.add('active');}
-$('navCrate').onclick=()=>{closeAllOverlays();setActiveNav('navCrate');switchView('crate');};
+$('navCrate').onclick=()=>{closeAllOverlays();setActiveNav('navCrate');clearMoodFilter();switchView('crate');};
 $('navShuffle').onclick=()=>{closeAllOverlays();setActiveNav('navShuffle');doShuffle();};
-$('navStats').onclick=()=>{closeAllOverlays();setActiveNav('navStats');openStats();};
+$('navStats').onclick=()=>{closeAllOverlays();setActiveNav('navStats');clearMoodFilter();openStats();};
 $('shareStatsBtn').onclick=()=>shareStats();
-$('navWantlist').onclick=()=>{closeAllOverlays();setActiveNav('navWantlist');openWantlist();};
+$('navWantlist').onclick=()=>{closeAllOverlays();setActiveNav('navWantlist');clearMoodFilter();openWantlist();};
+$('navRecent').onclick=()=>{closeAllOverlays();setActiveNav('navRecent');clearMoodFilter();openRecent();};
+$('recentLoadMoreBtn').onclick=()=>loadMoreRecent();
 $('navMoods').onclick=()=>{
   closeAllOverlays();setActiveNav('navMoods');switchView('crate');
   // Cycle mood filter from nav
@@ -2608,7 +2655,7 @@ $('navMoods').onclick=()=>{
   const mood=MOODS.find(m=>m.id===activeMoodFilter);
   $('moodFilterBtn').textContent=mood?`Mood: ${mood.label}`:'Mood: All';
   $('moodFilterBtn').className='ctrl-btn'+(activeMoodFilter!=='all'?' active-filter':'');
-  applyFilters();updateShuffleLabel();
+  applyFilters();updateShuffleLabel();renderIndicatorPill();
   showToast(mood?`Mood: ${mood.label}`:'Mood: All',1500);
 };
 
@@ -3279,6 +3326,119 @@ let activeThemeKey='dark';
 // for Todd via the profile seed; falls back to "Your Crate" if undefined.
 let crateName="Elbrink's Crate";
 
+// ── Recent Plays view (Multi-User v1 / Step 5) ──────────────
+let _recentPage=0;
+const RECENT_PAGE_SIZE=50;
+let _recentRows=[]; // accumulated events across pages
+
+function formatPlayedAt(iso){
+  const d=new Date(iso);
+  const diff=Date.now()-d.getTime();
+  const mins=Math.floor(diff/60000);
+  if(mins<1)return 'Just now';
+  if(mins<60)return mins+'m ago';
+  const hrs=Math.floor(mins/60);
+  if(hrs<24)return hrs+'h ago';
+  const days=Math.floor(hrs/24);
+  if(days<7)return d.toLocaleDateString(undefined,{weekday:'short'})+' '+d.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+  return d.toLocaleDateString(undefined,{month:'short',day:'numeric'});
+}
+
+async function openRecent(){
+  switchView('recent');
+  // Always reload from page 0 on open
+  _recentPage=0;_recentRows=[];
+  document.getElementById('recentList').innerHTML='<div class="loading-inline">Loading recent plays...</div>';
+  document.getElementById('recentEmpty').style.display='none';
+  document.getElementById('recentLoadMore').style.display='none';
+  await loadMoreRecent();
+}
+
+async function loadMoreRecent(){
+  if(!crate.loadRecentPlays)return;
+  const offset=_recentPage*RECENT_PAGE_SIZE;
+  const res=await crate.loadRecentPlays(RECENT_PAGE_SIZE, offset);
+  if(!res.success){
+    document.getElementById('recentList').innerHTML='<div class="loading-inline" style="color:var(--accent)">Failed to load: '+(res.error?.message||res.error)+'</div>';
+    return;
+  }
+  const rows=res.data||[];
+  _recentRows=_recentRows.concat(rows);
+  _recentPage++;
+  renderRecentList();
+  // Show Load More if we got a full page (might be more)
+  document.getElementById('recentLoadMore').style.display=rows.length===RECENT_PAGE_SIZE?'block':'none';
+}
+
+function renderRecentList(){
+  const list=document.getElementById('recentList');
+  const empty=document.getElementById('recentEmpty');
+  const count=document.getElementById('recentCount');
+  if(_recentRows.length===0){
+    list.innerHTML='';
+    empty.style.display='block';
+    count.textContent='';
+    return;
+  }
+  empty.style.display='none';
+  count.textContent=`${_recentRows.length} play${_recentRows.length===1?'':'s'}`;
+  list.innerHTML=_recentRows.map(ev=>{
+    const rec=collection.find(r=>r.releaseId===ev.release_id);
+    const title=rec?.title||'Unknown release';
+    const artist=rec?.artist||'';
+    const art=rec?(artCache[rec.releaseId]||rec.coverImage):null;
+    const artHtml=art?`<img src="${crate.proxyImage(art)}" alt="" loading="lazy">`:'';
+    const mood=ev.mood_active?MOODS.find(m=>m.id===ev.mood_active):null;
+    const moodHtml=mood?`<span class="recent-mood-pill" style="background:${mood.color}">${mood.label}</span>`:'';
+    const srcIcon=(ev.source==='shuffle'||ev.source==='shuffle_by_mood')?'<span class="recent-source" title="Shuffle">↬</span>':'';
+    return `<div class="recent-row" data-release-id="${ev.release_id}">
+      <div class="recent-art">${artHtml}</div>
+      <div class="recent-info">
+        <div class="recent-title">${title}</div>
+        <div class="recent-artist">${artist}</div>
+      </div>
+      <div class="recent-meta">
+        ${moodHtml}
+        ${srcIcon}
+        <div class="recent-when">${formatPlayedAt(ev.played_at)}</div>
+      </div>
+    </div>`;
+  }).join('');
+  // Wire row taps to open album detail
+  list.querySelectorAll('.recent-row').forEach(row=>{
+    row.addEventListener('click',()=>{
+      const id=row.getAttribute('data-release-id');
+      const rec=collection.find(r=>r.releaseId===id);
+      if(rec&&typeof openSheet==='function')openSheet(rec);
+    });
+  });
+}
+
+// Mood indicator pill — surfaces the active mood filter as a small chip in
+// the top bar (Step 5). Tap clears the filter and hides the pill. The pill
+// uses the mood's full-saturation color so it reads at a glance.
+function renderIndicatorPill(){
+  const pill=document.getElementById('moodIndicatorPill');
+  if(!pill)return;
+  if(activeMoodFilter==='all'){pill.style.display='none';return;}
+  const mood=MOODS.find(m=>m.id===activeMoodFilter);
+  if(!mood){pill.style.display='none';return;}
+  pill.style.display='inline-flex';
+  pill.style.background=mood.color;
+  pill.textContent=mood.label;
+}
+
+// Clear the active mood filter and re-render dependent surfaces. Called by
+// the pill tap + by Wantlist / Stats nav buttons (per PRD §10.2).
+function clearMoodFilter(){
+  activeMoodFilter='all';
+  const mFb=document.getElementById('moodFilterBtn');
+  if(mFb){mFb.textContent='Mood: All';mFb.className='ctrl-btn';}
+  renderIndicatorPill();
+  if(typeof applyFilters==='function')applyFilters();
+  if(typeof updateShuffleLabel==='function')updateShuffleLabel();
+}
+
 function renderCrateName(){
   const name=crateName||'Your Crate';
   document.title=name;
@@ -3572,6 +3732,9 @@ $('accountSignOutBtn').onclick=async()=>{
   if(typeof crate!=='undefined'&&crate.signOut)await crate.signOut();
   location.reload();
 };
+
+// Mood indicator pill — tap to clear active mood filter
+$('moodIndicatorPill').onclick=()=>clearMoodFilter();
 
 // ── Account subpanel: edit Crate name ──
 $('crateNameEditBtn').onclick=async()=>{
