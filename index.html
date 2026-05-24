@@ -413,8 +413,13 @@ input:focus,textarea:focus{border-color:var(--accent)}
 /* Color: opposite-from-global accent. Merge override = teal (same as approve toggle), Overwrite override = amber. */
 .review-row-mode-badge[data-mode="merge"]{color:#2dd4bf}
 .review-row-mode-badge[data-mode="overwrite"]{color:#f59e0b}
-/* Wider invisible hit-target via padding so finger-taps don't miss on a 22px circle. */
-.review-row-mode-badge-wrap{display:flex;align-items:center;justify-content:center;padding:6px;flex-shrink:0}
+/* Wider invisible hit-target via padding so finger-taps don't miss on a 22px circle.
+   Cursor + the empty-state dot inside make the tap area at least minimally findable. */
+.review-row-mode-badge-wrap{display:flex;align-items:center;justify-content:center;padding:6px;flex-shrink:0;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+/* Empty-state hint: a single muted dot so the tap area is discoverable without
+   shouting. Renders when row is in global mode (no override). Tap reveals the
+   real badge for opposite-of-global mode. */
+.review-row-mode-badge-empty{display:flex;align-items:center;justify-content:center;width:22px;height:22px;font-size:18px;line-height:1;color:var(--muted);opacity:.35;pointer-events:none}
 .review-empty{padding:60px 20px;text-align:center;color:var(--muted);font-size:14px}
 .review-footer{display:flex;align-items:center;gap:12px;padding:14px 20px;border-top:1px solid var(--border);background:var(--surface);flex-shrink:0}
 .review-count{flex:1;font-size:13px;color:var(--muted)}
@@ -1193,7 +1198,7 @@ input:focus,textarea:focus{border-color:var(--accent)}
 <script>
 const $=id=>document.getElementById(id);
 const DB='ElbrinksCrate',VER=5;
-const APP_VERSION='v1.1.0-share-003';
+const APP_VERSION='v1.1.0-share-004';
 // Plumb APP_VERSION into BOTH Settings → About surfaces (main list row's
 // secondary text + About subpanel hero) so the displayed version stays in
 // sync with the constant. Was previously hardcoded in the HTML in two places
@@ -4349,15 +4354,28 @@ function renderReviewList(){
       : '<span class="review-row-pill empty">none</span>';
     const toggleIcon=isDismissed?'&times;':'&#10003;';
     const toggleLabel=isDismissed?'Skipped — tap to save':'Will save — tap to skip';
-    // §2.A — badge visible only when this row's effective mode differs from global.
-    // The badge letter is the row's effective mode (M for merge, O for overwrite),
-    // which by definition is the OPPOSITE of the current global toggle when shown.
+    // §2.A — in retag mode, always render the hit-target wrap so users can
+    // CREATE an override (tap when no badge visible). Badge inside only renders
+    // when this row's effective mode differs from global — clean default per
+    // spec ("no visual noise") while still being tappable to opt in.
+    // Hint dot in the wrap when empty so the tap area is at least minimally
+    // discoverable (§2.A spec acknowledges discoverability is a tutorial-
+    // walkthrough §10 concern; the dot is a compromise until that ships).
     let badgeHTML='';
-    if(showBadges && overrides.has(p.releaseId)){
-      const rowMode=overrides.get(p.releaseId);
-      const letter=rowMode==='merge'?'M':'O';
-      const fullLabel=rowMode==='merge'?'Merge (tap to inherit global)':'Overwrite (tap to inherit global)';
-      badgeHTML=`<span class="review-row-mode-badge-wrap" data-action="mode-toggle"><button class="review-row-mode-badge" data-mode="${rowMode}" aria-label="${fullLabel}" title="${fullLabel}">${letter}</button></span>`;
+    if(showBadges){
+      const overridden=overrides.has(p.releaseId);
+      const globalLetter=toggle==='merge'?'M':'O';
+      const oppositeLetter=toggle==='merge'?'O':'M';
+      if(overridden){
+        const rowMode=overrides.get(p.releaseId);
+        const letter=rowMode==='merge'?'M':'O';
+        const fullLabel=`Row mode: ${rowMode}. Tap to inherit global (${toggle}).`;
+        badgeHTML=`<span class="review-row-mode-badge-wrap" data-action="mode-toggle"><button class="review-row-mode-badge" data-mode="${rowMode}" aria-label="${fullLabel}" title="${fullLabel}">${letter}</button></span>`;
+      }else{
+        const fullLabel=`Row mode: ${toggle} (global). Tap to override to ${toggle==='merge'?'overwrite':'merge'} for this row.`;
+        // Empty hint state: small dot, dim, not noisy. Tappable via the wrap.
+        badgeHTML=`<span class="review-row-mode-badge-wrap" data-action="mode-toggle" aria-label="${fullLabel}" title="${fullLabel}"><span class="review-row-mode-badge-empty">·</span></span>`;
+      }
     }
     return `<div class="review-row${isDismissed?' dismissed':''}" data-rid="${p.releaseId}">
       <div class="review-row-art">${art}</div>
