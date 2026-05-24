@@ -1183,7 +1183,7 @@ input:focus,textarea:focus{border-color:var(--accent)}
 <script>
 const $=id=>document.getElementById(id);
 const DB='ElbrinksCrate',VER=5;
-const APP_VERSION='v1.1.0-share-001';
+const APP_VERSION='v1.1.0-share-002';
 // Plumb APP_VERSION into BOTH Settings → About surfaces (main list row's
 // secondary text + About subpanel hero) so the displayed version stays in
 // sync with the constant. Was previously hardcoded in the HTML in two places
@@ -1426,11 +1426,14 @@ async function init(){
   await loadMoodsFromServer();
 
   // Load user profile (Step 4). crate_name renders across top bar, browser
-  // tab, Account subpanel, and About hero.
+  // tab, Account subpanel, and About hero. ensureProfile (v1.1 Sprint 1 item 2
+  // hotfix) creates a default row if missing — covers fresh users + legacy
+  // users whose Supabase user pre-dates the auto-create wiring. Idempotent
+  // on existing rows. Default crate_name derived from Google identity.
   // Share state (v1.1) is cached in the same call so the Share row secondary
   // and Share button URL gate read off it without an extra round-trip.
-  if(crate.loadProfile){
-    const pRes=await crate.loadProfile();
+  if(crate.ensureProfile){
+    const pRes=await crate.ensureProfile();
     if(pRes.success&&pRes.data){
       if(pRes.data.crate_name)crateName=pRes.data.crate_name;
       shareEnabled=!!pRes.data.share_enabled;
@@ -3970,9 +3973,16 @@ const THEMES={
 };
 let activeThemeKey='dark';
 
-// User's personalized Crate name (PRD §7.8). Defaults to "Elbrink's Crate"
-// for Todd via the profile seed; falls back to "Your Crate" if undefined.
-let crateName="Elbrink's Crate";
+// User's personalized Crate name (PRD §7.8). Empty default — gets overwritten
+// during init by ensureProfile() with the user's crate_name (existing) or a
+// fresh default derived from their Google identity. The pre-init flash uses
+// the static HTML literals at lines 8 (apple-mobile-web-app-title), 9 (title),
+// 534/547/1068 (in-app heros) which all currently say "Elbrink's Crate" — those
+// are the splash-screen / install-prompt visible BEFORE JS runs and are
+// publisher-level branding (will swap to "Crate" with the v1.1 EC swap, PRD §4).
+// renderCrateName() falls back to "Your Crate" if this stays empty post-init,
+// which shouldn't happen but is defensive.
+let crateName="";
 
 // Share state (v1.1 / Sprint 1 item 2). Cached at init from vinyl_user_profile
 // + refreshed whenever the user toggles in Settings → Share. Drives both the
