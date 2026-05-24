@@ -1012,7 +1012,7 @@ input:focus,textarea:focus{border-color:var(--accent)}
     <div class="about-hero">
       <div class="about-logo"><img src="/vinyl/icon-v2-512.png" alt="EC"></div>
       <div style="font-size:18px;font-weight:700">Elbrink's Crate</div>
-      <div class="about-version" id="aboutVersion">v1.0.0-step6</div>
+      <div class="about-version" id="aboutVersion">—</div>
     </div>
     <div class="about-credits">
       <p>A vinyl listening app for Discogs collectors. Built by Todd Elbrink with Vera as co-pilot.</p>
@@ -1130,6 +1130,11 @@ input:focus,textarea:focus{border-color:var(--accent)}
 const $=id=>document.getElementById(id);
 const DB='ElbrinksCrate',VER=5;
 const APP_VERSION='v1.0.0-pwatest-001';
+// Plumb APP_VERSION into Settings → About so the displayed version stays in
+// sync with the constant. Was previously hardcoded in the HTML and silently
+// drifted, which invalidated PWA cache tests. Element exists above this
+// script tag in the DOM, so getElementById is safe to call inline.
+(()=>{const el=document.getElementById('aboutVersion');if(el)el.textContent=APP_VERSION;})();
 
 // Moods config
 // Locked 6-color mood palette (PRD §8.2). Each entry maps a color_key
