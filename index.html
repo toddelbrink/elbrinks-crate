@@ -1157,6 +1157,19 @@ input:focus,textarea:focus{border-color:var(--accent)}
   </div>
 </div>
 
+<!-- Shared inputPromptModal — replaces native prompt() for in-app text entry (v1.1 §6) -->
+<div id="inputPromptModal" class="reset-modal" style="display:none">
+  <div class="reset-card" style="text-align:left;max-width:400px">
+    <h2 id="inputPromptTitle" style="text-align:center;margin-bottom:12px"></h2>
+    <p id="inputPromptDescription" style="display:none;text-align:left;font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.5"></p>
+    <label id="inputPromptLabel" style="display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px"></label>
+    <input type="text" id="inputPromptField" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 12px;font-family:var(--font);font-size:14px;margin-bottom:14px">
+    <div id="inputPromptError" style="display:none;color:var(--accent);font-size:13px;margin-bottom:12px;line-height:1.4"></div>
+    <button id="inputPromptConfirmBtn" style="background:var(--accent);margin-bottom:8px">Save</button>
+    <button id="inputPromptCancelBtn" style="background:var(--surface2);color:var(--text)">Cancel</button>
+  </div>
+</div>
+
 <!-- Review-and-approve modal for bulk auto-tag (PRD v1.1 §2) -->
 <div id="reviewModal" class="review-modal">
   <div class="review-card">
@@ -1272,6 +1285,8 @@ function anyUpdateBlockerActive(){
   if(document.getElementById('llmProgressModal')?.style.display==='flex')return true;
   // Mood-edit modal uses inline display in some paths.
   if(document.getElementById('moodEditModal')?.style.display==='flex')return true;
+  // Shared inputPromptModal (crate-name edit, Discogs PAT paste, future text-entry surfaces).
+  if(document.getElementById('inputPromptModal')?.style.display==='flex')return true;
   return false;
 }
 
@@ -3931,11 +3946,76 @@ $('clearNotesBtn').onclick=async()=>{
   moodCache={};notesCache={};
   renderGrid();closeSettings();showToast('Notes and moods cleared');
 };
+// ── Shared inputPromptModal helper (v1.1 §6) ──
+// Promise-based replacement for native prompt(). Lives in #inputPromptModal
+// (HTML at top of body). Single modal reused across all text-entry surfaces.
+// Resolves to trimmed string on confirm, null on cancel/escape.
+let _inputPromptResolve=null;
+let _inputPromptValidator=null;
+function inputPromptModal({title='',description=null,label='',placeholder='',defaultValue='',maxLength=null,validator=null,confirmLabel='Save'}={}){
+  return new Promise(resolve=>{
+    // If a previous call somehow didn't finish, resolve it null so we don't leak.
+    if(_inputPromptResolve){_inputPromptResolve(null);}
+    _inputPromptResolve=resolve;
+    _inputPromptValidator=validator;
+    $('inputPromptTitle').textContent=title;
+    const descEl=$('inputPromptDescription');
+    if(description){descEl.textContent=description;descEl.style.display='block';}
+    else{descEl.style.display='none';descEl.textContent='';}
+    $('inputPromptLabel').textContent=label;
+    const field=$('inputPromptField');
+    field.value=defaultValue||'';
+    field.placeholder=placeholder||'';
+    if(maxLength!=null)field.maxLength=maxLength;else field.removeAttribute('maxlength');
+    const err=$('inputPromptError');
+    err.style.display='none';err.textContent='';
+    $('inputPromptConfirmBtn').textContent=confirmLabel;
+    $('inputPromptModal').style.display='flex';
+    // Focus + select-all on next paint so user can immediately overwrite the default.
+    setTimeout(()=>{field.focus();field.select();},50);
+  });
+}
+function _inputPromptFinish(value){
+  $('inputPromptModal').style.display='none';
+  const r=_inputPromptResolve;
+  _inputPromptResolve=null;_inputPromptValidator=null;
+  if(r)r(value);
+  // §11 — re-check update card after modal closes (matches moodEditModal pattern).
+  if(typeof maybeShowUpdateCard==='function')setTimeout(maybeShowUpdateCard,260);
+}
+function _inputPromptConfirm(){
+  const raw=$('inputPromptField').value;
+  const trimmed=(raw||'').trim();
+  if(_inputPromptValidator){
+    const msg=_inputPromptValidator(trimmed);
+    if(msg){
+      const err=$('inputPromptError');
+      err.textContent=msg;err.style.display='block';
+      return;
+    }
+  }
+  _inputPromptFinish(trimmed);
+}
+function _inputPromptCancel(){_inputPromptFinish(null);}
+$('inputPromptConfirmBtn').onclick=_inputPromptConfirm;
+$('inputPromptCancelBtn').onclick=_inputPromptCancel;
+$('inputPromptField').addEventListener('keydown',e=>{
+  if(e.key==='Enter'){e.preventDefault();_inputPromptConfirm();}
+  else if(e.key==='Escape'){e.preventDefault();_inputPromptCancel();}
+});
+
 $('updateTokenBtn').onclick=async()=>{
-  const input=prompt('Paste your new Discogs token:');
-  if(input===null)return;
-  const t=(input||'').trim();
-  if(!t){showToast('Token cannot be empty');return;}
+  const t=await inputPromptModal({
+    title:'Discogs personal access token',
+    description:'Paste a token from discogs.com → Settings → Developers. Use this only if you can’t connect via the regular Discogs button above.',
+    label:'Token',
+    placeholder:'40-character string',
+    defaultValue:'',
+    maxLength:80,
+    confirmLabel:'Save token',
+    validator:v=>!v?'Token cannot be empty':null,
+  });
+  if(t===null)return;
   $('updateTokenBtn').disabled=true;$('updateTokenBtn').textContent='Updating…';
   await dbSet('meta','token',t);
   // Save PAT + flip mode to 'pat' so the proxy uses the PAT path going forward.
@@ -5096,9 +5176,16 @@ $('accountSignOutBtn').onclick=async()=>{
 
 // ── Account subpanel: edit Crate name ──
 $('crateNameEditBtn').onclick=async()=>{
-  const next=(prompt('Crate name (50 chars max)',crateName||'')||'').trim();
-  if(!next||next===crateName)return;
-  if(next.length>50){showToast('Too long — 50 character max');return;}
+  const next=await inputPromptModal({
+    title:'Crate name',
+    label:'Name',
+    placeholder:'Your crate',
+    defaultValue:crateName||'',
+    maxLength:50,
+    confirmLabel:'Save',
+    validator:v=>!v?'Crate name cannot be empty':null,
+  });
+  if(next===null||next===crateName)return;
   const res=await crate.updateProfile({crate_name:next});
   if(!res.success){showToast('Save failed: '+(res.error?.message||res.error||'unknown'));return;}
   crateName=next;
