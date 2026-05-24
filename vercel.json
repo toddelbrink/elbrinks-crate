@@ -2,7 +2,8 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     { "source": "/share/api/:path*", "destination": "/api/:path*" },
-    { "source": "/share/lib/:path*", "destination": "/lib/:path*" }
+    { "source": "/share/lib/:path*", "destination": "/lib/:path*" },
+    { "source": "/share/:slug", "destination": "/share/?slug=:slug" }
   ],
   "headers": [
     {

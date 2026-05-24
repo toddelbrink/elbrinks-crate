@@ -281,6 +281,23 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .subpanel-cta-row button.primary{background:var(--accent);color:#fff}
 .subpanel-cta-row button.ghost{background:var(--surface2);color:var(--text)}
 .subpanel-cta-row button.danger{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+/* Share subpanel (v1.1 / Sprint 1 item 2) */
+.share-toggle-row{display:flex;align-items:center;gap:16px;padding:18px 16px;border-bottom:1px solid var(--border)}
+.share-toggle-label{flex:1;min-width:0}
+.share-toggle-title{font-size:16px;color:var(--text);font-weight:500;line-height:1.3}
+.share-toggle-sub{font-size:12px;color:var(--muted);line-height:1.4;margin-top:4px}
+.share-switch{position:relative;display:inline-block;width:48px;height:28px;flex-shrink:0;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.share-switch input{opacity:0;width:0;height:0;position:absolute}
+.share-switch-slider{position:absolute;cursor:pointer;inset:0;background:var(--surface2);border:1px solid var(--border);border-radius:14px;transition:.2s}
+.share-switch-slider::before{content:"";position:absolute;top:2px;left:2px;width:22px;height:22px;background:var(--muted);border-radius:50%;transition:.2s}
+.share-switch input:checked + .share-switch-slider{background:var(--accent);border-color:var(--accent)}
+.share-switch input:checked + .share-switch-slider::before{transform:translateX(20px);background:#fff}
+.share-switch input:disabled + .share-switch-slider{opacity:.5;cursor:default}
+.share-link-row{padding:18px 16px;border-bottom:1px solid var(--border)}
+.share-link-label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:8px}
+.share-link-url{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px;color:var(--text);padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;word-break:break-all;line-height:1.4;margin-bottom:10px}
+.share-link-buttons{display:flex;gap:8px}
+.share-link-buttons .subpanel-row-action{flex:1}
 /* Status dot for Discogs connection */
 .status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:8px;vertical-align:middle}
 .status-dot.connected{background:#10b981}
@@ -736,6 +753,14 @@ input:focus,textarea:focus{border-color:var(--accent)}
         </div>
         <span class="settings-row-chevron">›</span>
       </button>
+      <button class="settings-row-item" data-subpanel="share">
+        <span class="settings-row-icon"><svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><line x1="8.7" y1="10.7" x2="15.3" y2="7.3"/><line x1="8.7" y1="13.3" x2="15.3" y2="16.7"/></svg></span>
+        <div class="settings-row-content">
+          <span class="settings-row-name">Share</span>
+          <span class="settings-row-secondary" id="rowShareSecondary">Off</span>
+        </div>
+        <span class="settings-row-chevron">›</span>
+      </button>
       <button class="settings-row-item" data-subpanel="sync">
         <span class="settings-row-icon"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0115-6.7l3-3"/><path d="M21 4v5h-5"/><path d="M21 12a9 9 0 01-15 6.7l-3 3"/><path d="M3 20v-5h5"/></svg></span>
         <div class="settings-row-content">
@@ -913,6 +938,35 @@ input:focus,textarea:focus{border-color:var(--accent)}
     <div class="subpanel-section-header">Choose a look</div>
     <div class="theme-grid" id="themeGrid"></div>
     <div class="subpanel-foot-note">Tap a theme to apply it. The change persists across devices when you're signed in. Mood pill colors stay constant across themes so your tags read the same everywhere.</div>
+  </div>
+</div>
+
+<!-- Share subpanel (v1.1 / Sprint 1 item 2) -->
+<div id="subpanelShare" class="settings-subpanel" data-subpanel-name="share">
+  <div class="subpanel-header">
+    <button class="subpanel-back" data-subpanel-close>‹</button>
+    <span class="subpanel-title">Share</span>
+  </div>
+  <div class="subpanel-body">
+    <div class="share-toggle-row">
+      <div class="share-toggle-label">
+        <div class="share-toggle-title">Make my crate public</div>
+        <div class="share-toggle-sub" id="shareToggleSub">When on, anyone with your link can browse but not edit.</div>
+      </div>
+      <label class="share-switch">
+        <input type="checkbox" id="shareToggle">
+        <span class="share-switch-slider"></span>
+      </label>
+    </div>
+    <div id="shareLinkRow" class="share-link-row" style="display:none">
+      <div class="share-link-label">Your link</div>
+      <div class="share-link-url" id="shareLinkUrl">—</div>
+      <div class="share-link-buttons">
+        <button class="subpanel-row-action" id="shareCopyBtn">Copy</button>
+        <button class="subpanel-row-action" id="shareOpenBtn">Open</button>
+      </div>
+    </div>
+    <div class="subpanel-foot-note">Your share page shows your collection, moods, and stats in read-only form. Sync and edit controls stay private. Toggle off any time to take the link down — your data stays put.</div>
   </div>
 </div>
 
@@ -1129,7 +1183,7 @@ input:focus,textarea:focus{border-color:var(--accent)}
 <script>
 const $=id=>document.getElementById(id);
 const DB='ElbrinksCrate',VER=5;
-const APP_VERSION='v1.0.0-pwatest-001';
+const APP_VERSION='v1.1.0-share-001';
 // Plumb APP_VERSION into BOTH Settings → About surfaces (main list row's
 // secondary text + About subpanel hero) so the displayed version stays in
 // sync with the constant. Was previously hardcoded in the HTML in two places
@@ -1373,13 +1427,18 @@ async function init(){
 
   // Load user profile (Step 4). crate_name renders across top bar, browser
   // tab, Account subpanel, and About hero.
+  // Share state (v1.1) is cached in the same call so the Share row secondary
+  // and Share button URL gate read off it without an extra round-trip.
   if(crate.loadProfile){
     const pRes=await crate.loadProfile();
-    if(pRes.success&&pRes.data&&pRes.data.crate_name){
-      crateName=pRes.data.crate_name;
+    if(pRes.success&&pRes.data){
+      if(pRes.data.crate_name)crateName=pRes.data.crate_name;
+      shareEnabled=!!pRes.data.share_enabled;
+      shareSlug=pRes.data.share_slug||null;
     }
   }
   renderCrateName();
+  renderShareRowSecondary();
 
   // Pull all settings from Supabase up front. vinyl_settings is RLS-locked to
   // authenticated; this works because we just gated above. Multi-device user —
@@ -2875,13 +2934,24 @@ async function shareStats(){
   ctx.font='600 22px -apple-system, BlinkMacSystemFont, sans-serif';
   ctx.textAlign='center';
   ctx.fillText("Elbrink's Crate",W/2,brandY+32);
+  // Public share URL (v1.1) — only when the user has opted in. Stripped
+  // from both the image and the navigator.share text payload below when
+  // share is off so users can't accidentally leak a broken link.
+  const statsShareUrl=shareUrl();
+  if(shareEnabled&&statsShareUrl){
+    ctx.fillStyle='#666666';
+    ctx.font='500 16px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillText(statsShareUrl.replace(/^https?:\/\//,''),W/2,brandY+58);
+  }
 
   // Export
   canvas.toBlob(async(blob)=>{
     if(!blob){showToast('Failed to generate image');return;}
     const file=new File([blob],'elbrinks-crate-stats.png',{type:'image/png'});
+    const sharePayload={files:[file],title:"My Crate Stats"};
+    if(shareEnabled&&statsShareUrl)sharePayload.text=statsShareUrl;
     if(navigator.canShare&&navigator.canShare({files:[file]})){
-      try{await navigator.share({files:[file],title:"My Crate Stats"});}
+      try{await navigator.share(sharePayload);}
       catch(e){if(e.name!=='AbortError')showToast('Share cancelled');}
     }else{
       const url=URL.createObjectURL(blob);
@@ -3471,14 +3541,26 @@ async function shareRecord(r){
     ctx.textAlign='right';
     ctx.fillText("Elbrink's Crate",W-50,H-50);
   }
+  // Public share URL (v1.1) — bottom-left, mirrors stats image placement.
+  // Only when the user has opted in. Stripped from the navigator.share text
+  // payload below when share is off so the link can't leak by accident.
+  const recordShareUrl=shareUrl();
+  if(shareEnabled&&recordShareUrl){
+    ctx.fillStyle='rgba(255,255,255,0.55)';
+    ctx.font='500 16px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.textAlign='left';
+    ctx.fillText(recordShareUrl.replace(/^https?:\/\//,''),60,H-50);
+  }
 
   // Export
   canvas.toBlob(async(blob)=>{
     if(!blob){showToast('Failed to generate image');return;}
     const file=new File([blob],'elbrinks-crate-pick.png',{type:'image/png'});
+    const baseText=getShareText(r);
+    const shareText=(shareEnabled&&recordShareUrl)?`${baseText}\n${recordShareUrl}`:baseText;
     if(navigator.canShare&&navigator.canShare({files:[file]})){
       try{
-        await navigator.share({files:[file],title:`${r.artist} - ${r.title}`,text:getShareText(r)});
+        await navigator.share({files:[file],title:`${r.artist} - ${r.title}`,text:shareText});
       }catch(e){if(e.name!=='AbortError')showToast('Share cancelled');}
     }else{
       // Fallback: download
@@ -3892,6 +3974,12 @@ let activeThemeKey='dark';
 // for Todd via the profile seed; falls back to "Your Crate" if undefined.
 let crateName="Elbrink's Crate";
 
+// Share state (v1.1 / Sprint 1 item 2). Cached at init from vinyl_user_profile
+// + refreshed whenever the user toggles in Settings → Share. Drives both the
+// Settings → Share row secondary text and the in-app Share button URL gate.
+let shareEnabled=false;
+let shareSlug=null;
+
 // ── Recent Plays view (Multi-User v1 / Step 5) ──────────────
 let _recentPage=0;
 const RECENT_PAGE_SIZE=50;
@@ -4045,6 +4133,7 @@ function openSubpanel(name){
   // Render lazy content on first open
   if(name==='moods')renderMoodsSubpanel();
   if(name==='theme')renderThemeSubpanel();
+  if(name==='share')renderShareSubpanel();
   if(name==='account')renderAccountSubpanel();
   if(name==='discogs')renderDiscogsSubpanel();
   el.classList.add('open');
@@ -4548,6 +4637,89 @@ async function deleteMoodFromModal(){
   closeMoodEditModal();
   showToast('Mood deleted');
 }
+// ── Share subpanel (v1.1 / Sprint 1 item 2) ──────────────────
+// Compose the canonical public URL. Always under the hub at elbrink.com so
+// the link surface is consistent across PWA installs, browser tabs, and
+// social previews. Returns null if no slug yet (share has never been on).
+function shareUrl(){
+  if(!shareSlug)return null;
+  return `https://elbrink.com/crate/${shareSlug}`;
+}
+
+// Settings main-list Share row secondary text: "Off" or "On — /crate/<slug>".
+function renderShareRowSecondary(){
+  const el=document.getElementById('rowShareSecondary');
+  if(!el)return;
+  if(shareEnabled&&shareSlug){
+    el.textContent=`On — /crate/${shareSlug}`;
+  }else{
+    el.textContent='Off';
+  }
+}
+
+// Share subpanel render — runs on every open so the toggle + link row
+// reflect current state (handles the case where the user toggled, navigated
+// away, and re-entered the subpanel without a page reload).
+function renderShareSubpanel(){
+  const toggle=document.getElementById('shareToggle');
+  const linkRow=document.getElementById('shareLinkRow');
+  const linkUrl=document.getElementById('shareLinkUrl');
+  if(!toggle)return;
+  toggle.checked=!!shareEnabled;
+  const url=shareUrl();
+  if(shareEnabled&&url){
+    linkRow.style.display='block';
+    linkUrl.textContent=url;
+  }else{
+    linkRow.style.display='none';
+  }
+}
+
+// Toggle handler — debounced via the disabled attribute so a fast double-tap
+// doesn't fire two writes. Updates module state on success so the rest of
+// the app (Share button URL gate, row secondary) sees the new value
+// without re-fetching the profile.
+async function onShareToggle(){
+  const toggle=document.getElementById('shareToggle');
+  if(!toggle)return;
+  const wantEnabled=toggle.checked;
+  toggle.disabled=true;
+  const res=await crate.setShareEnabled({enabled:wantEnabled});
+  toggle.disabled=false;
+  if(!res.success){
+    // Revert UI on failure.
+    toggle.checked=!wantEnabled;
+    showToast('Share toggle failed: '+(res.error||'unknown'));
+    return;
+  }
+  shareEnabled=!!res.data.share_enabled;
+  shareSlug=res.data.share_slug||null;
+  renderShareSubpanel();
+  renderShareRowSecondary();
+  if(wantEnabled){
+    showToast(shareSlug?`Share on — /crate/${shareSlug}`:'Share on');
+  }else{
+    showToast('Share off');
+  }
+}
+
+async function onShareCopy(){
+  const url=shareUrl();
+  if(!url){showToast('No link yet');return;}
+  try{
+    await navigator.clipboard.writeText(url);
+    showToast('Link copied');
+  }catch(e){
+    showToast('Copy failed — long-press the URL to copy');
+  }
+}
+
+function onShareOpen(){
+  const url=shareUrl();
+  if(!url){showToast('No link yet');return;}
+  window.open(url,'_blank','noopener');
+}
+
 function renderThemeSubpanel(){
   const grid=document.getElementById('themeGrid');
   if(!grid)return;
@@ -4667,6 +4839,13 @@ $('crateNameEditBtn').onclick=async()=>{
   renderCrateName();
   showToast('Crate name updated');
 };
+
+// ── Share subpanel (v1.1 / Sprint 1 item 2) ──
+// Wired via addEventListener so the change fires only on user gesture
+// (not on programmatic checkbox state updates in renderShareSubpanel).
+$('shareToggle').addEventListener('change',onShareToggle);
+$('shareCopyBtn').onclick=onShareCopy;
+$('shareOpenBtn').onclick=onShareOpen;
 
 // ── Feedback form (v1 / Step 6) ──
 // Toggle on click; second click on the same button deselects.

@@ -346,6 +346,14 @@ let playCounts={},cycleLog={},lastPlayed={},currentCycle=1;
 let sortMode='alpha',sortIdx=0,activeMoodFilter='all';
 let activeView='crate',currentRecord=null;
 
+// v1.1 / Sprint 1 item 2 — share page is now multi-tenant. Resolve a slug
+// from the URL ?slug= param (set by the Crate vercel.json rewrite for
+// /share/:slug). Fall back to 'elbrink' so the legacy /crate URL still
+// renders Todd's collection during the deploy gap before the hub 301 lands.
+const URL_SLUG=(new URLSearchParams(location.search).get('slug')||'').toLowerCase()||'elbrink';
+let ownerUserId=null;          // resolved at boot via crate.loadProfileBySlug
+let ownerCrateName='';         // rendered into wordmark, page title, OG tags
+
 const sortModes=['alpha','date_desc','date_asc','rating','year','plays','plays_asc'];
 const sortLabels=['Artist A-Z','Date Added \u2193','Date Added \u2191','Rating \u2193','Year \u2193','Play Count \u2193','Play Count \u2191'];
 
@@ -356,13 +364,62 @@ const wantSortModes=['alpha','date_desc','date_asc','year'];
 const wantSortLabels=['Artist A-Z','Date Added \u2193','Date Added \u2191','Year \u2193'];
 
 // ---- Data loading ----
+
+// Render the owner's crate_name across the page surfaces (header wordmark,
+// browser title, OG meta tags). Mirrors the renderCrateName() logic in the
+// private app: if the name ends with " Crate", keep the last word in the
+// accent <em> styling.
+function renderOwnerCrateName(){
+  const name=ownerCrateName||"Elbrink's Crate";
+  document.title=name;
+  const wordmark=document.querySelector('.logo span');
+  if(wordmark){
+    const idx=name.toLowerCase().lastIndexOf(' crate');
+    if(idx>0 && idx===name.length-6){
+      wordmark.innerHTML=`${name.slice(0,idx)} <em>Crate</em>`;
+    }else{
+      wordmark.innerHTML=name;
+    }
+  }
+  // OG / description meta — keep social previews accurate per profile.
+  const ogTitle=document.querySelector('meta[property="og:title"]');
+  if(ogTitle)ogTitle.setAttribute('content',name);
+  const ogDesc=document.querySelector('meta[property="og:description"]');
+  if(ogDesc)ogDesc.setAttribute('content',`Vinyl collection: ${name}. Browse the crate, explore stats, and see what's spinning.`);
+  const desc=document.querySelector('meta[name="description"]');
+  if(desc)desc.setAttribute('content',`Vinyl collection: ${name}. Browse the crate, explore stats, and see what's spinning.`);
+}
+
+// Render the not-found state when a slug doesn't resolve to a profile.
+// Doesn't leak whether the slug exists but is share-off vs. doesn't exist
+// at all — both look identical, so a removed share page goes opaque.
+function renderShareNotFound(){
+  const loading=document.getElementById('pageLoading');
+  if(loading){
+    loading.innerHTML=`
+      <div style="font-size:18px;font-weight:600;color:var(--text);margin-bottom:8px">Page not found.</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.5;max-width:320px;text-align:center">No public crate at this address. The owner may have taken it down or the link may be mistyped.</div>
+    `;
+  }
+}
+
 async function loadAllData(){
   try{
+    // Resolve slug -> profile first. Everything downstream filters by owner_id.
+    const profRes=await crate.loadProfileBySlug(URL_SLUG);
+    if(!profRes.success||!profRes.data){
+      renderShareNotFound();
+      return;
+    }
+    ownerUserId=profRes.data.user_id;
+    ownerCrateName=profRes.data.crate_name||"Elbrink's Crate";
+    renderOwnerCrateName();
+
     const [colRes,metaRes,playRes,artistRes]=await Promise.all([
-      crate.loadCollection(),
-      crate.loadMeta(),
-      crate.loadPlays(),
-      crate.loadArtists(),
+      crate.loadCollection({userId:ownerUserId}),
+      crate.loadMeta({userId:ownerUserId}),
+      crate.loadPlays({userId:ownerUserId}),
+      crate.loadArtists({userId:ownerUserId}),
     ]);
 
     // Collection
@@ -1008,7 +1065,7 @@ let wantlistLoaded=false;
 // Lazy-load wantlist from Supabase so the Wantlist stat tile shows the right count even if the user hasn't visited the Wantlist view. Re-renders Stats when data arrives.
 async function loadWantlistForStats(){
   if(wantlistLoaded)return;
-  const res=await crate.loadWantlist();
+  const res=await crate.loadWantlist({userId:ownerUserId});
   if(res.success&&res.data){
     wantlist=res.data.map(normalizeRelease).filter(Boolean);
     wantlistLoaded=true;
@@ -1019,7 +1076,7 @@ async function loadWantlistForStats(){
 async function loadWantlist(){
   if(wantlistLoaded){applyWantlistFilters();return;}
   $('wantlistGrid').innerHTML='';$('wantlistEmpty').style.display='none';
-  const res=await crate.loadWantlist();
+  const res=await crate.loadWantlist({userId:ownerUserId});
   if(res.success&&res.data&&res.data.length){
     wantlist=res.data.map(normalizeRelease).filter(Boolean);
     wantlistLoaded=true;
