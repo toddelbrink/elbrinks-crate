@@ -344,6 +344,63 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .reset-card h2{font-size:22px;font-weight:700;margin-bottom:8px}
 .reset-card p{color:var(--muted);font-size:14px;line-height:1.6;margin-bottom:24px}
 .reset-card button{width:100%;border:none;border-radius:10px;cursor:pointer;font-family:var(--font);font-size:15px;font-weight:700;padding:14px;background:var(--accent);color:#fff}
+
+/* Review-and-approve modal for bulk auto-tag (PRD v1.1 §2) */
+.review-modal{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:410;display:none;align-items:stretch;justify-content:center;padding:24px}
+.review-modal.open{display:flex}
+@media(max-width:640px){.review-modal{padding:0}}
+.review-card{background:var(--surface);border-radius:16px;max-width:720px;width:100%;display:flex;flex-direction:column;max-height:calc(100vh - 48px);overflow:hidden}
+@media(max-width:640px){.review-card{border-radius:0;max-height:100vh;height:100vh}}
+.review-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:18px 20px 14px;border-bottom:1px solid var(--border);background:var(--surface)}
+.review-header-meta{flex:1;min-width:0}
+.review-title{font-size:18px;font-weight:700;color:var(--text);margin:0 0 4px}
+.review-sub{font-size:13px;color:var(--muted);line-height:1.4}
+.review-close{background:transparent;border:none;color:var(--muted);font-size:24px;line-height:1;padding:4px 8px;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.review-close:active{color:var(--text)}
+.review-banner{padding:10px 20px;background:#3d2800;color:#fbbf24;font-size:13px;line-height:1.4;border-bottom:1px solid var(--border)}
+.review-toggle-row{display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--border);background:var(--surface)}
+.review-toggle-row .review-toggle-label{font-size:13px;color:var(--muted);flex-shrink:0}
+.review-toggle{display:inline-flex;background:var(--surface2);border-radius:8px;padding:3px;gap:3px}
+.review-toggle button{background:transparent;border:none;color:var(--muted);font-family:var(--font);font-size:13px;font-weight:600;padding:6px 12px;border-radius:6px;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.review-toggle button.active{background:var(--accent);color:#fff}
+.review-toggle-help{flex:1;min-width:0;font-size:12px;color:var(--muted);line-height:1.3}
+.review-list{flex:1;overflow-y:auto;padding:4px 0;-webkit-overflow-scrolling:touch}
+.review-row{display:flex;align-items:center;gap:12px;padding:12px 20px;min-height:80px;border-bottom:1px solid var(--border);transition:opacity .2s}
+.review-row:last-child{border-bottom:none}
+.review-row.dismissed{display:none}
+.review-row-art{width:56px;height:56px;border-radius:6px;background:var(--surface2);flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.review-row-art img{width:100%;height:100%;object-fit:cover}
+.review-row-art .ph{font-size:11px;color:var(--muted)}
+.review-row-text{flex:1;min-width:0;cursor:pointer}
+.review-row-artist{font-size:14px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.review-row-title{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:6px}
+.review-row-pills{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.review-row-pill{display:inline-block;font-size:11px;font-weight:600;padding:3px 8px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);white-space:nowrap}
+.review-row-pill.empty{font-style:italic;opacity:.7}
+.review-row-arrow{color:var(--muted);font-size:14px;margin:0 2px;flex-shrink:0}
+.review-row-dismiss{background:transparent;border:none;color:var(--muted);font-size:20px;line-height:1;padding:6px 10px;cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent;touch-action:manipulation;border-radius:6px}
+.review-row-dismiss:active{color:var(--accent);background:rgba(232,55,44,.1)}
+.review-empty{padding:60px 20px;text-align:center;color:var(--muted);font-size:14px}
+.review-footer{display:flex;align-items:center;gap:12px;padding:14px 20px;border-top:1px solid var(--border);background:var(--surface);flex-shrink:0}
+.review-count{flex:1;font-size:13px;color:var(--muted)}
+.review-footer button{border:none;border-radius:10px;font-family:var(--font);font-size:14px;font-weight:700;padding:12px 18px;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.review-cancel-btn{background:var(--surface2);color:var(--text)}
+.review-apply-btn{background:var(--accent);color:#fff}
+.review-apply-btn:disabled{opacity:.4;cursor:not-allowed}
+
+/* Mood pick sub-modal (per-row swap) */
+.mood-pick-modal{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:420;display:none;align-items:center;justify-content:center;padding:24px}
+.mood-pick-modal.open{display:flex}
+.mood-pick-card{background:var(--surface);border-radius:14px;padding:20px;max-width:420px;width:100%}
+.mood-pick-card h3{font-size:16px;font-weight:700;color:var(--text);margin:0 0 6px}
+.mood-pick-card .sub{font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.4}
+.mood-pick-pills{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
+.mood-pick-pill{border:1px solid var(--border);background:var(--surface2);color:var(--muted);font-family:var(--font);font-size:13px;font-weight:600;padding:8px 14px;border-radius:18px;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.mood-pick-actions{display:flex;gap:8px}
+.mood-pick-actions button{flex:1;border:none;border-radius:10px;font-family:var(--font);font-size:14px;font-weight:700;padding:12px;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.mood-pick-cancel{background:var(--surface2);color:var(--text)}
+.mood-pick-save{background:var(--accent);color:#fff}
+
 /* Alphabet / index scrubber */
 .alpha-scrubber{position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:90;display:flex;flex-direction:column;align-items:center;padding:6px 4px;background:rgba(22,22,22,.9);border-radius:12px 0 0 12px;backdrop-filter:blur(6px);opacity:0;transition:opacity .25s;pointer-events:none;user-select:none;-webkit-user-select:none;touch-action:manipulation}
 .alpha-scrubber.visible{opacity:1;pointer-events:auto}
@@ -803,17 +860,30 @@ input:focus,textarea:focus{border-color:var(--accent)}
     <div class="subpanel-foot-note">Renaming a mood preserves the tag on existing records. Deleting one keeps the tag in your history (the pill just stops rendering). Reorder via drag ships in v1.1.</div>
 
     <div class="subpanel-section-header" style="margin-top:24px">Auto-tagging</div>
+
     <div class="subpanel-row">
-      <span class="subpanel-row-label">Apply mood heuristic</span>
-      <button class="subpanel-row-action" id="applyHeuristicBtn">Run</button>
+      <span class="subpanel-row-label">Tag untagged records (heuristic)</span>
+      <button class="subpanel-row-action" id="heurUntaggedBtn">Run</button>
     </div>
-    <div class="subpanel-foot-note">Walks your collection and tags any record with no moods. Match is based on each mood's Discogs keyword list (edit a mood to change). Free — runs locally.</div>
+    <div class="subpanel-foot-note">Matches each untagged record against your moods' Discogs keyword lists. Free — runs locally. You review every change before anything saves.</div>
+
+    <div class="subpanel-row" style="margin-top:12px">
+      <span class="subpanel-row-label">Re-tag all records (heuristic)</span>
+      <button class="subpanel-row-action" id="heurRetagBtn">Run</button>
+    </div>
+    <div class="subpanel-foot-note">Re-runs the heuristic across every record, including ones you've already tagged. Use after editing keywords or adding moods. Review before save — choose Merge or Overwrite.</div>
+
+    <div class="subpanel-row" style="margin-top:12px">
+      <span class="subpanel-row-label">Suggest via Claude (untagged)</span>
+      <button class="subpanel-row-action" id="llmUntaggedBtn">Run</button>
+    </div>
+    <div class="subpanel-foot-note">Calls Claude Haiku for up to 200 untagged records per session (50/day limit). More nuanced than the heuristic. You review every change before anything saves.</div>
 
     <div class="subpanel-row" style="border-bottom:none;margin-top:12px">
-      <span class="subpanel-row-label">Suggest via Claude</span>
-      <button class="subpanel-row-action" id="bulkSuggestBtn">Run</button>
+      <span class="subpanel-row-label">Re-suggest all via Claude</span>
+      <button class="subpanel-row-action" id="llmRetagBtn">Run</button>
     </div>
-    <div class="subpanel-foot-note">Calls Claude Haiku for up to 200 untagged records per session (50/day limit). More nuanced than the heuristic. Costs a few cents per run.</div>
+    <div class="subpanel-foot-note">Re-runs Claude on every record. Cached suggestions don't count against the daily limit. Review before save — choose Merge or Overwrite.</div>
   </div>
 </div>
 
@@ -975,6 +1045,47 @@ input:focus,textarea:focus{border-color:var(--accent)}
     <button id="moodEditSaveBtn" style="background:var(--accent);margin-bottom:8px">Save</button>
     <button id="moodEditDeleteBtn" style="background:transparent;color:var(--accent);border:1px solid var(--accent);margin-bottom:8px;display:none">Delete</button>
     <button id="moodEditCancelBtn" style="background:var(--surface2);color:var(--text)">Cancel</button>
+  </div>
+</div>
+
+<!-- Review-and-approve modal for bulk auto-tag (PRD v1.1 §2) -->
+<div id="reviewModal" class="review-modal">
+  <div class="review-card">
+    <div class="review-header">
+      <div class="review-header-meta">
+        <h2 class="review-title" id="reviewTitle">Review proposed mood changes</h2>
+        <div class="review-sub" id="reviewSub"></div>
+      </div>
+      <button class="review-close" id="reviewCloseBtn" aria-label="Close">&times;</button>
+    </div>
+    <div class="review-banner" id="reviewBanner" style="display:none"></div>
+    <div class="review-toggle-row" id="reviewToggleRow" style="display:none">
+      <span class="review-toggle-label">Existing moods:</span>
+      <div class="review-toggle">
+        <button id="reviewToggleOverwrite" class="active" data-mode="overwrite">Overwrite</button>
+        <button id="reviewToggleMerge" data-mode="merge">Merge</button>
+      </div>
+      <span class="review-toggle-help" id="reviewToggleHelp">Overwrite replaces existing moods with proposed.</span>
+    </div>
+    <div class="review-list" id="reviewList"></div>
+    <div class="review-footer">
+      <span class="review-count" id="reviewCount">0 of 0 selected</span>
+      <button class="review-cancel-btn" id="reviewCancelBtn">Cancel</button>
+      <button class="review-apply-btn" id="reviewApplyBtn">Apply</button>
+    </div>
+  </div>
+</div>
+
+<!-- Mood pick sub-modal (per-row swap) -->
+<div id="moodPickModal" class="mood-pick-modal">
+  <div class="mood-pick-card">
+    <h3 id="moodPickTitle">Choose moods</h3>
+    <div class="sub" id="moodPickSub">Tap to toggle. Save replaces the proposed moods for this row.</div>
+    <div class="mood-pick-pills" id="moodPickPills"></div>
+    <div class="mood-pick-actions">
+      <button class="mood-pick-cancel" id="moodPickCancelBtn">Cancel</button>
+      <button class="mood-pick-save" id="moodPickSaveBtn">Save</button>
+    </div>
   </div>
 </div>
 
@@ -3491,6 +3602,27 @@ window.addEventListener('scroll',()=>{
 $('fullSyncBtn').onclick=fullSync;
 $('resetCycleBtn').onclick=async()=>{await resetCycle();closeSettings();};
 $('resetConfirmBtn').onclick=async()=>{await resetCycle();$('resetModal').style.display='none';};
+
+// Review modal wiring (v1.1 Sprint 1)
+$('reviewCloseBtn').onclick=closeReviewModal;
+$('reviewCancelBtn').onclick=closeReviewModal;
+$('reviewApplyBtn').onclick=applyReviewChanges;
+$('reviewToggleOverwrite').onclick=()=>{
+  if(!_reviewState)return;
+  _reviewState.toggle='overwrite';
+  $('reviewToggleOverwrite').classList.add('active');
+  $('reviewToggleMerge').classList.remove('active');
+  $('reviewToggleHelp').textContent='Overwrite replaces existing moods with proposed.';
+};
+$('reviewToggleMerge').onclick=()=>{
+  if(!_reviewState)return;
+  _reviewState.toggle='merge';
+  $('reviewToggleMerge').classList.add('active');
+  $('reviewToggleOverwrite').classList.remove('active');
+  $('reviewToggleHelp').textContent='Merge adds proposed moods to existing, deduped.';
+};
+$('moodPickCancelBtn').onclick=closeMoodPickModal;
+$('moodPickSaveBtn').onclick=saveMoodPickModal;
 $('clearPlaysBtn').onclick=clearPlayHistory;
 $('clearNotesBtn').onclick=async()=>{
   if(!confirm('Clear all notes and moods? This cannot be undone.'))return;
@@ -3934,38 +4066,66 @@ function renderMoodsSubpanel(){
     addBtn.textContent='+ Add mood';
     addBtn.onclick=()=>openMoodEditModal(null);
   }
-  // Wire Apply Heuristic button (Step 7a)
-  const heurBtn=document.getElementById('applyHeuristicBtn');
-  if(heurBtn){
-    heurBtn.onclick=runHeuristicFromSettings;
-  }
-  // Wire bulk Suggest button (Step 7b)
-  const bulkBtn=document.getElementById('bulkSuggestBtn');
-  if(bulkBtn){
-    bulkBtn.onclick=runBulkSuggestFromSettings;
-  }
+  // Wire 4 auto-tagging trigger buttons (v1.1 Sprint 1 — Review modal)
+  const heurUntaggedBtn=document.getElementById('heurUntaggedBtn');
+  if(heurUntaggedBtn)heurUntaggedBtn.onclick=()=>runHeuristicReview('untagged');
+  const heurRetagBtn=document.getElementById('heurRetagBtn');
+  if(heurRetagBtn)heurRetagBtn.onclick=()=>runHeuristicReview('retag');
+  const llmUntaggedBtn=document.getElementById('llmUntaggedBtn');
+  if(llmUntaggedBtn)llmUntaggedBtn.onclick=()=>runLLMReview('untagged');
+  const llmRetagBtn=document.getElementById('llmRetagBtn');
+  if(llmRetagBtn)llmRetagBtn.onclick=()=>runLLMReview('retag');
   // Update Moods row secondary text in the main settings list
   const sec=document.getElementById('rowMoodsSecondary');
   if(sec)sec.textContent=`${MOODS.length} mood${MOODS.length===1?'':'s'}`;
 }
 
-// Step 7b: bulk Suggest via Claude over the unassigned subset of the collection.
-// Iterates serially (one LLM call at a time), caps at 200 records per session,
-// stops cleanly on rate-limit so partial progress is preserved.
-async function runBulkSuggestFromSettings(){
-  const btn=document.getElementById('bulkSuggestBtn');
-  if(!btn)return;
-  if(!collection.length){showToast('No collection loaded yet');return;}
-  const unassigned=collection.filter(r=>r.releaseId&&!(moodCache[r.releaseId]||[]).length);
-  if(!unassigned.length){showToast('Every record already has moods');return;}
-  const cap=Math.min(200,unassigned.length);
-  if(!confirm(`Suggest moods for ${cap} record${cap===1?'':'s'}?\n\nThis calls Claude Haiku once per record. Daily limit is 50/day; the job will stop early if it hits the cap. Cached results don't count against the limit.`))return;
-  btn.disabled=true;
-  const origLabel=btn.textContent;
-  let tagged=0,skipped=0,errored=0;
+// ── v1.1 Sprint 1: Review-and-approve modal for bulk auto-tag ───────────
+// Compute-only step: produce proposed mood changes for each candidate record.
+// No writes. Returns [{releaseId, artist, title, year, art, current, proposed}, ...].
+function computeHeuristicProposals({mode}){
+  // mode: 'untagged' | 'retag'
+  const proposals=[];
+  if(!MOODS.length||!collection.length)return proposals;
+  for(const r of collection){
+    const rid=r.releaseId;
+    if(!rid)continue;
+    const current=moodCache[rid]||[];
+    if(mode==='untagged'&&current.length)continue;
+    const genres=genreCache[rid]||r.genres||[];
+    const styles=stylesCache[rid]||r.styles||[];
+    const slug=applyMoodHeuristic(genres,styles);
+    if(!slug)continue;
+    const proposed=[slug];
+    // Skip a row if proposed identically matches current — nothing to review.
+    if(current.length===proposed.length&&current.every(s=>proposed.includes(s)))continue;
+    proposals.push({
+      releaseId:rid,
+      artist:r.artist||'',
+      title:r.title||'',
+      year:r.year||null,
+      art:artCache[rid]||r.art_url||null,
+      current:[...current],
+      proposed,
+    });
+  }
+  return proposals;
+}
+
+// Compute LLM proposals. Async, serial calls. Caps at 200. Stops on 429.
+// Returns {proposals, rateLimited, errored}.
+async function computeLLMProposals({mode, onProgress}){
+  const result={proposals:[], rateLimited:false, errored:0};
+  if(!MOODS.length||!collection.length)return result;
+  const candidates=collection.filter(r=>{
+    if(!r.releaseId)return false;
+    if(mode==='untagged')return !(moodCache[r.releaseId]||[]).length;
+    return true;
+  });
+  const cap=Math.min(200,candidates.length);
   for(let i=0;i<cap;i++){
-    const r=unassigned[i];
-    btn.textContent=`${i+1}/${cap}`;
+    const r=candidates[i];
+    if(onProgress)onProgress(i+1,cap);
     const res=await crate.suggestMoods({
       release_id:r.releaseId,
       artist:r.artist||null,
@@ -3975,42 +4135,274 @@ async function runBulkSuggestFromSettings(){
       styles:stylesCache[r.releaseId]||r.styles||[],
     });
     if(!res.success){
-      if(res.rateLimited){
-        showToast(`Stopped at ${i}/${cap} — hit daily limit`);
-        break;
-      }
-      errored++;
-      continue;
+      if(res.rateLimited){result.rateLimited=true;break;}
+      result.errored++;continue;
     }
     const slugs=res.data?.moods||[];
-    if(!slugs.length){skipped++;continue;}
-    moodCache[r.releaseId]=slugs;
-    try{await dbSet('moods',r.releaseId,slugs);}catch{}
-    try{await crate.bulkMeta({[r.releaseId]:{moods:slugs}});}catch{}
-    tagged++;
+    if(!slugs.length)continue;
+    const current=moodCache[r.releaseId]||[];
+    if(current.length===slugs.length&&current.every(s=>slugs.includes(s)))continue;
+    result.proposals.push({
+      releaseId:r.releaseId,
+      artist:r.artist||'',
+      title:r.title||'',
+      year:r.year||null,
+      art:artCache[r.releaseId]||r.art_url||null,
+      current:[...current],
+      proposed:[...slugs],
+    });
   }
-  btn.disabled=false;
-  btn.textContent=origLabel;
-  if(typeof applyFilters==='function')applyFilters();
-  showToast(`Tagged ${tagged}${errored?` · ${errored} errors`:''}${skipped?` · ${skipped} no-match`:''}`);
+  return result;
 }
 
-async function runHeuristicFromSettings(){
-  const btn=document.getElementById('applyHeuristicBtn');
-  if(!btn)return;
-  if(!collection.length){showToast('No collection loaded yet');return;}
-  btn.disabled=true;
-  const orig=btn.textContent;
-  btn.textContent='Running…';
-  const result=await applyMoodHeuristicToCollection();
-  btn.disabled=false;
-  btn.textContent=orig;
-  if(result.changed===0){
-    showToast(result.scanned?'No new matches — every record already has moods':'Nothing to scan');
-  }else{
-    showToast(`Tagged ${result.changed} of ${result.scanned} records`);
-    if(typeof applyFilters==='function')applyFilters();
+// ── Review modal state + render ──────────────────────────────────────────
+let _reviewState=null; // {source, mode, proposals (mutable), toggle:'overwrite'|'merge', dismissed:Set, rateLimited}
+
+function moodPillHTML(slug,muted=false){
+  const m=MOODS.find(x=>x.id===slug);
+  if(!m){return `<span class="review-row-pill">${slug}</span>`;}
+  if(muted){
+    return `<span class="review-row-pill" style="color:${m.color};opacity:.55">${m.label}</span>`;
   }
+  return `<span class="review-row-pill" style="background:${m.bg};color:${m.color};border-color:${m.color}">${m.label}</span>`;
+}
+
+function renderReviewList(){
+  if(!_reviewState)return;
+  const list=document.getElementById('reviewList');
+  const {proposals,dismissed,mode}=_reviewState;
+  if(!proposals.length){
+    list.innerHTML='<div class="review-empty">No proposed changes. Try editing your moods\' keywords, then run again.</div>';
+    updateReviewFooter();
+    return;
+  }
+  list.innerHTML=proposals.map(p=>{
+    const isDismissed=dismissed.has(p.releaseId);
+    const art=p.art?`<img src="${typeof crate!=='undefined'&&crate.proxyImage?crate.proxyImage(p.art):p.art}" alt="">`:'<span class="ph">no art</span>';
+    const currentPills=p.current.length
+      ? p.current.map(s=>moodPillHTML(s,true)).join('')
+      : '<span class="review-row-pill empty">no moods</span>';
+    const proposedPills=p.proposed.length
+      ? p.proposed.map(s=>moodPillHTML(s)).join('')
+      : '<span class="review-row-pill empty">none</span>';
+    return `<div class="review-row${isDismissed?' dismissed':''}" data-rid="${p.releaseId}">
+      <div class="review-row-art">${art}</div>
+      <div class="review-row-text" data-action="edit">
+        <div class="review-row-artist">${escapeHTML(p.artist)}</div>
+        <div class="review-row-title">${escapeHTML(p.title)}</div>
+        <div class="review-row-pills">${currentPills}<span class="review-row-arrow">→</span>${proposedPills}</div>
+      </div>
+      <button class="review-row-dismiss" data-action="dismiss" aria-label="Dismiss">&times;</button>
+    </div>`;
+  }).join('');
+  // Wire row interactions
+  list.querySelectorAll('.review-row').forEach(row=>{
+    const rid=row.getAttribute('data-rid');
+    row.querySelector('[data-action="dismiss"]')?.addEventListener('click',e=>{
+      e.stopPropagation();
+      _reviewState.dismissed.add(rid);
+      row.classList.add('dismissed');
+      updateReviewFooter();
+    });
+    row.querySelector('[data-action="edit"]')?.addEventListener('click',()=>{
+      openMoodPickModal(rid);
+    });
+  });
+  updateReviewFooter();
+}
+
+function updateReviewFooter(){
+  if(!_reviewState)return;
+  const {proposals,dismissed}=_reviewState;
+  const selected=proposals.filter(p=>!dismissed.has(p.releaseId)).length;
+  const total=proposals.length;
+  document.getElementById('reviewCount').textContent=`${selected} of ${total} selected`;
+  const applyBtn=document.getElementById('reviewApplyBtn');
+  applyBtn.disabled=selected===0;
+  applyBtn.textContent=selected===0?'Apply':`Apply ${selected} change${selected===1?'':'s'}`;
+}
+
+function escapeHTML(s){
+  return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function openReviewModal({source, mode, proposals, rateLimited}){
+  _reviewState={
+    source,
+    mode,
+    proposals,
+    toggle:'overwrite',
+    dismissed:new Set(),
+    rateLimited:!!rateLimited,
+  };
+  const sourceLabel=source==='heuristic'?'From mood heuristic':'From Claude suggestions';
+  const modeLabel=mode==='untagged'?'Untagged records only':'All records (re-tag)';
+  document.getElementById('reviewTitle').textContent=`Review ${proposals.length} proposed mood change${proposals.length===1?'':'s'}`;
+  document.getElementById('reviewSub').textContent=`${sourceLabel} · ${modeLabel}`;
+  // Toggle row only visible in re-tag mode
+  const toggleRow=document.getElementById('reviewToggleRow');
+  toggleRow.style.display=mode==='retag'?'flex':'none';
+  // Reset toggle to Overwrite default
+  document.getElementById('reviewToggleOverwrite').classList.add('active');
+  document.getElementById('reviewToggleMerge').classList.remove('active');
+  document.getElementById('reviewToggleHelp').textContent='Overwrite replaces existing moods with proposed.';
+  // Rate-limit banner
+  const banner=document.getElementById('reviewBanner');
+  if(rateLimited){
+    banner.textContent=`Rate limit reached after ${proposals.length} record${proposals.length===1?'':'s'}. Showing what was computed. You can still approve the partial set or cancel.`;
+    banner.style.display='block';
+  }else{
+    banner.style.display='none';
+  }
+  renderReviewList();
+  document.getElementById('reviewModal').classList.add('open');
+}
+
+function closeReviewModal(){
+  document.getElementById('reviewModal').classList.remove('open');
+  _reviewState=null;
+}
+
+async function applyReviewChanges(){
+  if(!_reviewState)return;
+  const {proposals,dismissed,mode,toggle}=_reviewState;
+  const approved=proposals.filter(p=>!dismissed.has(p.releaseId));
+  if(!approved.length){closeReviewModal();return;}
+  const bulk={};
+  for(const p of approved){
+    let next;
+    if(mode==='retag'&&toggle==='merge'){
+      // Dedupe-merge: existing first, then proposed additions
+      const seen=new Set(p.current);
+      next=[...p.current];
+      for(const s of p.proposed){
+        if(!seen.has(s)){next.push(s);seen.add(s);}
+      }
+    }else{
+      next=[...p.proposed];
+    }
+    bulk[p.releaseId]={moods:next};
+    moodCache[p.releaseId]=next;
+    try{await dbSet('moods',p.releaseId,next);}catch{}
+  }
+  const applyBtn=document.getElementById('reviewApplyBtn');
+  applyBtn.disabled=true;
+  const origLabel=applyBtn.textContent;
+  applyBtn.textContent='Saving…';
+  try{await crate.bulkMeta(bulk);}catch(e){console.error('[review] bulkMeta failed',e);}
+  applyBtn.disabled=false;
+  applyBtn.textContent=origLabel;
+  closeReviewModal();
+  if(typeof applyFilters==='function')applyFilters();
+  showToast(`Updated moods on ${approved.length} record${approved.length===1?'':'s'}`);
+}
+
+// ── Mood pick sub-modal (per-row swap inside review modal) ───────────────
+let _moodPickTarget=null; // releaseId
+
+function openMoodPickModal(rid){
+  if(!_reviewState)return;
+  const p=_reviewState.proposals.find(x=>x.releaseId===rid);
+  if(!p)return;
+  _moodPickTarget=rid;
+  document.getElementById('moodPickTitle').textContent='Choose moods';
+  document.getElementById('moodPickSub').textContent=`${p.artist} — ${p.title}`;
+  const selected=new Set(p.proposed);
+  const pills=document.getElementById('moodPickPills');
+  const sorted=[...MOODS].sort((a,b)=>(a.sort_order||0)-(b.sort_order||0));
+  pills.innerHTML=sorted.map(m=>{
+    const on=selected.has(m.id);
+    const style=on?`background:${m.bg};color:${m.color};border-color:${m.color}`:'';
+    return `<button class="mood-pick-pill" data-mood="${m.id}"${on?' data-on="1"':''} style="${style}">${m.label}</button>`;
+  }).join('');
+  pills.querySelectorAll('.mood-pick-pill').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const mid=btn.getAttribute('data-mood');
+      const m=MOODS.find(x=>x.id===mid);
+      const isOn=btn.getAttribute('data-on')==='1';
+      if(isOn){
+        btn.removeAttribute('data-on');
+        btn.setAttribute('style','');
+      }else{
+        btn.setAttribute('data-on','1');
+        if(m)btn.setAttribute('style',`background:${m.bg};color:${m.color};border-color:${m.color}`);
+      }
+    });
+  });
+  document.getElementById('moodPickModal').classList.add('open');
+}
+
+function closeMoodPickModal(){
+  document.getElementById('moodPickModal').classList.remove('open');
+  _moodPickTarget=null;
+}
+
+function saveMoodPickModal(){
+  if(!_reviewState||!_moodPickTarget)return closeMoodPickModal();
+  const p=_reviewState.proposals.find(x=>x.releaseId===_moodPickTarget);
+  if(!p)return closeMoodPickModal();
+  const selected=[];
+  document.getElementById('moodPickPills').querySelectorAll('.mood-pick-pill[data-on="1"]').forEach(b=>{
+    selected.push(b.getAttribute('data-mood'));
+  });
+  // Preserve sort_order so pill order stays predictable
+  const sorted=[...MOODS].sort((a,b)=>(a.sort_order||0)-(b.sort_order||0)).map(m=>m.id);
+  p.proposed=sorted.filter(s=>selected.includes(s));
+  closeMoodPickModal();
+  renderReviewList();
+}
+
+// ── Settings → Moods → Auto-Tagging trigger handlers ─────────────────────
+async function runHeuristicReview(mode){
+  if(!collection.length){showToast('No collection loaded yet');return;}
+  if(mode==='retag'){
+    if(!confirm('Re-run the heuristic across every record, including ones already tagged?\n\nNothing saves until you tap Apply in the review modal.'))return;
+  }
+  const btnId=mode==='untagged'?'heurUntaggedBtn':'heurRetagBtn';
+  const btn=document.getElementById(btnId);
+  if(btn){btn.disabled=true;btn.textContent='Scanning…';}
+  // Heuristic compute is sync-ish but yield once so the button repaints.
+  await new Promise(r=>setTimeout(r,0));
+  const proposals=computeHeuristicProposals({mode});
+  if(btn){btn.disabled=false;btn.textContent='Run';}
+  if(!proposals.length){
+    showToast(mode==='untagged'?'No matches — every record either has moods or no genre data':'No changes — heuristic agrees with existing tags');
+    return;
+  }
+  openReviewModal({source:'heuristic', mode, proposals});
+}
+
+async function runLLMReview(mode){
+  if(!collection.length){showToast('No collection loaded yet');return;}
+  const candidates=collection.filter(r=>{
+    if(!r.releaseId)return false;
+    if(mode==='untagged')return !(moodCache[r.releaseId]||[]).length;
+    return true;
+  });
+  if(!candidates.length){
+    showToast(mode==='untagged'?'Every record already has moods':'No records to review');
+    return;
+  }
+  const cap=Math.min(200,candidates.length);
+  const confirmMsg=mode==='retag'
+    ? `Re-suggest moods for ${cap} record${cap===1?'':'s'} via Claude?\n\nDaily limit is 50/day; cached results don't count. Nothing saves until you tap Apply in the review modal.`
+    : `Suggest moods for ${cap} untagged record${cap===1?'':'s'} via Claude?\n\nDaily limit is 50/day; cached results don't count. Nothing saves until you tap Apply in the review modal.`;
+  if(!confirm(confirmMsg))return;
+  const btnId=mode==='untagged'?'llmUntaggedBtn':'llmRetagBtn';
+  const btn=document.getElementById(btnId);
+  if(btn)btn.disabled=true;
+  const origLabel=btn?btn.textContent:'Run';
+  const res=await computeLLMProposals({mode, onProgress:(i,total)=>{
+    if(btn)btn.textContent=`${i}/${total}`;
+  }});
+  if(btn){btn.disabled=false;btn.textContent=origLabel;}
+  if(!res.proposals.length){
+    if(res.rateLimited)showToast('Hit the daily Claude limit — no new suggestions');
+    else if(res.errored)showToast(`Failed: ${res.errored} error${res.errored===1?'':'s'}`);
+    else showToast('No changes — Claude agrees with existing tags');
+    return;
+  }
+  openReviewModal({source:'llm', mode, proposals:res.proposals, rateLimited:res.rateLimited});
 }
 
 // ── Mood add/edit modal ─────────────────────────────────────
