@@ -365,9 +365,10 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .review-toggle button.active{background:var(--accent);color:#fff}
 .review-toggle-help{flex:1;min-width:0;font-size:12px;color:var(--muted);line-height:1.3}
 .review-list{flex:1;overflow-y:auto;padding:4px 0;-webkit-overflow-scrolling:touch}
-.review-row{display:flex;align-items:center;gap:12px;padding:12px 20px;min-height:80px;border-bottom:1px solid var(--border);transition:opacity .2s}
+.review-row{display:flex;align-items:center;gap:12px;padding:12px 20px;min-height:80px;border-bottom:1px solid var(--border);transition:opacity .2s,background .2s}
 .review-row:last-child{border-bottom:none}
-.review-row.dismissed{display:none}
+.review-row.dismissed{opacity:.42;background:transparent}
+.review-row.dismissed .review-row-arrow,.review-row.dismissed .review-row-pills{filter:grayscale(.6)}
 .review-row-art{width:56px;height:56px;border-radius:6px;background:var(--surface2);flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
 .review-row-art img{width:100%;height:100%;object-fit:cover}
 .review-row-art .ph{font-size:11px;color:var(--muted)}
@@ -378,8 +379,9 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .review-row-pill{display:inline-block;font-size:11px;font-weight:600;padding:3px 8px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);white-space:nowrap}
 .review-row-pill.empty{font-style:italic;opacity:.7}
 .review-row-arrow{color:var(--muted);font-size:14px;margin:0 2px;flex-shrink:0}
-.review-row-dismiss{background:transparent;border:none;color:var(--muted);font-size:20px;line-height:1;padding:6px 10px;cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent;touch-action:manipulation;border-radius:6px}
-.review-row-dismiss:active{color:var(--accent);background:rgba(232,55,44,.1)}
+.review-row-toggle{display:flex;align-items:center;justify-content:center;width:44px;height:44px;border:1.5px solid #2dd4bf;background:rgba(45,212,191,.12);color:#2dd4bf;font-size:22px;font-weight:700;line-height:1;border-radius:50%;cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:all .15s;padding:0}
+.review-row-toggle:active{transform:scale(.94)}
+.review-row.dismissed .review-row-toggle{border-color:var(--muted);background:transparent;color:var(--muted)}
 .review-empty{padding:60px 20px;text-align:center;color:var(--muted);font-size:14px}
 .review-footer{display:flex;align-items:center;gap:12px;padding:14px 20px;border-top:1px solid var(--border);background:var(--surface);flex-shrink:0}
 .review-count{flex:1;font-size:13px;color:var(--muted)}
@@ -880,10 +882,10 @@ input:focus,textarea:focus{border-color:var(--accent)}
     <div class="subpanel-foot-note">Calls Claude Haiku for up to 200 untagged records per session (50/day limit). More nuanced than the heuristic. You review every change before anything saves.</div>
 
     <div class="subpanel-row" style="border-bottom:none;margin-top:12px">
-      <span class="subpanel-row-label">Re-suggest all via Claude</span>
+      <span class="subpanel-row-label">Compare Claude's picks (all records)</span>
       <button class="subpanel-row-action" id="llmRetagBtn">Run</button>
     </div>
-    <div class="subpanel-foot-note">Re-runs Claude on every record. Cached suggestions don't count against the daily limit. Review before save — choose Merge or Overwrite.</div>
+    <div class="subpanel-foot-note">Re-runs Claude on every record, including ones you've already tagged. Use to see Claude's suggestions alongside your current moods. Cached results don't count against the daily limit. Review before save — choose Merge or Overwrite per batch.</div>
   </div>
 </div>
 
@@ -1048,6 +1050,19 @@ input:focus,textarea:focus{border-color:var(--accent)}
   </div>
 </div>
 
+<!-- LLM compute progress modal (visible while runLLMReview is iterating) -->
+<div id="llmProgressModal" class="reset-modal" style="display:none">
+  <div class="reset-card" style="max-width:380px">
+    <div style="font-size:42px;margin-bottom:8px">✦</div>
+    <h2>Claude is suggesting moods</h2>
+    <p id="llmProgressLabel" style="margin-bottom:16px">Starting…</p>
+    <div style="height:8px;background:var(--surface2);border-radius:4px;overflow:hidden;margin-bottom:16px">
+      <div id="llmProgressFill" style="height:100%;background:var(--accent);width:0%;transition:width .3s"></div>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin:0">Nothing saves yet. You'll review every suggestion before anything writes.</p>
+  </div>
+</div>
+
 <!-- Review-and-approve modal for bulk auto-tag (PRD v1.1 §2) -->
 <div id="reviewModal" class="review-modal">
   <div class="review-card">
@@ -1069,9 +1084,9 @@ input:focus,textarea:focus{border-color:var(--accent)}
     </div>
     <div class="review-list" id="reviewList"></div>
     <div class="review-footer">
-      <span class="review-count" id="reviewCount">0 of 0 selected</span>
-      <button class="review-cancel-btn" id="reviewCancelBtn">Cancel</button>
-      <button class="review-apply-btn" id="reviewApplyBtn">Apply</button>
+      <span class="review-count" id="reviewCount">0 of 0 will be saved</span>
+      <button class="review-cancel-btn" id="reviewCancelBtn">Cancel (save nothing)</button>
+      <button class="review-apply-btn" id="reviewApplyBtn">Save</button>
     </div>
   </div>
 </div>
@@ -4185,6 +4200,8 @@ function renderReviewList(){
     const proposedPills=p.proposed.length
       ? p.proposed.map(s=>moodPillHTML(s)).join('')
       : '<span class="review-row-pill empty">none</span>';
+    const toggleIcon=isDismissed?'&times;':'&#10003;';
+    const toggleLabel=isDismissed?'Skipped — tap to save':'Will save — tap to skip';
     return `<div class="review-row${isDismissed?' dismissed':''}" data-rid="${p.releaseId}">
       <div class="review-row-art">${art}</div>
       <div class="review-row-text" data-action="edit">
@@ -4192,17 +4209,15 @@ function renderReviewList(){
         <div class="review-row-title">${escapeHTML(p.title)}</div>
         <div class="review-row-pills">${currentPills}<span class="review-row-arrow">→</span>${proposedPills}</div>
       </div>
-      <button class="review-row-dismiss" data-action="dismiss" aria-label="Dismiss">&times;</button>
+      <button class="review-row-toggle" data-action="toggle" aria-label="${toggleLabel}" title="${toggleLabel}">${toggleIcon}</button>
     </div>`;
   }).join('');
   // Wire row interactions
   list.querySelectorAll('.review-row').forEach(row=>{
     const rid=row.getAttribute('data-rid');
-    row.querySelector('[data-action="dismiss"]')?.addEventListener('click',e=>{
+    row.querySelector('[data-action="toggle"]')?.addEventListener('click',e=>{
       e.stopPropagation();
-      _reviewState.dismissed.add(rid);
-      row.classList.add('dismissed');
-      updateReviewFooter();
+      toggleReviewRow(rid);
     });
     row.querySelector('[data-action="edit"]')?.addEventListener('click',()=>{
       openMoodPickModal(rid);
@@ -4211,15 +4226,32 @@ function renderReviewList(){
   updateReviewFooter();
 }
 
+function toggleReviewRow(rid){
+  if(!_reviewState)return;
+  const row=document.querySelector(`#reviewList .review-row[data-rid="${CSS.escape(rid)}"]`);
+  if(!row)return;
+  const btn=row.querySelector('[data-action="toggle"]');
+  if(_reviewState.dismissed.has(rid)){
+    _reviewState.dismissed.delete(rid);
+    row.classList.remove('dismissed');
+    if(btn){btn.innerHTML='&#10003;';btn.setAttribute('aria-label','Will save — tap to skip');btn.setAttribute('title','Will save — tap to skip');}
+  }else{
+    _reviewState.dismissed.add(rid);
+    row.classList.add('dismissed');
+    if(btn){btn.innerHTML='&times;';btn.setAttribute('aria-label','Skipped — tap to save');btn.setAttribute('title','Skipped — tap to save');}
+  }
+  updateReviewFooter();
+}
+
 function updateReviewFooter(){
   if(!_reviewState)return;
   const {proposals,dismissed}=_reviewState;
-  const selected=proposals.filter(p=>!dismissed.has(p.releaseId)).length;
+  const approved=proposals.filter(p=>!dismissed.has(p.releaseId)).length;
   const total=proposals.length;
-  document.getElementById('reviewCount').textContent=`${selected} of ${total} selected`;
+  document.getElementById('reviewCount').textContent=`${approved} of ${total} will be saved`;
   const applyBtn=document.getElementById('reviewApplyBtn');
-  applyBtn.disabled=selected===0;
-  applyBtn.textContent=selected===0?'Apply':`Apply ${selected} change${selected===1?'':'s'}`;
+  applyBtn.disabled=approved===0;
+  applyBtn.textContent=approved===0?'Save':`Save ${approved} change${approved===1?'':'s'}`;
 }
 
 function escapeHTML(s){
@@ -4356,7 +4388,7 @@ function saveMoodPickModal(){
 async function runHeuristicReview(mode){
   if(!collection.length){showToast('No collection loaded yet');return;}
   if(mode==='retag'){
-    if(!confirm('Re-run the heuristic across every record, including ones already tagged?\n\nNothing saves until you tap Apply in the review modal.'))return;
+    if(!confirm('Re-run the heuristic across every record, including ones already tagged?\n\nNothing saves until you tap Save in the review modal.'))return;
   }
   const btnId=mode==='untagged'?'heurUntaggedBtn':'heurRetagBtn';
   const btn=document.getElementById(btnId);
@@ -4372,6 +4404,20 @@ async function runHeuristicReview(mode){
   openReviewModal({source:'heuristic', mode, proposals});
 }
 
+function openLLMProgress(total){
+  document.getElementById('llmProgressLabel').textContent=`Starting (0 of ${total})…`;
+  document.getElementById('llmProgressFill').style.width='0%';
+  document.getElementById('llmProgressModal').style.display='flex';
+}
+function updateLLMProgress(i,total){
+  document.getElementById('llmProgressLabel').textContent=`${i} of ${total} — checking your collection`;
+  const pct=total?Math.round(i/total*100):0;
+  document.getElementById('llmProgressFill').style.width=pct+'%';
+}
+function closeLLMProgress(){
+  document.getElementById('llmProgressModal').style.display='none';
+}
+
 async function runLLMReview(mode){
   if(!collection.length){showToast('No collection loaded yet');return;}
   const candidates=collection.filter(r=>{
@@ -4380,21 +4426,21 @@ async function runLLMReview(mode){
     return true;
   });
   if(!candidates.length){
-    showToast(mode==='untagged'?'Every record already has moods':'No records to review');
+    showToast(mode==='untagged'?'Every record already has moods — try "Compare Claude\'s picks" to re-evaluate':'No records to review');
     return;
   }
   const cap=Math.min(200,candidates.length);
   const confirmMsg=mode==='retag'
-    ? `Re-suggest moods for ${cap} record${cap===1?'':'s'} via Claude?\n\nDaily limit is 50/day; cached results don't count. Nothing saves until you tap Apply in the review modal.`
-    : `Suggest moods for ${cap} untagged record${cap===1?'':'s'} via Claude?\n\nDaily limit is 50/day; cached results don't count. Nothing saves until you tap Apply in the review modal.`;
+    ? `Compare Claude's picks on ${cap} record${cap===1?'':'s'}?\n\nDaily limit is 50/day; cached results don't count. Nothing saves until you tap Save in the review modal.`
+    : `Suggest moods for ${cap} untagged record${cap===1?'':'s'} via Claude?\n\nDaily limit is 50/day; cached results don't count. Nothing saves until you tap Save in the review modal.`;
   if(!confirm(confirmMsg))return;
   const btnId=mode==='untagged'?'llmUntaggedBtn':'llmRetagBtn';
   const btn=document.getElementById(btnId);
   if(btn)btn.disabled=true;
   const origLabel=btn?btn.textContent:'Run';
-  const res=await computeLLMProposals({mode, onProgress:(i,total)=>{
-    if(btn)btn.textContent=`${i}/${total}`;
-  }});
+  openLLMProgress(cap);
+  const res=await computeLLMProposals({mode, onProgress:(i,total)=>updateLLMProgress(i,total)});
+  closeLLMProgress();
   if(btn){btn.disabled=false;btn.textContent=origLabel;}
   if(!res.proposals.length){
     if(res.rateLimited)showToast('Hit the daily Claude limit — no new suggestions');
