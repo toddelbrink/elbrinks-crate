@@ -405,6 +405,16 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .review-row-toggle{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border:1.5px solid #2dd4bf;background:transparent;color:#2dd4bf;font-size:15px;font-weight:700;line-height:1;border-radius:50%;cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:all .15s;padding:0;margin:8px}
 .review-row-toggle:active{transform:scale(.92);background:rgba(45,212,191,.12)}
 .review-row.dismissed .review-row-toggle{border-color:var(--muted);color:var(--muted)}
+/* Per-row mode badge (§2.A). Sits between proposed pills and the dismiss toggle.
+   Hidden when the row matches the global toggle — only deliberate exceptions
+   surface visually. M = Merge, O = Overwrite. Tap flips back to global. */
+.review-row-mode-badge{display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%;font-size:11px;font-weight:700;line-height:1;cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent;touch-action:manipulation;padding:0;margin:0 4px;background:transparent;font-family:var(--font);border:1.5px solid currentColor;transition:transform .15s}
+.review-row-mode-badge:active{transform:scale(.92)}
+/* Color: opposite-from-global accent. Merge override = teal (same as approve toggle), Overwrite override = amber. */
+.review-row-mode-badge[data-mode="merge"]{color:#2dd4bf}
+.review-row-mode-badge[data-mode="overwrite"]{color:#f59e0b}
+/* Wider invisible hit-target via padding so finger-taps don't miss on a 22px circle. */
+.review-row-mode-badge-wrap{display:flex;align-items:center;justify-content:center;padding:6px;flex-shrink:0}
 .review-empty{padding:60px 20px;text-align:center;color:var(--muted);font-size:14px}
 .review-footer{display:flex;align-items:center;gap:12px;padding:14px 20px;border-top:1px solid var(--border);background:var(--surface);flex-shrink:0}
 .review-count{flex:1;font-size:13px;color:var(--muted)}
@@ -1183,7 +1193,7 @@ input:focus,textarea:focus{border-color:var(--accent)}
 <script>
 const $=id=>document.getElementById(id);
 const DB='ElbrinksCrate',VER=5;
-const APP_VERSION='v1.1.0-share-002';
+const APP_VERSION='v1.1.0-share-003';
 // Plumb APP_VERSION into BOTH Settings → About surfaces (main list row's
 // secondary text + About subpanel hero) so the displayed version stays in
 // sync with the constant. Was previously hardcoded in the HTML in two places
@@ -3730,20 +3740,28 @@ $('resetConfirmBtn').onclick=async()=>{await resetCycle();$('resetModal').style.
 $('reviewCloseBtn').onclick=closeReviewModal;
 $('reviewCancelBtn').onclick=closeReviewModal;
 $('reviewApplyBtn').onclick=applyReviewChanges;
-$('reviewToggleOverwrite').onclick=()=>{
+// Global toggle flip resets all per-row overrides (§2.A). Rationale: global
+// is the source of truth, overrides are exceptions to the current global.
+// Preserving overrides through a global flip creates hidden state the user
+// has to remember. Brief toast tells them how many rows got reset.
+function flipGlobalToggle(nextMode){
   if(!_reviewState)return;
-  _reviewState.toggle='overwrite';
-  $('reviewToggleOverwrite').classList.add('active');
-  $('reviewToggleMerge').classList.remove('active');
-  $('reviewToggleHelp').textContent='Overwrite replaces existing moods with proposed.';
-};
-$('reviewToggleMerge').onclick=()=>{
-  if(!_reviewState)return;
-  _reviewState.toggle='merge';
-  $('reviewToggleMerge').classList.add('active');
-  $('reviewToggleOverwrite').classList.remove('active');
-  $('reviewToggleHelp').textContent='Merge adds proposed moods to existing, deduped.';
-};
+  if(_reviewState.toggle===nextMode)return; // no-op
+  const overrideCount=_reviewState.overrides.size;
+  _reviewState.toggle=nextMode;
+  _reviewState.overrides.clear();
+  $('reviewToggleOverwrite').classList.toggle('active',nextMode==='overwrite');
+  $('reviewToggleMerge').classList.toggle('active',nextMode==='merge');
+  $('reviewToggleHelp').textContent=nextMode==='overwrite'
+    ? 'Overwrite replaces existing moods with proposed.'
+    : 'Merge adds proposed moods to existing, deduped.';
+  if(overrideCount>0){
+    renderReviewList(); // hide stale badges
+    showToast(`Reset ${overrideCount} row override${overrideCount===1?'':'s'}`);
+  }
+}
+$('reviewToggleOverwrite').onclick=()=>flipGlobalToggle('overwrite');
+$('reviewToggleMerge').onclick=()=>flipGlobalToggle('merge');
 $('moodPickCancelBtn').onclick=closeMoodPickModal;
 $('moodPickSaveBtn').onclick=saveMoodPickModal;
 $('clearPlaysBtn').onclick=clearPlayHistory;
@@ -4293,7 +4311,11 @@ async function computeLLMProposals({mode, onProgress}){
 }
 
 // ── Review modal state + render ──────────────────────────────────────────
-let _reviewState=null; // {source, mode, proposals (mutable), toggle:'overwrite'|'merge', dismissed:Set, rateLimited}
+let _reviewState=null; // {source, mode, proposals (mutable), toggle:'overwrite'|'merge', dismissed:Set, rateLimited, overrides:Map<rid,'overwrite'|'merge'>}
+// overrides Map (§2.A) — only contains entries that DIFFER from the current
+// global toggle. Empty = no per-row exceptions, every row uses global mode.
+// Flipping the global toggle clears this map (per §2.A: global is source of
+// truth, overrides are exceptions to current global, not persistent state).
 
 function moodPillHTML(slug,muted=false){
   const m=MOODS.find(x=>x.id===slug);
@@ -4307,12 +4329,15 @@ function moodPillHTML(slug,muted=false){
 function renderReviewList(){
   if(!_reviewState)return;
   const list=document.getElementById('reviewList');
-  const {proposals,dismissed,mode}=_reviewState;
+  const {proposals,dismissed,mode,toggle,overrides}=_reviewState;
   if(!proposals.length){
     list.innerHTML='<div class="review-empty">No proposed changes. Try editing your moods\' keywords, then run again.</div>';
     updateReviewFooter();
     return;
   }
+  // §2.A — per-row mode badge only renders in re-tag mode (untagged has no
+  // existing moods to merge against, per spec early-return guard).
+  const showBadges=(mode==='retag');
   list.innerHTML=proposals.map(p=>{
     const isDismissed=dismissed.has(p.releaseId);
     const art=p.art?`<img src="${typeof crate!=='undefined'&&crate.proxyImage?crate.proxyImage(p.art):p.art}" alt="">`:'<span class="ph">no art</span>';
@@ -4324,6 +4349,16 @@ function renderReviewList(){
       : '<span class="review-row-pill empty">none</span>';
     const toggleIcon=isDismissed?'&times;':'&#10003;';
     const toggleLabel=isDismissed?'Skipped — tap to save':'Will save — tap to skip';
+    // §2.A — badge visible only when this row's effective mode differs from global.
+    // The badge letter is the row's effective mode (M for merge, O for overwrite),
+    // which by definition is the OPPOSITE of the current global toggle when shown.
+    let badgeHTML='';
+    if(showBadges && overrides.has(p.releaseId)){
+      const rowMode=overrides.get(p.releaseId);
+      const letter=rowMode==='merge'?'M':'O';
+      const fullLabel=rowMode==='merge'?'Merge (tap to inherit global)':'Overwrite (tap to inherit global)';
+      badgeHTML=`<span class="review-row-mode-badge-wrap" data-action="mode-toggle"><button class="review-row-mode-badge" data-mode="${rowMode}" aria-label="${fullLabel}" title="${fullLabel}">${letter}</button></span>`;
+    }
     return `<div class="review-row${isDismissed?' dismissed':''}" data-rid="${p.releaseId}">
       <div class="review-row-art">${art}</div>
       <div class="review-row-text" data-action="edit">
@@ -4331,6 +4366,7 @@ function renderReviewList(){
         <div class="review-row-title">${escapeHTML(p.title)}</div>
         <div class="review-row-pills">${currentPills}<span class="review-row-arrow">→</span>${proposedPills}</div>
       </div>
+      ${badgeHTML}
       <button class="review-row-toggle" data-action="toggle" aria-label="${toggleLabel}" title="${toggleLabel}">${toggleIcon}</button>
     </div>`;
   }).join('');
@@ -4341,11 +4377,39 @@ function renderReviewList(){
       e.stopPropagation();
       toggleReviewRow(rid);
     });
+    // §2.A — badge tap flips this row's override. Stop propagation so the
+    // row-text edit handler (which opens the mood-pick sub-modal) doesn't also fire.
+    row.querySelector('[data-action="mode-toggle"]')?.addEventListener('click',e=>{
+      e.stopPropagation();
+      toggleRowOverride(rid);
+    });
+    // Row-tap-to-edit only outside the badge + toggle hit-targets.
     row.querySelector('[data-action="edit"]')?.addEventListener('click',()=>{
       openMoodPickModal(rid);
     });
   });
   updateReviewFooter();
+}
+
+// §2.A — flip a row's mode override. The override is stored only when the
+// row's effective mode DIFFERS from the global toggle. So tapping a row whose
+// effective mode matches global → set override to opposite-of-global. Tapping
+// a row that's already overridden → remove the override (return to global).
+function toggleRowOverride(rid){
+  if(!_reviewState)return;
+  if(_reviewState.mode!=='retag')return; // belt-and-suspenders — no badges in untagged mode
+  const global=_reviewState.toggle; // 'overwrite' or 'merge'
+  const opposite=global==='overwrite'?'merge':'overwrite';
+  if(_reviewState.overrides.has(rid)){
+    // Currently overridden → remove (return to global).
+    _reviewState.overrides.delete(rid);
+  }else{
+    // Currently matches global → add override = opposite-of-global.
+    _reviewState.overrides.set(rid,opposite);
+  }
+  // Re-render just this row to update its badge. Simpler to re-render the
+  // whole list; renderReviewList is cheap and keeps tap-target wiring fresh.
+  renderReviewList();
 }
 
 function toggleReviewRow(rid){
@@ -4388,6 +4452,7 @@ function openReviewModal({source, mode, proposals, rateLimited}){
     toggle:'overwrite',
     dismissed:new Set(),
     rateLimited:!!rateLimited,
+    overrides:new Map(), // §2.A — per-row Merge/Overwrite exceptions to global toggle
   };
   const sourceLabel=source==='heuristic'?'From mood heuristic':'From Claude suggestions';
   const modeLabel=mode==='untagged'?'Untagged records only':'All records (re-tag)';
@@ -4419,13 +4484,18 @@ function closeReviewModal(){
 
 async function applyReviewChanges(){
   if(!_reviewState)return;
-  const {proposals,dismissed,mode,toggle}=_reviewState;
+  const {proposals,dismissed,mode,toggle,overrides}=_reviewState;
   const approved=proposals.filter(p=>!dismissed.has(p.releaseId));
   if(!approved.length){closeReviewModal();return;}
   const bulk={};
   for(const p of approved){
+    // §2.A — resolve effective mode per row. Override (if present) is the
+    // opposite of global by construction. No override → row uses global mode.
+    const effectiveMode=(mode==='retag' && overrides.has(p.releaseId))
+      ? overrides.get(p.releaseId)
+      : toggle;
     let next;
-    if(mode==='retag'&&toggle==='merge'){
+    if(mode==='retag'&&effectiveMode==='merge'){
       // Dedupe-merge: existing first, then proposed additions
       const seen=new Set(p.current);
       next=[...p.current];
