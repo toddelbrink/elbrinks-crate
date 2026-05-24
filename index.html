@@ -1311,10 +1311,26 @@ function maybeShowUpdateCard(){
   renderUpdateCard(pendingUpdateVersion);
 }
 
+// Resolve the URL of version.json relative to the current document. The PWA
+// is mounted under /vinyl/ on the elbrink.com hub and at / on the direct
+// elbrinks-crate.vercel.app project — both cases must work. Hardcoding
+// '/version.json' breaks the hub case (resolves to hub root, 404). Hardcoding
+// '/vinyl/version.json' breaks the direct case. So derive from location.
+function getVersionUrl(){
+  let base=location.pathname;
+  // Strip a filename segment if one is present (path ending in /something.ext).
+  if(base.match(/\/[^/]+\.[^/]+$/)){
+    base=base.replace(/\/[^/]+$/,'/');
+  }else if(!base.endsWith('/')){
+    base=base+'/';
+  }
+  return base+'version.json';
+}
+
 async function pollVersion(){
   if(document.visibilityState!=='visible')return;
   try{
-    const r=await fetch('/version.json',{cache:'no-store'});
+    const r=await fetch(getVersionUrl(),{cache:'no-store'});
     if(!r.ok)return;
     const data=await r.json();
     const latest=data && data.version;
