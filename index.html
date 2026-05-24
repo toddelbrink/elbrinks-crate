@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Elbrink's Crate">
-<title>Elbrink's Crate</title>
+<meta name="apple-mobile-web-app-title" content="Crate">
+<title>Crate</title>
 <link rel="manifest" href="/vinyl/manifest.json">
 <link rel="icon" type="image/x-icon" href="/vinyl/favicon.ico">
 <link rel="icon" type="image/png" sizes="192x192" href="/vinyl/icon-v2-192.png">
@@ -511,7 +511,7 @@ input:focus,textarea:focus{border-color:var(--accent)}
         <rect x="1" y="1" width="26" height="26" rx="6" stroke="#e8372c" stroke-width="1.5"/>
         <text x="14" y="19" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#e8372c" text-anchor="middle" letter-spacing="1">EC</text>
       </svg>
-      <span>Elbrink's <em>Crate</em></span>
+      <span><em>Crate</em></span>
     </div>
   </div>
   <div class="header-right">
@@ -529,7 +529,7 @@ input:focus,textarea:focus{border-color:var(--accent)}
         <rect x="1" y="1" width="26" height="26" rx="6" stroke="#e8372c" stroke-width="1.5"/>
         <text x="14" y="19" font-family="Helvetica Neue,Helvetica,Arial,sans-serif" font-size="12" font-weight="700" fill="#e8372c" text-anchor="middle" letter-spacing="1">EC</text>
       </svg>
-      <span style="font-size:17px;font-weight:700;letter-spacing:-0.5px">Elbrink's <em style="color:#e8372c;font-style:normal">Crate</em></span>
+      <span style="font-size:17px;font-weight:700;letter-spacing:-0.5px"><em style="color:#e8372c;font-style:normal">Crate</em></span>
     </div>
     <button class="ham-item" id="hamSync">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
@@ -557,7 +557,7 @@ input:focus,textarea:focus{border-color:var(--accent)}
     <div style="font-size:13px">Loading your crate...</div>
   </div>
   <div class="setup-card" id="authCard" style="display:none">
-    <h2>Elbrink's Crate</h2>
+    <h2>Crate</h2>
     <p>Sign in to manage the collection.</p>
     <button class="btn-accent" id="authGoogleBtn" style="width:100%;padding:12px;font-size:15px">Continue with Google</button>
     <p id="authStatus" style="color:var(--muted);font-size:12px;margin-top:12px"></p>
@@ -570,7 +570,7 @@ input:focus,textarea:focus{border-color:var(--accent)}
     <button class="btn-ghost-sm" id="revocationSignOutBtn" style="width:100%;padding:10px;font-size:13px;margin-top:10px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted)">Sign out</button>
   </div>
   <div class="setup-card" id="setupCard" style="display:none">
-    <h2>Elbrink's Crate</h2>
+    <h2>Crate</h2>
     <p>Connect your Discogs account to load your collection.</p>
     <button class="btn-accent" id="setupConnectBtn" style="width:100%;padding:12px;font-size:15px">Connect Discogs</button>
     <p style="color:var(--muted);font-size:12px;margin-top:12px;line-height:1.4">If your browser blocks the popup, allow popups for elbrink.com and tap Connect Discogs again.</p>
@@ -825,14 +825,14 @@ input:focus,textarea:focus{border-color:var(--accent)}
   </div>
   <div class="subpanel-body">
     <div class="account-hero">
-      <div class="account-avatar" id="accountAvatar"><span id="accountAvatarLetter">T</span></div>
-      <div class="account-name" id="accountName">Todd Elbrink</div>
-      <div class="account-email" id="accountEmail">toddelbrink@gmail.com</div>
+      <div class="account-avatar" id="accountAvatar"><span id="accountAvatarLetter">?</span></div>
+      <div class="account-name" id="accountName"></div>
+      <div class="account-email" id="accountEmail"></div>
     </div>
 
     <div class="subpanel-section-header">Crate name</div>
     <div class="subpanel-row" id="crateNameRow">
-      <span class="subpanel-row-label" id="crateNameDisplay">Elbrink's Crate</span>
+      <span class="subpanel-row-label" id="crateNameDisplay">Crate</span>
       <button class="subpanel-row-action" id="crateNameEditBtn">Edit</button>
     </div>
     <div class="subpanel-foot-note">The name renders in the top bar, browser tab, and About panel. Keep it short for a clean fit.</div>
@@ -1091,7 +1091,7 @@ input:focus,textarea:focus{border-color:var(--accent)}
   <div class="subpanel-body">
     <div class="about-hero">
       <div class="about-logo"><img src="/vinyl/icon-v2-512.png" alt="EC"></div>
-      <div style="font-size:18px;font-weight:700">Elbrink's Crate</div>
+      <div style="font-size:18px;font-weight:700">Crate</div>
       <div class="about-version" id="aboutVersion">—</div>
     </div>
     <div class="about-credits">
@@ -3121,7 +3121,8 @@ async function shareStats(){
   ctx.fillStyle='#888888';
   ctx.font='600 22px -apple-system, BlinkMacSystemFont, sans-serif';
   ctx.textAlign='center';
-  ctx.fillText("Elbrink's Crate",W/2,brandY+32);
+  // v1.1 EC swap (PRD §4.3) — share-image wordmark is per-user, not publisher-branded.
+  ctx.fillText(crateName||'Crate',W/2,brandY+32);
   // Public share URL (v1.1) — only when the user has opted in. Stripped
   // from both the image and the navigator.share text payload below when
   // share is off so users can't accidentally leak a broken link.
@@ -3721,13 +3722,14 @@ async function shareRecord(r){
     ctx.fillStyle='#ffffff';
     ctx.font='600 18px -apple-system, BlinkMacSystemFont, sans-serif';
     ctx.textAlign='right';
-    ctx.fillText("Elbrink's Crate",W-50,lY-14);
+    // v1.1 EC swap (PRD §4.3) — share-image wordmark is per-user.
+    ctx.fillText(crateName||'Crate',W-50,lY-14);
   }else{
     // Fallback if logo fails to load: text-only wordmark
     ctx.fillStyle='#ffffff';
     ctx.font='600 20px -apple-system, BlinkMacSystemFont, sans-serif';
     ctx.textAlign='right';
-    ctx.fillText("Elbrink's Crate",W-50,H-50);
+    ctx.fillText(crateName||'Crate',W-50,H-50);
   }
   // Public share URL (v1.1) — bottom-left, mirrors stats image placement.
   // Only when the user has opted in. Stripped from the navigator.share text
@@ -4228,18 +4230,29 @@ const THEMES={
     name:'Paper',
     vars:{bg:'#fafaf8', surface:'#ffffff', surface2:'#f0f0ec', text:'#1a1a1a', muted:'#666666', accent:'#ef4444', border:'#e0e0dc'}
   },
+  // v1.1 additions (PRD §5.2) — three new palettes bringing the set from 5 → 8.
+  // Contrast verified: text/bg AAA (≥7.0), muted/bg AA (≥4.5), accent/bg AA (≥4.5).
+  vinylWax: {
+    name:'Vinyl Wax',
+    vars:{bg:'#1c1410', surface:'#2b1f17', surface2:'#3a2a1f', text:'#f5ecd9', muted:'#a89a82', accent:'#d4914e', border:'#3d2c1f'}
+  },
+  concertHall: {
+    name:'Concert Hall',
+    vars:{bg:'#0f1419', surface:'#1a2128', surface2:'#252e37', text:'#ecf0f4', muted:'#8a96a3', accent:'#d4b258', border:'#1e2730'}
+  },
+  coastline: {
+    name:'Coastline',
+    vars:{bg:'#eef2f5', surface:'#f8fafb', surface2:'#dde4e9', text:'#162028', muted:'#5d6b76', accent:'#c97f4a', border:'#c8d2db'}
+  },
 };
 let activeThemeKey='dark';
 
 // User's personalized Crate name (PRD §7.8). Empty default — gets overwritten
 // during init by ensureProfile() with the user's crate_name (existing) or a
-// fresh default derived from their Google identity. The pre-init flash uses
-// the static HTML literals at lines 8 (apple-mobile-web-app-title), 9 (title),
-// 534/547/1068 (in-app heros) which all currently say "Elbrink's Crate" — those
-// are the splash-screen / install-prompt visible BEFORE JS runs and are
-// publisher-level branding (will swap to "Crate" with the v1.1 EC swap, PRD §4).
-// renderCrateName() falls back to "Your Crate" if this stays empty post-init,
-// which shouldn't happen but is defensive.
+// fresh default derived from their Google identity. Static HTML literals in
+// the pre-init flash now read "Crate" or empty (publisher-neutral) per the
+// v1.1 EC swap. renderCrateName() falls back to "Your Crate" if this stays
+// empty post-init, which shouldn't happen but is defensive.
 let crateName="";
 
 // Share state (v1.1 / Sprint 1 item 2). Cached at init from vinyl_user_profile
@@ -4352,7 +4365,7 @@ function clearMoodFilter(){
 function renderCrateName(){
   const name=crateName||'Your Crate';
   document.title=name;
-  // Top-bar wordmark: replace existing "Elbrink's <em>Crate</em>" pattern.
+  // Top-bar wordmark: replaces the static "<em>Crate</em>" pre-init placeholder.
   // Strategy: if name ends with " Crate", split on it so the last word stays
   // styled as the accent (the brand-red "Crate" lettering). Otherwise render
   // the whole name un-emphasized.

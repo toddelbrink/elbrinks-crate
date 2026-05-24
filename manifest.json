@@ -1,6 +1,6 @@
 {
-  "name": "Elbrink's Crate",
-  "short_name": "Elbrink's Crate",
+  "name": "Crate",
+  "short_name": "Crate",
   "start_url": "/vinyl/",
   "display": "standalone",
   "background_color": "#000000",
