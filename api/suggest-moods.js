@@ -4,7 +4,7 @@
 // Body: { release_id, artist, title, year, genres, styles }
 // Header: Authorization: Bearer <supabase_access_token>
 //
-// Flow: verify session → load user moods → cache hit? → rate-limit gate (50/day)
+// Flow: verify session → load user moods → cache hit? → rate-limit gate (500/day)
 //   → call Anthropic Claude Haiku 4.5 with strict JSON schema → validate moods
 //   against the user's available set → cache + return.
 //
@@ -18,7 +18,7 @@ export const config = { runtime: 'nodejs' };
 
 const SUPABASE_URL = 'https://cejdraimvieqjopiccpb.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_n63_gkGCZwL1DodV18o8kA_sJxUcrly';
-const DAILY_LIMIT = 50;
+const DAILY_LIMIT = 500;
 
 // djb2 hash, returned as 8-char hex. Stable across runs, fine for cache keys.
 function hashMoods(str) {
@@ -99,7 +99,7 @@ export default async function handler(req, res) {
     return;
   }
 
-  // 5. Rate limit (50 calls / 24h per user)
+  // 5. Rate limit (DAILY_LIMIT calls / 24h per user; cache hits don't count)
   const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { count, error: countError } = await supabase
     .from('vinyl_mood_suggestions')

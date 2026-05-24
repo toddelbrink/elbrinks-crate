@@ -270,6 +270,12 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .subpanel-row-action.danger{color:var(--accent);border-color:transparent}
 .subpanel-row-action[disabled]{opacity:.4;cursor:default}
 .subpanel-foot-note{padding:12px 16px;font-size:12px;color:var(--muted);line-height:1.5}
+/* Auto-tagging groups: row + its description belong together, with a
+   separator between GROUPS, not between a row and its own description. */
+.auto-tag-group{border-bottom:1px solid var(--border)}
+.auto-tag-group:last-of-type{border-bottom:none}
+.auto-tag-group .subpanel-row{border-bottom:none;min-height:48px}
+.auto-tag-group .subpanel-foot-note{padding:4px 16px 14px;font-size:12px}
 .subpanel-cta-row{padding:16px}
 .subpanel-cta-row button{width:100%;padding:14px;border-radius:10px;border:none;font-family:var(--font);font-size:15px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 .subpanel-cta-row button.primary{background:var(--accent);color:#fff}
@@ -379,9 +385,9 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .review-row-pill{display:inline-block;font-size:11px;font-weight:600;padding:3px 8px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--muted);white-space:nowrap}
 .review-row-pill.empty{font-style:italic;opacity:.7}
 .review-row-arrow{color:var(--muted);font-size:14px;margin:0 2px;flex-shrink:0}
-.review-row-toggle{display:flex;align-items:center;justify-content:center;width:44px;height:44px;border:1.5px solid #2dd4bf;background:rgba(45,212,191,.12);color:#2dd4bf;font-size:22px;font-weight:700;line-height:1;border-radius:50%;cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:all .15s;padding:0}
-.review-row-toggle:active{transform:scale(.94)}
-.review-row.dismissed .review-row-toggle{border-color:var(--muted);background:transparent;color:var(--muted)}
+.review-row-toggle{display:flex;align-items:center;justify-content:center;width:28px;height:28px;border:1.5px solid #2dd4bf;background:transparent;color:#2dd4bf;font-size:15px;font-weight:700;line-height:1;border-radius:50%;cursor:pointer;flex-shrink:0;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:all .15s;padding:0;margin:8px}
+.review-row-toggle:active{transform:scale(.92);background:rgba(45,212,191,.12)}
+.review-row.dismissed .review-row-toggle{border-color:var(--muted);color:var(--muted)}
 .review-empty{padding:60px 20px;text-align:center;color:var(--muted);font-size:14px}
 .review-footer{display:flex;align-items:center;gap:12px;padding:14px 20px;border-top:1px solid var(--border);background:var(--surface);flex-shrink:0}
 .review-count{flex:1;font-size:13px;color:var(--muted)}
@@ -863,29 +869,37 @@ input:focus,textarea:focus{border-color:var(--accent)}
 
     <div class="subpanel-section-header" style="margin-top:24px">Auto-tagging</div>
 
-    <div class="subpanel-row">
-      <span class="subpanel-row-label">Tag untagged records (heuristic)</span>
-      <button class="subpanel-row-action" id="heurUntaggedBtn">Run</button>
+    <div class="auto-tag-group">
+      <div class="subpanel-row">
+        <span class="subpanel-row-label">Tag untagged records (heuristic)</span>
+        <button class="subpanel-row-action" id="heurUntaggedBtn">Run</button>
+      </div>
+      <div class="subpanel-foot-note">Matches each untagged record against your moods' Discogs keyword lists. Free — runs locally. You review every change before anything saves.</div>
     </div>
-    <div class="subpanel-foot-note">Matches each untagged record against your moods' Discogs keyword lists. Free — runs locally. You review every change before anything saves.</div>
 
-    <div class="subpanel-row" style="margin-top:12px">
-      <span class="subpanel-row-label">Re-tag all records (heuristic)</span>
-      <button class="subpanel-row-action" id="heurRetagBtn">Run</button>
+    <div class="auto-tag-group">
+      <div class="subpanel-row">
+        <span class="subpanel-row-label">Re-tag all records (heuristic)</span>
+        <button class="subpanel-row-action" id="heurRetagBtn">Run</button>
+      </div>
+      <div class="subpanel-foot-note">Re-runs the heuristic across every record, including ones you've already tagged. Use after editing keywords or adding moods. Review before save — choose Merge or Overwrite.</div>
     </div>
-    <div class="subpanel-foot-note">Re-runs the heuristic across every record, including ones you've already tagged. Use after editing keywords or adding moods. Review before save — choose Merge or Overwrite.</div>
 
-    <div class="subpanel-row" style="margin-top:12px">
-      <span class="subpanel-row-label">Suggest via Claude (untagged)</span>
-      <button class="subpanel-row-action" id="llmUntaggedBtn">Run</button>
+    <div class="auto-tag-group">
+      <div class="subpanel-row">
+        <span class="subpanel-row-label">Suggest via Claude (untagged)</span>
+        <button class="subpanel-row-action" id="llmUntaggedBtn">Run</button>
+      </div>
+      <div class="subpanel-foot-note">Calls Claude Haiku for up to 200 untagged records per session (500/day limit). More nuanced than the heuristic. You review every change before anything saves.</div>
     </div>
-    <div class="subpanel-foot-note">Calls Claude Haiku for up to 200 untagged records per session (50/day limit). More nuanced than the heuristic. You review every change before anything saves.</div>
 
-    <div class="subpanel-row" style="border-bottom:none;margin-top:12px">
-      <span class="subpanel-row-label">Compare Claude's picks (all records)</span>
-      <button class="subpanel-row-action" id="llmRetagBtn">Run</button>
+    <div class="auto-tag-group">
+      <div class="subpanel-row">
+        <span class="subpanel-row-label">Compare Claude's picks (all records)</span>
+        <button class="subpanel-row-action" id="llmRetagBtn">Run</button>
+      </div>
+      <div class="subpanel-foot-note">Re-runs Claude on every record, including ones you've already tagged. Use to see Claude's suggestions alongside your current moods. Cached results don't count against the daily limit. Review before save — choose Merge or Overwrite per batch.</div>
     </div>
-    <div class="subpanel-foot-note">Re-runs Claude on every record, including ones you've already tagged. Use to see Claude's suggestions alongside your current moods. Cached results don't count against the daily limit. Review before save — choose Merge or Overwrite per batch.</div>
   </div>
 </div>
 
