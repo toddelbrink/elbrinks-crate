@@ -756,7 +756,7 @@ input:focus,textarea:focus{border-color:var(--accent)}
         <span class="settings-row-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v.01"/><path d="M11 12h1v5h1"/></svg></span>
         <div class="settings-row-content">
           <span class="settings-row-name">About</span>
-          <span class="settings-row-secondary" id="rowAboutSecondary">v1.0.0-step6</span>
+          <span class="settings-row-secondary" id="rowAboutSecondary">—</span>
         </div>
         <span class="settings-row-chevron">›</span>
       </button>
@@ -1130,11 +1130,15 @@ input:focus,textarea:focus{border-color:var(--accent)}
 const $=id=>document.getElementById(id);
 const DB='ElbrinksCrate',VER=5;
 const APP_VERSION='v1.0.0-pwatest-001';
-// Plumb APP_VERSION into Settings → About so the displayed version stays in
-// sync with the constant. Was previously hardcoded in the HTML and silently
-// drifted, which invalidated PWA cache tests. Element exists above this
-// script tag in the DOM, so getElementById is safe to call inline.
-(()=>{const el=document.getElementById('aboutVersion');if(el)el.textContent=APP_VERSION;})();
+// Plumb APP_VERSION into BOTH Settings → About surfaces (main list row's
+// secondary text + About subpanel hero) so the displayed version stays in
+// sync with the constant. Was previously hardcoded in the HTML in two places
+// and silently drifted, which invalidated the first PWA cache test.
+// Both elements exist above this script tag in the DOM.
+(()=>{
+  const a=document.getElementById('aboutVersion');if(a)a.textContent=APP_VERSION;
+  const b=document.getElementById('rowAboutSecondary');if(b)b.textContent=APP_VERSION;
+})();
 
 // Moods config
 // Locked 6-color mood palette (PRD §8.2). Each entry maps a color_key
