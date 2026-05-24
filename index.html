@@ -360,6 +360,17 @@ input:focus,textarea:focus{border-color:var(--accent)}
 /* Toast */
 .toast{position:fixed;bottom:calc(var(--nav-h) + 12px);left:50%;transform:translateX(-50%);background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;padding:10px 18px;z-index:300;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap}
 .toast.show{opacity:1}
+/* Update card (§11 PWA update mechanism). Sticky bottom card sits above
+   bottom nav. Non-modal — user can keep tapping the app behind it. */
+.update-card{position:fixed;left:8px;right:8px;bottom:calc(var(--nav-h) + 8px + env(safe-area-inset-bottom));background:var(--surface);border:1px solid var(--border);border-radius:12px;z-index:280;box-shadow:0 8px 24px rgba(0,0,0,.4);transform:translateY(120%);transition:transform .25s ease-out;padding:14px 16px}
+.update-card.show{transform:translateY(0)}
+.update-card-content{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.update-card-title{font-size:15px;font-weight:600;color:var(--text);line-height:1.2}
+.update-card-actions{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.update-card-reload{background:var(--accent);border:none;color:#fff;font-family:var(--font);font-size:14px;font-weight:600;padding:9px 16px;border-radius:8px;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.update-card-reload:active{opacity:.85}
+.update-card-later{background:transparent;border:none;color:var(--muted);font-family:var(--font);font-size:14px;font-weight:500;padding:9px 12px;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.update-card-later:active{opacity:.7}
 /* Reset modal */
 .reset-modal{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:400;display:flex;align-items:center;justify-content:center;padding:24px}
 .reset-card{background:var(--surface);border-radius:20px;padding:32px;max-width:360px;width:100%;text-align:center}
@@ -1193,12 +1204,18 @@ input:focus,textarea:focus{border-color:var(--accent)}
 
 <!-- Supabase client + API wrappers (replaces api.php). Module is implicitly deferred. -->
 <script>window.crateReady = new Promise(r => { window._crateReadyResolve = r; });</script>
+<!-- Version is loaded sync so window.APP_VERSION is set before any inline scripts read it.
+     Single source of truth shared with /version.json (PWA update mechanism, §11). -->
+<script src="/lib/version.js"></script>
 <script type="module" src="/lib/supabase.js"></script>
 
 <script>
 const $=id=>document.getElementById(id);
 const DB='ElbrinksCrate',VER=5;
-const APP_VERSION='v1.1.0-share-004';
+// Read APP_VERSION from window — set by /lib/version.js, loaded sync above
+// in the head block. Single source of truth for both this constant and
+// /version.json (PWA update mechanism, §11).
+const APP_VERSION=window.APP_VERSION;
 // Plumb APP_VERSION into BOTH Settings → About surfaces (main list row's
 // secondary text + About subpanel hero) so the displayed version stays in
 // sync with the constant. Was previously hardcoded in the HTML in two places
@@ -1208,6 +1225,128 @@ const APP_VERSION='v1.1.0-share-004';
   const a=document.getElementById('aboutVersion');if(a)a.textContent=APP_VERSION;
   const b=document.getElementById('rowAboutSecondary');if(b)b.textContent=APP_VERSION;
 })();
+
+// ── PWA update mechanism (§11) ───────────────────────────────
+// Cold reopen on iOS 26.5+ already refetches HTML (Cache-Control: no-store).
+// This mechanism covers the foregrounded-session-across-deploy case where iOS
+// keeps the PWA process alive in memory and serves stale HTML on resume.
+//
+// Poll /version.json on three triggers (boot / visibilitychange / 30-min
+// interval) and compare to APP_VERSION. Mismatch shows a sticky bottom card
+// with Reload / Later. Card gated by a blocker check so it never interrupts
+// onboarding, modals, subpanels, or in-flight OAuth.
+//
+// Self-cleanup: if the user is now running the version they previously
+// dismissed (cold reopen happened, or they hit Reload elsewhere), clear the
+// dismissed entry so a future newer version still prompts.
+let pendingUpdateAvailable=false;
+let pendingUpdateVersion=null;
+
+// Show post-reload toast if the previous page set the just-updated flag.
+// Runs once at boot, then clears the flag.
+(()=>{
+  try{
+    if(localStorage.getItem('crate.justUpdated')==='1'){
+      localStorage.removeItem('crate.justUpdated');
+      // Defer until showToast is defined + UI has painted.
+      setTimeout(()=>{if(typeof showToast==='function')showToast('Updated');},800);
+    }
+  }catch(e){/* localStorage may be blocked — silent */}
+})();
+
+function anyUpdateBlockerActive(){
+  // Onboarding never gets interrupted (Session 28 CC flag).
+  if(typeof onboardingInProgress!=='undefined' && onboardingInProgress)return true;
+  // Any open modal or subpanel — Review modal, mood CRUD modals, mood-pick
+  // sub-modal, reset confirmation modal, Settings subpanels, etc. The
+  // selector list is intentionally generic — any new modal that uses the
+  // existing `.open` toggle pattern is automatically respected.
+  if(document.querySelector('.settings-subpanel.open'))return true;
+  if(document.querySelector('.review-modal.open'))return true;
+  if(document.querySelector('.mood-pick-modal.open'))return true;
+  if(document.querySelector('.mood-edit-modal.open'))return true;
+  // Reset and delete-account modals use inline display:flex rather than .open
+  if(document.getElementById('resetModal')?.style.display==='flex')return true;
+  if(document.getElementById('deleteConfirmModal')?.style.display==='flex')return true;
+  // LLM progress modal (review-modal cousin) — same convention.
+  if(document.getElementById('llmProgressModal')?.style.display==='flex')return true;
+  // Mood-edit modal uses inline display in some paths.
+  if(document.getElementById('moodEditModal')?.style.display==='flex')return true;
+  return false;
+}
+
+function renderUpdateCard(version){
+  if(document.getElementById('updateCard'))return; // already showing
+  const card=document.createElement('div');
+  card.id='updateCard';
+  card.className='update-card';
+  card.innerHTML=`
+    <div class="update-card-content">
+      <span class="update-card-title">Update available.</span>
+      <div class="update-card-actions">
+        <button class="update-card-reload" aria-label="Reload to update">Reload</button>
+        <button class="update-card-later" aria-label="Dismiss for this version">Later</button>
+      </div>
+    </div>
+  `;
+  card.querySelector('.update-card-reload').addEventListener('click',()=>{
+    try{localStorage.setItem('crate.justUpdated','1');}catch{}
+    location.reload();
+  });
+  card.querySelector('.update-card-later').addEventListener('click',()=>{
+    try{localStorage.setItem('crate.dismissedUpdateVersion',version);}catch{}
+    card.classList.remove('show');
+    setTimeout(()=>card.remove(),250);
+    pendingUpdateAvailable=false;
+  });
+  document.body.appendChild(card);
+  // Trigger slide-in after the element is in the DOM so the transition fires.
+  requestAnimationFrame(()=>card.classList.add('show'));
+}
+
+function maybeShowUpdateCard(){
+  if(!pendingUpdateAvailable)return;
+  if(document.getElementById('updateCard'))return;
+  if(anyUpdateBlockerActive())return;
+  renderUpdateCard(pendingUpdateVersion);
+}
+
+async function pollVersion(){
+  if(document.visibilityState!=='visible')return;
+  try{
+    const r=await fetch('/version.json',{cache:'no-store'});
+    if(!r.ok)return;
+    const data=await r.json();
+    const latest=data && data.version;
+    if(!latest)return;
+    let dismissed=null;
+    try{dismissed=localStorage.getItem('crate.dismissedUpdateVersion');}catch{}
+    // Self-cleanup: clear dismissed if user is now running it.
+    if(dismissed===APP_VERSION){
+      try{localStorage.removeItem('crate.dismissedUpdateVersion');}catch{}
+      dismissed=null;
+    }
+    if(latest!==APP_VERSION && latest!==dismissed){
+      pendingUpdateAvailable=true;
+      pendingUpdateVersion=latest;
+      maybeShowUpdateCard();
+    }
+  }catch(e){/* version check is non-critical — silent on network errors */}
+}
+
+// Wire the three poll triggers per §11.4.
+window.addEventListener('DOMContentLoaded',pollVersion);
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'){
+    pollVersion();
+    // Visibilitychange-to-visible is also a good moment to retry showing the
+    // card in case it was queued behind a blocker that closed while away.
+    maybeShowUpdateCard();
+  }
+});
+setInterval(()=>{
+  if(document.visibilityState==='visible')pollVersion();
+},30*60*1000);
 
 // Moods config
 // Locked 6-color mood palette (PRD §8.2). Each entry maps a color_key
@@ -1679,7 +1818,7 @@ function closeSheet(){
   else setActiveNav('navCrate');
 }
 function closeStats(){switchView('crate');setActiveNav('navCrate');}
-function closeSettings(){$('settingsOverlay').classList.remove('open');setActiveNav('navCrate');}
+function closeSettings(){$('settingsOverlay').classList.remove('open');setActiveNav('navCrate');if(typeof maybeShowUpdateCard==='function')maybeShowUpdateCard();}
 window.addEventListener('popstate',()=>{
   // Settings subpanels close first (so back goes subpanel → settings → main)
   if(typeof anySubpanelOpen==='function'&&anySubpanelOpen()){closeSubpanel();return;}
@@ -4177,6 +4316,9 @@ function closeSubpanel(name){
                 :document.querySelector('.settings-subpanel.open');
   if(!el)return;
   el.classList.remove('open');
+  // §11 — settled-surface re-check. If an update card was queued behind this
+  // subpanel, surface it now that the user is back on a settled surface.
+  if(typeof maybeShowUpdateCard==='function')setTimeout(maybeShowUpdateCard,260);
 }
 function anySubpanelOpen(){return !!document.querySelector('.settings-subpanel.open');}
 
@@ -4498,6 +4640,8 @@ function openReviewModal({source, mode, proposals, rateLimited}){
 function closeReviewModal(){
   document.getElementById('reviewModal').classList.remove('open');
   _reviewState=null;
+  // §11 — surface a queued update card if one was held back.
+  if(typeof maybeShowUpdateCard==='function')setTimeout(maybeShowUpdateCard,260);
 }
 
 async function applyReviewChanges(){
@@ -4577,6 +4721,11 @@ function openMoodPickModal(rid){
 function closeMoodPickModal(){
   document.getElementById('moodPickModal').classList.remove('open');
   _moodPickTarget=null;
+  // §11 — note: review modal is likely still open behind this sub-modal, so
+  // maybeShowUpdateCard is a no-op here. The check on closeReviewModal handles
+  // the eventual re-surface. Left here for symmetry in case future code closes
+  // both at once.
+  if(typeof maybeShowUpdateCard==='function')setTimeout(maybeShowUpdateCard,260);
 }
 
 function saveMoodPickModal(){
@@ -4694,6 +4843,9 @@ function openMoodEditModal(mood){
 function closeMoodEditModal(){
   document.getElementById('moodEditModal').style.display='none';
   _moodEditTarget=null;
+  // §11 — moods subpanel is likely behind this modal; subpanel close also fires
+  // the re-check. Belt-and-suspenders for direct close paths.
+  if(typeof maybeShowUpdateCard==='function')setTimeout(maybeShowUpdateCard,260);
 }
 async function saveMoodFromModal(){
   const name=document.getElementById('moodEditName').value.trim();
