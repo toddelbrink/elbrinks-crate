@@ -1096,7 +1096,7 @@ async function applyMoodHeuristicToCollection({force=false, onProgress=null}={})
   return result;
 }
 
-let db,collection=[],filtered=[],artCache={},genreCache={},stylesCache={},moodCache={},notesCache={},wikiCache={},artistsDB={},token='',username='telbrink',discogsMode=null;
+let db,collection=[],filtered=[],artCache={},genreCache={},stylesCache={},moodCache={},notesCache={},wikiCache={},artistsDB={},token='',username='',discogsMode=null;
 let playCounts={},cycleLog={},lastPlayed={},currentCycle=1;
 let sortMode='alpha',sortIdx=2,artFetching=false,genreFetching=false;
 let shuffleMode='unplayed',activeMoodFilter='all',currentRecord=null,fromShuffle=false;
@@ -1187,7 +1187,7 @@ async function discogsGet(url,retries=3){
 async function init(){
   db=await openDB();
   token=await dbGet('meta','token')||'';
-  username=await dbGet('meta','username')||'telbrink';
+  username=await dbGet('meta','username')||'';
 
   // Auth gate: collection writes require an authenticated session.
   // Reads work for anon, but the private app at /vinyl is admin-only by design.
