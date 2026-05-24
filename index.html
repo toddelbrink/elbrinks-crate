@@ -463,11 +463,18 @@ input:focus,textarea:focus{border-color:var(--accent)}
   </div>
   <div class="setup-card" id="setupCard" style="display:none">
     <h2>Elbrink's Crate</h2>
-    <p>Connect your Discogs account to load your collection automatically.</p>
-    <div class="field"><label>Discogs username</label><input type="text" id="usernameInput" value="telbrink"></div>
-    <div class="field"><label>Discogs token</label><input type="password" id="tokenInput" placeholder="Paste your API token"></div>
-    <button class="btn-accent" id="connectBtn" style="width:100%;padding:12px;font-size:15px">Connect and Load Collection</button>
-    <p style="color:var(--muted);font-size:12px;margin-top:12px">Get a free token at discogs.com/settings/developers.</p>
+    <p>Connect your Discogs account to load your collection.</p>
+    <button class="btn-accent" id="setupConnectBtn" style="width:100%;padding:12px;font-size:15px">Connect Discogs</button>
+    <p style="color:var(--muted);font-size:12px;margin-top:12px;line-height:1.4">If your browser blocks the popup, allow popups for elbrink.com and tap Connect Discogs again.</p>
+    <details style="margin-top:20px;border-top:1px solid var(--border);padding-top:14px">
+      <summary style="cursor:pointer;color:var(--muted);font-size:13px;outline:none">Advanced: paste API token instead</summary>
+      <div style="margin-top:14px">
+        <div class="field"><label>Discogs username</label><input type="text" id="usernameInput" placeholder="Your Discogs username"></div>
+        <div class="field"><label>Discogs token</label><input type="password" id="tokenInput" placeholder="Paste your API token"></div>
+        <button class="btn-accent" id="connectBtn" style="width:100%;padding:12px;font-size:15px">Connect with Token</button>
+        <p style="color:var(--muted);font-size:12px;margin-top:10px">Get a free token at <a href="https://www.discogs.com/settings/developers" target="_blank" rel="noopener" style="color:var(--accent)">discogs.com/settings/developers</a>.</p>
+      </div>
+    </details>
   </div>
 
   <div id="collectionView" style="display:none">
@@ -1828,17 +1835,50 @@ async function silentSync(){
 }
 
 async function connect(){
-  token=$('tokenInput').value.trim();username=$('usernameInput').value.trim()||'telbrink';
+  token=$('tokenInput').value.trim();username=$('usernameInput').value.trim();
+  if(!username){showToast('Enter your Discogs username');return;}
   if(!token){showToast('Paste your Discogs token first');return;}
   $('connectBtn').textContent='Connecting…';$('connectBtn').disabled=true;
   try{
     await dbSet('meta','token',token);await dbSet('meta','username',username);
     crate.saveSetting('token',token);
     crate.saveSetting('username',username);
+    crate.saveSetting('discogs_mode','pat');
     collection=await fetchCollection();
     await dbSet('meta','collection',collection);await dbSet('meta','lastSync',new Date().toISOString());saveCollectionToAPI(collection);
     filtered=[...collection];await loadPlaysFromAPI();await loadMetaFromAPI();await loadArtistsFromAPI();showCollection();startArtFetch();startGenreFetch();startWikiFetch();seedDiscogsNotes();
-  }catch(e){showToast('Error: '+e.message,4000);$('connectBtn').textContent='Connect and Load Collection';$('connectBtn').disabled=false;hideProgress();}
+  }catch(e){showToast('Error: '+e.message,4000);$('connectBtn').textContent='Connect with Token';$('connectBtn').disabled=false;hideProgress();}
+}
+
+// Onboarding state flag — set true when setupCard's "Connect Discogs" tapped.
+// Consumed by the OAuth postMessage listener to know whether to run the
+// first-sync flow after credentials land. Reset on success and on failure.
+let onboardingInProgress=false;
+
+// Post-OAuth first-sync for fresh onboarding users. The OAuth popup has just
+// written credentials to vinyl_settings; reloadDiscogsCredentials() has
+// re-hydrated discogsMode + token in memory. This function fetches the
+// collection via the now-authorized proxy and lands the user in the app.
+async function completeFirstSync(){
+  $('setupCard').style.display='none';
+  $('initLoading').style.display='block';
+  $('initLoading').innerHTML='<div style="font-size:13px">Loading your collection…</div>';
+  try{
+    collection=await fetchCollection();
+    await dbSet('meta','collection',collection);
+    await dbSet('meta','lastSync',new Date().toISOString());
+    saveCollectionToAPI(collection);
+    filtered=[...collection];
+    await loadPlaysFromAPI();await loadMetaFromAPI();await loadArtistsFromAPI();
+    showCollection();
+    startArtFetch();startGenreFetch();startWikiFetch();seedDiscogsNotes();
+  }catch(e){
+    // Connection worked but the collection fetch failed. Land them in the app
+    // anyway with an empty grid; they can retry from Settings → Full Sync.
+    showToast('Initial sync failed: '+e.message+'. Try Full Sync from Settings.',6000);
+    filtered=[...collection];
+    showCollection();
+  }
 }
 
 // Push all local meta (moods, notes, genres, art) to Supabase
@@ -2829,6 +2869,36 @@ function renderAuthState(session){
 // ── Events ────────────────────────────────────────────────────
 $('connectBtn').onclick=connect;
 
+// Onboarding: Connect Discogs button (OAuth path, primary). Mirrors the
+// Settings → Discogs Reconnect handler — opens the popup synchronously off the
+// tap so the user-gesture context is preserved (popup blockers don't fire on
+// gesture-initiated window.open). The shared postMessage listener picks up the
+// callback and, because onboardingInProgress is set, runs completeFirstSync.
+$('setupConnectBtn').onclick=async()=>{
+  const btn=$('setupConnectBtn');
+  btn.disabled=true;btn.textContent='Opening…';
+  onboardingInProgress=true;
+  try{
+    const res=await crate.startDiscogsOAuth();
+    if(!res.success){
+      onboardingInProgress=false;
+      showToast('Could not start Discogs connection: '+(res.error||'unknown'),4000);
+      return;
+    }
+    const popup=window.open(res.authorize_url,'discogs-oauth','width=900,height=800,noopener=no');
+    if(!popup){
+      onboardingInProgress=false;
+      showToast('Popup blocked. Allow popups for elbrink.com and tap Connect Discogs again.',6000);
+      return;
+    }
+  }catch(e){
+    onboardingInProgress=false;
+    showToast('Connection error: '+(e.message||'unknown'),4000);
+  }finally{
+    setTimeout(()=>{if(btn){btn.disabled=false;btn.textContent='Connect Discogs';}},2000);
+  }
+};
+
 // Nav buttons
 function setActiveNav(id){document.querySelectorAll('#bottomNav .nav-btn').forEach(b=>b.classList.remove('active'));if(id)$(id).classList.add('active');}
 $('navCrate').onclick=()=>{closeAllOverlays();setActiveNav('navCrate');clearMoodFilter();switchView('crate');};
@@ -3488,8 +3558,17 @@ window.addEventListener('message',async (event)=>{
   if(d.status==='success'){
     // Pull fresh credentials from Supabase — the popup just wrote them there.
     await reloadDiscogsCredentials();
-    showToast(d.username?('Connected to Discogs as @'+d.username):'Discogs connected');
+    if(onboardingInProgress){
+      // Fresh user just completed OAuth from the setupCard. Run first-sync to
+      // pull their collection and land them in the app — no second hop needed.
+      onboardingInProgress=false;
+      showToast(d.username?('Welcome — connected as @'+d.username):'Welcome — Discogs connected');
+      await completeFirstSync();
+    }else{
+      showToast(d.username?('Connected to Discogs as @'+d.username):'Discogs connected');
+    }
   }else{
+    onboardingInProgress=false;
     showToast('Discogs connection failed: '+(d.error||'unknown'),5000);
   }
 });
