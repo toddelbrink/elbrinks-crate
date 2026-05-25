@@ -1141,7 +1141,10 @@ input:focus,textarea:focus{border-color:var(--accent)}
     <div id="moodEditColorPicker" style="display:flex;gap:8px;margin-bottom:16px;justify-content:space-between"></div>
     <label style="display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">Keywords <span style="text-transform:none;letter-spacing:0;font-weight:400;color:#666">— Discogs genres or styles, comma-separated</span></label>
     <textarea id="moodEditKeywords" placeholder="e.g. Punk, Hardcore, Metal" style="width:100%;min-height:64px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 12px;font-family:var(--font);font-size:13px;resize:vertical;line-height:1.5;margin-bottom:6px"></textarea>
-    <div style="font-size:11px;color:#666;margin-bottom:20px;line-height:1.4">Used to auto-tag albums at sync time. Match is case-insensitive against the record's Discogs genres and styles.</div>
+    <div style="font-size:11px;color:#666;margin-bottom:16px;line-height:1.4">Used to auto-tag albums at sync time. Match is case-insensitive against the record's Discogs genres and styles.</div>
+    <label style="display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">What this mood means to you</label>
+    <textarea id="moodEditDescription" maxlength="240" placeholder="e.g. Deep cuts I love but rarely play" style="width:100%;min-height:64px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 12px;font-family:var(--font);font-size:13px;resize:vertical;line-height:1.5;margin-bottom:6px"></textarea>
+    <div style="font-size:11px;color:#666;margin-bottom:20px;line-height:1.4">Used by Claude when suggesting moods. Optional but recommended.</div>
     <button id="moodEditSaveBtn" style="background:var(--accent);margin-bottom:8px">Save</button>
     <button id="moodEditDeleteBtn" style="background:transparent;color:var(--accent);border:1px solid var(--accent);margin-bottom:8px;display:none">Delete</button>
     <button id="moodEditCancelBtn" style="background:var(--surface2);color:var(--text)">Cancel</button>
@@ -1414,7 +1417,7 @@ async function loadMoodsFromServer(){
   }
   MOODS=(res.data||[]).map(m=>{
     const pal=MOOD_COLOR_PALETTE[m.color_key]||MOOD_COLOR_PALETTE.blue;
-    return {id:m.slug||m.id, label:m.mood_name, color:pal.fg, bg:pal.bg, uuid:m.id, color_key:m.color_key, keywords:Array.isArray(m.keywords)?m.keywords:[], sort_order:m.sort_order||0};
+    return {id:m.slug||m.id, label:m.mood_name, color:pal.fg, bg:pal.bg, uuid:m.id, color_key:m.color_key, keywords:Array.isArray(m.keywords)?m.keywords:[], description:m.description||'', sort_order:m.sort_order||0};
   });
 }
 
@@ -4942,6 +4945,7 @@ function openMoodEditModal(mood){
   document.getElementById('moodEditModalTitle').textContent=mood?'Edit mood':'Add mood';
   document.getElementById('moodEditName').value=mood?mood.label:'';
   document.getElementById('moodEditKeywords').value=mood&&mood.keywords?mood.keywords.join(', '):'';
+  document.getElementById('moodEditDescription').value=mood&&mood.description?mood.description:'';
   // Render color picker
   const picker=document.getElementById('moodEditColorPicker');
   const currentColorKey=mood?mood.color_key:'blue';
@@ -4974,14 +4978,16 @@ async function saveMoodFromModal(){
   const colorBtn=document.querySelector('#moodEditColorPicker .mood-color-swatch.selected');
   const colorKey=colorBtn?colorBtn.getAttribute('data-color-key'):'blue';
   const keywords=parseKeywordsInput(document.getElementById('moodEditKeywords').value);
+  const descriptionRaw=(document.getElementById('moodEditDescription').value||'').trim();
+  const description=descriptionRaw||null;
   if(!name){showToast('Mood needs a name');return;}
   const saveBtn=document.getElementById('moodEditSaveBtn');
   saveBtn.disabled=true;saveBtn.textContent='Saving…';
   let res;
   if(_moodEditTarget){
-    res=await crate.updateMood(_moodEditTarget.uuid,{mood_name:name, color_key:colorKey, keywords});
+    res=await crate.updateMood(_moodEditTarget.uuid,{mood_name:name, color_key:colorKey, keywords, description});
   }else{
-    res=await crate.createMood({mood_name:name, color_key:colorKey, keywords});
+    res=await crate.createMood({mood_name:name, color_key:colorKey, keywords, description});
   }
   saveBtn.disabled=false;saveBtn.textContent='Save';
   if(!res.success){showToast('Save failed: '+(res.error?.message||'unknown'));return;}

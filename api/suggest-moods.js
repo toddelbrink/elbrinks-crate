@@ -63,10 +63,10 @@ export default async function handler(req, res) {
     return;
   }
 
-  // 3. Load user's moods
+  // 3. Load user's moods (description + keywords feed the prompt per v1.1 §9.3)
   const { data: moods, error: moodsError } = await supabase
     .from('vinyl_user_moods')
-    .select('slug, mood_name')
+    .select('slug, mood_name, description, keywords')
     .order('sort_order', { ascending: true });
   if (moodsError) {
     res.status(500).json({ error: 'Failed to load user moods' });
@@ -79,7 +79,11 @@ export default async function handler(req, res) {
 
   const availableNames = moods.map(m => m.mood_name);
   const nameToSlug = Object.fromEntries(moods.map(m => [m.mood_name, m.slug]));
-  const moodKey = moods.map(m => `${m.slug}:${m.mood_name}`).sort().join('|');
+  // Hash includes description + keywords so cache invalidates when the user
+  // edits either — otherwise stale suggestions persist across mood-edits.
+  const moodKey = moods.map(m =>
+    `${m.slug}:${m.mood_name}:${m.description || ''}:${(m.keywords || []).join(',')}`
+  ).sort().join('|');
   const user_moods_hash = hashMoods(moodKey);
 
   // 4. Cache check
@@ -127,13 +131,24 @@ export default async function handler(req, res) {
   const client = new Anthropic({ apiKey });
 
   const systemPrompt =
-    'You assign moods to vinyl records based on metadata. Pick 1-3 moods from the user\'s available list that best fit the album\'s vibe. Only use moods from the provided list — never invent new ones. Respond in JSON only.';
+    'You assign moods to vinyl records based on metadata. Pick 1-3 moods from the user\'s available list that best fit the album. ' +
+    'Each mood has a name, an optional description, and optional keywords. ' +
+    'When a description is present, treat it as the user\'s own explanation of what the mood means to them — trust it as the authority on intent over your interpretation of the bare label. ' +
+    'Keywords are sample genres or styles the user associates with the mood; treat them as hints, not requirements. ' +
+    'Only use moods from the provided list — never invent new ones. Respond in JSON only.';
+
+  const moodBlocks = moods.map(m => {
+    const lines = [`- Mood name: "${m.mood_name}"`];
+    if (m.description) lines.push(`  Description: "${m.description}"`);
+    if (Array.isArray(m.keywords) && m.keywords.length) lines.push(`  Keywords: ${m.keywords.join(', ')}`);
+    return lines.join('\n');
+  }).join('\n');
 
   const userPrompt =
     `Album: ${artist || 'Unknown'} — ${title}${year ? ' (' + year + ')' : ''}\n` +
     `Genres: ${(genres || []).join(', ') || 'unknown'}\n` +
     `Styles: ${(styles || []).join(', ') || 'unknown'}\n\n` +
-    `Available moods: ${availableNames.join(', ')}\n\n` +
+    `Available moods:\n${moodBlocks}\n\n` +
     `Pick 1-3 moods that best fit this album.`;
 
   let suggestedNames;
