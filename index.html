@@ -1493,6 +1493,13 @@ async function applyMoodHeuristicToCollection({force=false, onProgress=null}={})
 
 let db,collection=[],filtered=[],artCache={},genreCache={},stylesCache={},moodCache={},notesCache={},wikiCache={},artistsDB={},token='',username='',discogsMode=null;
 let playCounts={},cycleLog={},lastPlayed={},currentCycle=1;
+// cycleCounts[releaseId] = number of vinyl_play_events rows since cycleStartedAt.
+// Source of truth for "This cycle N" in album detail. Diverges from playCounts
+// by design: pencil +/- bumps playCounts but does NOT create events (admin
+// correction, per Session 36 CC), so cycleCounts[id] can be < playCounts[id].
+// cycleStartedAt comes from vinyl_user_profile.cycle_started_at; resetCycle
+// bumps it to now() and zeros cycleCounts.
+let cycleCounts={},cycleStartedAt=null;
 let sortMode='alpha',sortIdx=2,artFetching=false,genreFetching=false;
 let shuffleMode='unplayed',activeMoodFilter='all',currentRecord=null,fromShuffle=false;
 let activeView='crate'; // 'crate','want','stats'
@@ -1730,6 +1737,24 @@ async function loadPlaysFromAPI(){
     await dbSet('plays','cycleLog',cycleLog);
     await dbSet('plays','lastPlayed',lastPlayed);
   }
+  // Also refresh cycle-event counts so "This cycle N" on album detail is live.
+  // Read cycleStartedAt from profile first (it's the lower bound for the event
+  // query). For null boundary (new user with no cycle reset yet), the wrapper
+  // counts every event — correct behavior since every event is in cycle 1.
+  await loadCycleStateFromAPI();
+}
+
+async function loadCycleStateFromAPI(){
+  try{
+    const session=await crate.getSession();
+    if(!session)return;
+    const profRes=await crate.loadProfile();
+    if(profRes.success&&profRes.data&&profRes.data.cycle_started_at){
+      cycleStartedAt=profRes.data.cycle_started_at;
+    }
+    const cRes=await crate.loadCyclePlayCounts({userId:session.user.id,since:cycleStartedAt});
+    if(cRes.success&&cRes.data)cycleCounts=cRes.data;
+  }catch(e){console.error('[cycleState]',e);}
 }
 
 async function loadMetaFromAPI(){
@@ -1787,6 +1812,10 @@ async function saveMetaToAPI(releaseId,fields){
 async function logPlay(releaseId){
   playCounts[releaseId]=(playCounts[releaseId]||0)+1;
   cycleLog[releaseId]=true;
+  // Real Play-button taps bump cycleCounts; pencil +/- does not (admin
+  // correction, per Session 36 CC). Mirrors what the recordPlayEvent write
+  // below adds server-side.
+  cycleCounts[releaseId]=(cycleCounts[releaseId]||0)+1;
   lastPlayed[releaseId]=new Date().toISOString();
   await crate.recordPlay(releaseId);
   // §9.2 PULL inference: mood_active is a jsonb array of slugs.
@@ -1815,8 +1844,13 @@ async function logPlay(releaseId){
 }
 
 async function resetCycle(){
-  cycleLog={};currentCycle++;
-  await crate.resetCycle();
+  cycleLog={};cycleCounts={};currentCycle++;
+  const res=await crate.resetCycle();
+  // Capture the new boundary the server stamped so subsequent in-session
+  // event-count queries (none today, but future Recent Plays + patterns) use it.
+  if(res&&res.success&&res.data&&res.data.cycle_started_at){
+    cycleStartedAt=res.data.cycle_started_at;
+  }
   await dbSet('plays','cycleLog',cycleLog);
   await dbSet('plays','currentCycle',currentCycle);
   crate.saveSetting('cycle',currentCycle);
@@ -1828,6 +1862,7 @@ async function clearPlayHistory(){
   if(!confirm('Clear all play history from the server? This cannot be undone.'))return;
   await crate.clearPlays();
   playCounts={};cycleLog={};lastPlayed={};currentCycle=1;
+  cycleCounts={};
   await dbSet('plays','counts',{});
   await dbSet('plays','cycleLog',{});
   await dbSet('plays','lastPlayed',{});
@@ -2480,9 +2515,9 @@ async function openSheet(r,isShuffle=false){
     r.rating&&`<span class="meta-chip">${stars(r.rating)}</span>`,
     ...genres.map(g=>`<span class="meta-chip">${g}</span>`),
   ].filter(Boolean).join('');
-  const count=playCounts[r.releaseId]||0;const inCycle=cycleLog[r.releaseId];
+  const count=playCounts[r.releaseId]||0;const cycleN=cycleCounts[r.releaseId]||0;
   $('playInfoRow').innerHTML=`
-    <span id="playInfoText">${count>0?`Played <span>${count} time${count!==1?'s':''}</span>${inCycle?' · played this cycle':''}`:'Not yet played'}</span>
+    <span id="playInfoText">${count>0?`Total <span>${count}</span> · This cycle <span>${cycleN}</span>`:'Not yet played'}</span>
     <button class="play-edit-btn" id="playEditBtn" title="Adjust count">&#9998;</button>
     <span id="playCounterWrap" style="display:none">
       <span class="play-counter">
@@ -3545,18 +3580,27 @@ document.addEventListener('click',e=>{
 });
 
 async function updatePlayCount(releaseId,count){
+  const oldCount=playCounts[releaseId]||0;
   playCounts[releaseId]=count;
   if(count<=0){
     delete playCounts[releaseId];
     delete cycleLog[releaseId];
     delete lastPlayed[releaseId];
+    delete cycleCounts[releaseId];
   }else{
     cycleLog[releaseId]=true;
+    // Mirror setPlayCount's server-side event-trim: decrement trims the most-
+    // recent N events (which are this-cycle's first); increment adds nothing.
+    // See _claude/memory/supabase_patterns.md §14 for the underlying contract.
+    if(count<oldCount){
+      cycleCounts[releaseId]=Math.max(0,(cycleCounts[releaseId]||0)-(oldCount-count));
+      if(cycleCounts[releaseId]===0)delete cycleCounts[releaseId];
+    }
   }
   // Update UI
   $('pcVal').textContent=count;
-  const inCycle=cycleLog[releaseId];
-  $('playInfoText').innerHTML=count>0?`Played <span>${count} time${count!==1?'s':''}</span>${inCycle?' · played this cycle':''}`:'Not yet played';
+  const cycleN=cycleCounts[releaseId]||0;
+  $('playInfoText').innerHTML=count>0?`Total <span>${count}</span> · This cycle <span>${cycleN}</span>`:'Not yet played';
   // Save to IndexedDB
   await dbSet('plays','counts',playCounts);
   await dbSet('plays','cycleLog',cycleLog);
@@ -4131,7 +4175,7 @@ $('moodEditDeleteBtn').onclick=deleteMoodFromModal;
 $('clearAllConfirmBtn').onclick=async()=>{
   $('clearAllModal').style.display='none';
   await Promise.all(['meta','art','collection','plays','genres'].map(dbClear));
-  collection=[];filtered=[];artCache={};genreCache={};token='';discogsMode=null;playCounts={};cycleLog={};lastPlayed={};currentCycle=1;
+  collection=[];filtered=[];artCache={};genreCache={};token='';discogsMode=null;playCounts={};cycleLog={};lastPlayed={};currentCycle=1;cycleCounts={};cycleStartedAt=null;
   $('collectionView').style.display='none';$('bottomNav').style.display='none';$('hamburgerBtn').style.display='none';$('searchIconBtn').style.display='none';
   $('setupCard').style.display='block';closeSettings();showToast('Data cleared — notes and moods kept');
 };
