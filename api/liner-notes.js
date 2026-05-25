@@ -179,7 +179,12 @@ Write 2 to 3 notes for this record. If you do not have high-confidence knowledge
   let claudeNotes;
   try {
     const response = await client.messages.create({
-      model: 'claude-haiku-4-5',
+      // Sonnet over Haiku — Haiku self-rated three of the most well-known
+      // records ever (All Eyez On Me, Dark Side of the Moon, Pulse) below
+      // its empty-array trigger in the first smoke test. Factual recall
+      // on specific albums is a Sonnet job. Cost goes from ~$0.20 to
+      // ~$0.60 per 107-record collection sweep. Trivial.
+      model: 'claude-sonnet-4-5',
       max_tokens: 600,
       temperature: 0,
       system: systemPrompt,
