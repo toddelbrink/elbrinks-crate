@@ -2007,7 +2007,17 @@ async function logPlay(releaseId){
   }else if(fromShuffle){
     source='shuffle';
   }
-  if(crate.recordPlayEvent)crate.recordPlayEvent(releaseId,{mood_active:moodActive,source}).catch(e=>console.error('[play_event]',e));
+  // Await the event-write so PWA lifecycle events (background, navigate, close)
+  // can't abandon the promise mid-roundtrip. Session 39 CC silent-INSERT bug
+  // (LID + AEoM cycle_played=true with zero events) traced here — fire-and-forget
+  // pattern lost 2 of 6 plays in one session window. Failure is logged but does
+  // not tear down logPlay since vinyl_plays already landed at line 1993.
+  if(crate.recordPlayEvent){
+    try{
+      const res=await crate.recordPlayEvent(releaseId,{mood_active:moodActive,source});
+      if(!res||!res.success)console.error('[play_event]',res?.error||'unknown');
+    }catch(e){console.error('[play_event]',e);}
+  }
   await dbSet('plays','counts',playCounts);
   await dbSet('plays','cycleLog',cycleLog);
   await dbSet('plays','lastPlayed',lastPlayed);
