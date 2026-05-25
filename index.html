@@ -2701,7 +2701,7 @@ function renderGrid(){
         <div class="card-artist">${r.artist}</div>
         <div class="card-title">${r.title}</div>
         <div class="card-meta">${r.year||''}${r.mediaCondition?` · ${shortCondition(r.mediaCondition)}/${shortCondition(r.sleeveCondition)}`:''}</div>
-        ${moods.length?`<div>${moods.slice(0,2).map(m=>{const mc=getMoodColor(m);return`<span class="mood-pill" style="background:${mc.bg};color:${mc.color}">${MOODS.find(x=>x.id===m)?.label||m}</span>`;}).join(' ')}</div>`:''}
+        ${moods.length?`<div>${moods.slice(0,2).map(m=>{const mc=getMoodColor(m);return`<span class="mood-pill" style="background:${mc.bg};color:${mc.color}">${MOODS.find(x=>x.id===m)?.label||m}</span>`;}).join(' ')}${moods.length>2?` <span class="mood-pill" style="background:var(--surface2);color:var(--muted)">+${moods.length-2}</span>`:''}</div>`:''}
         <div class="card-bottom">
           ${r.rating?`<div class="stars">${stars(r.rating)}</div>`:'<div></div>'}
           <div class="play-count" style="${count===0?'opacity:.35':''}">
