@@ -199,6 +199,35 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .mp-balance-legend{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;font-size:11px;color:var(--muted)}
 .mp-balance-legend .leg{display:flex;align-items:center;gap:4px}
 .mp-balance-legend .swatch{width:8px;height:8px;border-radius:2px;display:inline-block}
+/* Mood Patterns Tile 2 — Forgotten Mood */
+.mp-forgotten-body{flex:1;display:flex;flex-direction:column;justify-content:center;gap:6px}
+.mp-forgotten-mood{font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase}
+.mp-forgotten-gap{font-size:24px;font-weight:700;color:var(--text);line-height:1.1}
+.mp-forgotten-gap .unit{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-left:4px}
+.mp-forgotten-waiting{font-size:12px;color:var(--muted);line-height:1.4}
+/* Mood Patterns Tile 4 — Streaks */
+.mp-streak-body{flex:1;display:flex;flex-direction:column;justify-content:center;gap:6px}
+.mp-streak-kind{font-size:10px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--muted)}
+.mp-streak-count{font-size:32px;font-weight:700;line-height:1}
+.mp-streak-line{font-size:12px;color:var(--muted);line-height:1.4}
+.mp-streak-line strong{color:var(--text);font-weight:700;text-transform:uppercase;letter-spacing:.3px;font-size:11px}
+/* Mood Patterns Tile 5 — Most-Played per Mood */
+.mp-mostplayed{grid-column:span 2}
+@media(min-width:600px){.mp-mostplayed{grid-column:span 4}}
+.mp-mostplayed-list{display:flex;flex-direction:column;gap:0;margin-top:2px}
+.mp-mostplayed-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer;-webkit-tap-highlight-color:transparent}
+.mp-mostplayed-row:last-child{border-bottom:none}
+.mp-mostplayed-row:active{opacity:.7}
+.mp-mostplayed-row .swatch{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+.mp-mostplayed-row .moodlbl{font-size:10px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;width:56px;flex-shrink:0}
+.mp-mostplayed-row .art{width:36px;height:36px;background:var(--surface2);border-radius:4px;overflow:hidden;flex-shrink:0}
+.mp-mostplayed-row .art img{width:100%;height:100%;object-fit:cover;display:block}
+.mp-mostplayed-row .meta{flex:1;min-width:0}
+.mp-mostplayed-row .ttl{font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2}
+.mp-mostplayed-row .art-name{font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.3;margin-top:2px}
+.mp-mostplayed-row .pcount{font-size:11px;color:var(--muted);font-weight:600;flex-shrink:0}
+.mp-mostplayed-row.empty{cursor:default}
+.mp-mostplayed-row.empty .ttl{color:var(--muted);font-style:italic;font-weight:400}
 /* Notes */
 .notes-section{margin-bottom:16px}
 .notes-label{color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;margin-bottom:6px}
@@ -3269,7 +3298,7 @@ function closeStatDrill(){
 // visit reflect immediately. _mpMixWindow is the segmented control selection
 // for Tile 1 ('cycle' | '30d' | 'all'). Persists across opens via the global.
 let _mpMixWindow='all';
-let _mpData={all:{counts:{},totalPlays:0}, d30:{counts:{},totalPlays:0}, cycle:{counts:{},totalPlays:0}};
+let _mpData={all:{counts:{},totalPlays:0}, d30:{counts:{},totalPlays:0}, cycle:{counts:{},totalPlays:0}, lastPlayed:{}, mostPlayed:{}, recentForStreak:[]};
 
 async function loadMoodPatternsData(){
   if(!crate.loadMoodEventCounts)return;
@@ -3278,15 +3307,23 @@ async function loadMoodPatternsData(){
     if(!session)return;
     const userId=session.user.id;
     const d30Iso=new Date(Date.now()-30*24*60*60*1000).toISOString();
-    // Fire three queries in parallel — small scale, no batching needed.
-    const [allRes,d30Res,cycleRes]=await Promise.all([
+    // Fire five queries in parallel — small scale, no batching needed.
+    // Tile 1 + 3 use the counts triplet. Tile 2 uses lastPlayed. Tile 4 uses
+    // recentForStreak (reverse-scan client-side). Tile 5 uses mostPlayed.
+    const [allRes,d30Res,cycleRes,lastRes,topRes,recentRes]=await Promise.all([
       crate.loadMoodEventCounts({userId}),
       crate.loadMoodEventCounts({userId,since:d30Iso}),
       crate.loadMoodEventCounts({userId,since:cycleStartedAt||undefined}),
+      crate.loadMoodLastPlayed?crate.loadMoodLastPlayed({userId}):Promise.resolve({success:true,data:{}}),
+      crate.loadMostPlayedByMood?crate.loadMostPlayedByMood({userId}):Promise.resolve({success:true,data:{}}),
+      crate.loadRecentPlays(500,0),
     ]);
     if(allRes.success&&allRes.data)_mpData.all=allRes.data;
     if(d30Res.success&&d30Res.data)_mpData.d30=d30Res.data;
     if(cycleRes.success&&cycleRes.data)_mpData.cycle=cycleRes.data;
+    if(lastRes&&lastRes.success&&lastRes.data)_mpData.lastPlayed=lastRes.data;
+    if(topRes&&topRes.success&&topRes.data)_mpData.mostPlayed=topRes.data;
+    if(recentRes&&recentRes.success)_mpData.recentForStreak=recentRes.data||[];
     // Mirror All Time into the Stats-grid mini-donut state so the two surfaces
     // never drift after a refresh.
     moodMixAllTime=_mpData.all;moodMixAllTimeLoaded=true;
@@ -3311,7 +3348,10 @@ function renderMoodPatterns(){
   const mix=_mpData[_mpMixWindow==='cycle'?'cycle':_mpMixWindow==='30d'?'d30':'all'];
   $('moodPatternsGrid').innerHTML=
     renderMoodMixTile(mix,_mpMixWindow)+
-    renderCycleBalanceTile(_mpData.cycle);
+    renderForgottenMoodTile()+
+    renderCycleBalanceTile(_mpData.cycle)+
+    renderStreakTile()+
+    renderMostPlayedTile();
   wireMoodPatternsTaps();
 }
 
@@ -3368,6 +3408,198 @@ function renderCycleBalanceTile(cycleMix){
   </div>`;
 }
 
+// Returns {slug, gapDays|null, neverPlayed:bool, waiting:n} for the most
+// forgotten mood, or null if no mood qualifies. "Most forgotten" = never-played
+// first, then largest gap-from-today among moods with at least one tagged
+// record in the user's collection. Backfill events already excluded server-side.
+function pickForgottenMood(){
+  if(!MOODS.length)return null;
+  // Tagged-record count per mood from moodCache (vinyl_meta.moods)
+  const taggedCount={};
+  collection.forEach(r=>{
+    (moodCache[r.releaseId]||[]).forEach(slug=>{
+      taggedCount[slug]=(taggedCount[slug]||0)+1;
+    });
+  });
+  // Eligible moods: must have at least one tagged record
+  const eligible=MOODS.filter(m=>taggedCount[m.id]>0);
+  if(!eligible.length)return null;
+  const now=Date.now();
+  const ranked=eligible.map(m=>{
+    const last=_mpData.lastPlayed?.[m.id];
+    const gapDays=last?Math.floor((now-new Date(last).getTime())/(24*60*60*1000)):null;
+    // Unplayed = lifetime-never-played records tagged with this mood
+    const waiting=collection.filter(r=>{
+      const tagged=(moodCache[r.releaseId]||[]).indexOf(m.id)!==-1;
+      const neverPlayed=!(playCounts[r.releaseId]>0);
+      return tagged&&neverPlayed;
+    }).length;
+    return {slug:m.id,gapDays,neverPlayed:!last,waiting,mood:m};
+  });
+  // Sort: never-played first, then largest gap
+  ranked.sort((a,b)=>{
+    if(a.neverPlayed&&!b.neverPlayed)return -1;
+    if(b.neverPlayed&&!a.neverPlayed)return 1;
+    return (b.gapDays||0)-(a.gapDays||0);
+  });
+  return ranked[0];
+}
+
+function renderForgottenMoodTile(){
+  const pick=pickForgottenMood();
+  if(!pick){
+    return `<div class="mp-tile" data-tile="forgotten">
+      <div class="mp-tile-label">Forgotten Mood</div>
+      <div class="mp-tile-empty">Tag records across moods to see this.</div>
+    </div>`;
+  }
+  const m=pick.mood;
+  let gapLine;
+  if(pick.neverPlayed){
+    gapLine=`<div class="mp-forgotten-gap">never <span class="unit">played yet</span></div>`;
+  }else if(pick.gapDays===0){
+    gapLine=`<div class="mp-forgotten-gap">today</div>`;
+  }else{
+    gapLine=`<div class="mp-forgotten-gap">${pick.gapDays}<span class="unit">${pick.gapDays===1?'day':'days'} ago</span></div>`;
+  }
+  const waitingLine=pick.waiting>0
+    ? `${pick.waiting} unplayed ${pick.waiting===1?'record':'records'} waiting`
+    : `All ${m.label.toLowerCase()} records played at least once`;
+  return `<div class="mp-tile" data-tile="forgotten" data-slug="${m.id}">
+    <div class="mp-tile-label">Forgotten Mood</div>
+    <div class="mp-forgotten-body">
+      <div class="mp-forgotten-mood" style="color:${m.color}">${m.label}</div>
+      ${gapLine}
+      <div class="mp-forgotten-waiting">${waitingLine}</div>
+    </div>
+  </div>`;
+}
+
+// Returns {slug, count, plays:[event,...], kind:'current'|'longest30d'} or null.
+// 'current': most-recent contiguous run of plays sharing any mood overlap,
+// length >=2. 'longest30d': longest such run within last 30d if no current.
+// Rules: null mood_active SKIPS (no signal), no overlap BREAKS, overlap CONTINUES.
+function computeStreak(){
+  const events=(_mpData.recentForStreak||[]).filter(ev=>ev.source!=='backfill');
+  if(!events.length)return null;
+  // Events come back played_at desc already (per loadRecentPlays). Reverse-scan
+  // so we walk most-recent → older.
+  // -- Current streak: anchor on most recent non-null-mood play
+  let currentRun=null;
+  let anchorMood=null;
+  let runningPlays=[];
+  for(const ev of events){
+    const moods=moodActiveArray(ev);
+    if(!moods.length)continue; // skip — no signal
+    if(!anchorMood){
+      // first qualifying play — try each of its moods as candidate anchor; pick
+      // the one that yields the longest current streak walking back from here.
+      let best=null;
+      for(const candidate of moods){
+        const run=[ev];
+        for(const next of events.slice(events.indexOf(ev)+1)){
+          const nextMoods=moodActiveArray(next);
+          if(!nextMoods.length)continue;
+          if(nextMoods.indexOf(candidate)!==-1){run.push(next);}
+          else break;
+        }
+        if(!best||run.length>best.run.length)best={slug:candidate,run};
+      }
+      currentRun=best;
+      break;
+    }
+  }
+  if(currentRun&&currentRun.run.length>=2){
+    return {slug:currentRun.slug,count:currentRun.run.length,plays:currentRun.run,kind:'current'};
+  }
+  // -- Longest streak in last 30d
+  const cutoff=Date.now()-30*24*60*60*1000;
+  const recent=events.filter(ev=>new Date(ev.played_at).getTime()>=cutoff);
+  if(!recent.length)return null;
+  // For each mood slug, scan recent events oldest→newest tracking the longest
+  // contiguous overlapping run.
+  const slugSet=new Set();
+  recent.forEach(ev=>moodActiveArray(ev).forEach(s=>slugSet.add(s)));
+  let bestOverall=null;
+  for(const slug of slugSet){
+    let curr=0, currPlays=[], best=0, bestPlays=[];
+    // Walk oldest→newest within recent window
+    const ordered=[...recent].reverse();
+    for(const ev of ordered){
+      const moods=moodActiveArray(ev);
+      if(!moods.length)continue; // skip
+      if(moods.indexOf(slug)!==-1){curr+=1;currPlays.push(ev);if(curr>best){best=curr;bestPlays=[...currPlays];}}
+      else{curr=0;currPlays=[];}
+    }
+    if(best>=2&&(!bestOverall||best>bestOverall.count)){
+      bestOverall={slug,count:best,plays:bestPlays,kind:'longest30d'};
+    }
+  }
+  return bestOverall;
+}
+
+function renderStreakTile(){
+  const s=computeStreak();
+  if(!s){
+    return `<div class="mp-tile" data-tile="streak">
+      <div class="mp-tile-label">Streaks</div>
+      <div class="mp-tile-empty">Play 2 records to see your streak.</div>
+    </div>`;
+  }
+  const m=MOODS.find(x=>x.id===s.slug)||{color:'#71717a',label:s.slug};
+  const kindLine=s.kind==='current'?'Current streak':'Longest streak — last 30 days';
+  return `<div class="mp-tile" data-tile="streak" data-slug="${s.slug}" data-kind="${s.kind}">
+    <div class="mp-tile-label">Streaks</div>
+    <div class="mp-streak-body">
+      <div class="mp-streak-kind">${kindLine}</div>
+      <div class="mp-streak-count" style="color:${m.color}">${s.count}</div>
+      <div class="mp-streak-line"><strong style="color:${m.color}">${m.label}</strong> ${s.count===1?'play':'plays in a row'}</div>
+    </div>
+  </div>`;
+}
+
+function renderMostPlayedTile(){
+  if(!MOODS.length){
+    return `<div class="mp-tile mp-mostplayed" data-tile="mostplayed">
+      <div class="mp-tile-label">Most-Played per Mood</div>
+      <div class="mp-tile-empty">Create a mood to see this.</div>
+    </div>`;
+  }
+  const rows=MOODS.map(m=>{
+    const top=_mpData.mostPlayed?.[m.id];
+    if(!top){
+      return `<div class="mp-mostplayed-row empty">
+        <span class="swatch" style="background:${m.color}"></span>
+        <span class="moodlbl" style="color:${m.color}">${m.label}</span>
+        <div class="meta"><div class="ttl">No plays yet</div></div>
+      </div>`;
+    }
+    const rec=collection.find(r=>r.releaseId===top.release_id);
+    if(!rec){
+      return `<div class="mp-mostplayed-row empty">
+        <span class="swatch" style="background:${m.color}"></span>
+        <span class="moodlbl" style="color:${m.color}">${m.label}</span>
+        <div class="meta"><div class="ttl">Record no longer in collection</div></div>
+      </div>`;
+    }
+    const art=artCache[rec.releaseId];
+    return `<div class="mp-mostplayed-row" data-id="${rec.releaseId}">
+      <span class="swatch" style="background:${m.color}"></span>
+      <span class="moodlbl" style="color:${m.color}">${m.label}</span>
+      <div class="art">${art?`<img src="${art}" alt="">`:''}</div>
+      <div class="meta">
+        <div class="ttl">${rec.title||''}</div>
+        <div class="art-name">${rec.artist||''}</div>
+      </div>
+      <div class="pcount">${top.count}×</div>
+    </div>`;
+  }).join('');
+  return `<div class="mp-tile mp-mostplayed" data-tile="mostplayed">
+    <div class="mp-tile-label">Most-Played per Mood</div>
+    <div class="mp-mostplayed-list">${rows}</div>
+  </div>`;
+}
+
 function wireMoodPatternsTaps(){
   // Segmented control on Mood Mix tile
   $('moodPatternsGrid').querySelectorAll('.mp-segmented button').forEach(btn=>{
@@ -3377,16 +3609,26 @@ function wireMoodPatternsTaps(){
       renderMoodPatterns();
     };
   });
-  // Tile taps → drill-down (skip if tap originated on the segmented control)
+  // Tile 5 row taps → open album detail directly (PRD §9.5 Tile 5)
+  $('moodPatternsGrid').querySelectorAll('.mp-mostplayed-row[data-id]').forEach(row=>{
+    row.onclick=(e)=>{
+      e.stopPropagation();
+      const rec=collection.find(r=>r.releaseId===row.dataset.id);
+      if(rec)openSheet(rec,false);
+    };
+  });
+  // Tile taps → drill-down (skip segmented control + Tile 5 which has no drill)
   $('moodPatternsGrid').querySelectorAll('.mp-tile').forEach(tile=>{
+    if(tile.dataset.tile==='mostplayed')return;
     tile.onclick=(e)=>{
       if(e.target.closest('.mp-segmented'))return;
-      openMoodPatternDrill(tile.dataset.tile);
+      if(e.target.closest('.mp-mostplayed-row'))return;
+      openMoodPatternDrill(tile.dataset.tile,tile.dataset);
     };
   });
 }
 
-function openMoodPatternDrill(which){
+function openMoodPatternDrill(which,data={}){
   let title='',win='all';
   if(which==='mix'){
     win=_mpMixWindow;
@@ -3395,13 +3637,85 @@ function openMoodPatternDrill(which){
   }else if(which==='cyclebalance'){
     title='Cycle Mood Balance';
     win='cycle';
+  }else if(which==='forgotten'){
+    const m=MOODS.find(x=>x.id===data.slug)||{label:data.slug||'Mood'};
+    title=`${m.label} — Unplayed`;
+  }else if(which==='streak'){
+    const m=MOODS.find(x=>x.id===data.slug)||{label:data.slug||'Mood'};
+    title=data.kind==='current'?`${m.label} streak`:`${m.label} streak — last 30 days`;
   }
   $('drillHeaderTitle').textContent=title;
   $('drillContent').innerHTML='<div style="color:var(--muted);font-size:12px;text-align:center;padding:20px">Loading…</div>';
   pushModalState();showNav();
   $('statDrillOverlay').classList.add('open');
   $('statDrillOverlay').scrollTop=0;
-  fillMoodGroupedDrill(win);
+  if(which==='forgotten')fillForgottenDrill(data.slug);
+  else if(which==='streak')fillStreakDrill(data.slug,data.kind);
+  else fillMoodGroupedDrill(win);
+}
+
+// Synchronous drill for Forgotten Mood — list of lifetime-never-played records
+// tagged with the given mood, sorted by dateAdded desc (newest first per PRD
+// §9.5 — "sorted by date added"). Backfill not relevant (this is collection
+// state, not event scan).
+function fillForgottenDrill(slug){
+  const m=MOODS.find(x=>x.id===slug)||{color:'#71717a',label:slug||'Mood'};
+  const records=collection.filter(r=>{
+    const tagged=(moodCache[r.releaseId]||[]).indexOf(slug)!==-1;
+    const neverPlayed=!(playCounts[r.releaseId]>0);
+    return tagged&&neverPlayed;
+  }).sort((a,b)=>(b.dateAdded||'').localeCompare(a.dateAdded||''));
+  let out=`<div style="font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:${m.color};margin:18px 0 8px">${m.label} · ${records.length} unplayed</div>`;
+  if(!records.length){
+    out+=`<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">All ${m.label.toLowerCase()} records have been played at least once.</div>`;
+  }else{
+    out+=records.map(r=>{
+      const art=artCache[r.releaseId];
+      const added=r.dateAdded?new Date(r.dateAdded).toLocaleDateString(undefined,{month:'short',year:'numeric'}):'';
+      return `<div class="stat-record-item" data-id="${r.releaseId}" style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border)">
+        <div style="width:44px;height:44px;flex-shrink:0;background:var(--surface2);border-radius:4px;overflow:hidden">${art?`<img src="${art}" style="width:100%;height:100%;object-fit:cover" alt="">`:''}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.title||''}</div>
+          <div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.artist||''}</div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);flex-shrink:0">${added}</div>
+      </div>`;
+    }).join('');
+  }
+  $('drillContent').innerHTML=out;
+  wireDrillTaps([]);
+}
+
+// Synchronous drill for Streaks — the streak's plays as list rows. Recomputes
+// the streak from current _mpData.recentForStreak so it stays consistent with
+// the tile. Most-recent first.
+function fillStreakDrill(slug,kind){
+  const s=computeStreak();
+  const m=MOODS.find(x=>x.id===slug)||{color:'#71717a',label:slug||'Mood'};
+  let plays=[];
+  if(s&&s.slug===slug&&s.kind===kind)plays=s.plays;
+  let out=`<div style="font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:${m.color};margin:18px 0 8px">${m.label} · ${plays.length} ${plays.length===1?'play':'plays'}</div>`;
+  if(!plays.length){
+    out+=`<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">No streak data available.</div>`;
+  }else{
+    out+=plays.map(ev=>{
+      const rec=collection.find(r=>r.releaseId===ev.release_id);
+      if(!rec)return '';
+      const art=artCache[ev.release_id];
+      const when=new Date(ev.played_at);
+      const dateStr=when.toLocaleDateString(undefined,{month:'short',day:'numeric'});
+      return `<div class="stat-record-item" data-id="${ev.release_id}" style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border)">
+        <div style="width:44px;height:44px;flex-shrink:0;background:var(--surface2);border-radius:4px;overflow:hidden">${art?`<img src="${art}" style="width:100%;height:100%;object-fit:cover" alt="">`:''}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${rec.title||''}</div>
+          <div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${rec.artist||''}</div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);flex-shrink:0">${dateStr}</div>
+      </div>`;
+    }).join('');
+  }
+  $('drillContent').innerHTML=out;
+  wireDrillTaps([]);
 }
 
 // Async drill content loader. Pulls recent play events, filters to the time
