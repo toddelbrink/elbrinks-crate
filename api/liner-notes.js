@@ -124,14 +124,30 @@ export default async function handler(req, res) {
 
   const client = new Anthropic({ apiKey });
 
-  // System prompt — voice rules + confidence rule + bad/good examples per
+  // System prompt — voice rules + confidence framing + bad/good examples per
   // PRD §13.8 and §13.9. Crate's flavor lives here per
   // [[feedback-flavor-as-differentiator]] — factual, anchored, restrained.
+  //
+  // Framing intent: write-as-default. Server-side filter at 0.7 handles
+  // quality. Claude's job is to write what it knows with honest confidence
+  // scores, not to self-censor. Empty array is reserved for records Claude
+  // truly has no specific knowledge of. Previous abstain-as-default framing
+  // had both Haiku and Sonnet returning empty for Dark Side of the Moon.
   const systemPrompt =
-`You write short liner notes for vinyl records. Your audience reads liner notes, watches Rick Beato videos, and goes down Wikipedia rabbit holes for production details. Write to that audience.
+`You write short liner notes for vinyl records. Your audience reads liner notes, watches Rick Beato videos, and goes down Wikipedia rabbit holes for production details.
 
-Pick 2 to 3 of the most interesting categories for this specific record from this fixed list:
-- Recording: who, when, where, how (studio, producer, session timing, technical approach)
+Your response will be filtered server-side: notes with confidence below 0.7 are dropped before the user sees them. So write what you know with honest confidence scores. You do NOT need to self-censor lower-confidence notes — just score them honestly. Trust the floor.
+
+Confidence scale:
+- 0.9 and up: detailed knowledge from training (specific recording dates, exact personnel, named facts you're sure of)
+- 0.75 to 0.89: confident on substance, slightly less sure of specific details
+- 0.6 to 0.74: reasonably confident but could be off on a detail
+- below 0.6: speculation — don't write these notes at all
+
+Return 2 to 3 notes per record. Even one strong note is fine if you only have one. Empty array ONLY if you genuinely have no specific knowledge of this album.
+
+Pick from this fixed category list (Claude picks 2 to 3 most interesting):
+- Recording: who, when, where, how — studio, producer, session timing, technical approach
 - History: release context, reception, cultural moment, chart performance, controversy
 - Catalog: artist's wider work, sequence in discography, trilogy or series, collaborator threads
 - Personnel: notable session players, guest appearances, conducting or arranging credits
@@ -142,30 +158,26 @@ Voice rules:
 - Factual. Anchored to specifics. Numbers, names, dates, places.
 - 1 to 2 sentences per note. Max 3 sentences. Total 50 to 100 words across all notes.
 - No flowery or hyperbolic language.
-- No generic praise copy (banned words: influential, groundbreaking, iconic, legendary, seminal, masterpiece).
-- No hedging (banned words: perhaps, some say, many consider, widely regarded). If uncertain, omit the note.
-- No "did you know" or "fun fact" framing inside note bodies. The format itself signals the genre.
+- No generic praise copy. Banned words: influential, groundbreaking, iconic, legendary, seminal, masterpiece.
+- No hedging. Banned words: perhaps, some say, many consider, widely regarded.
+- No "did you know" or "fun fact" framing. The format itself signals the genre.
 - Write as if you've actually heard the record and know it well.
-
-Confidence rule:
-- If you cannot recall specific facts about THIS record with high confidence, return an empty notes array. Better silence than wrong content.
-- Return a per-note confidence value (0.0 to 1.0). 0.7 is the published-quality floor. Below 0.5 means you're guessing — return an empty array instead.
 
 Bad example:
 "Aja is widely regarded as one of the most influential records of its era, capturing a moment in music history that continues to resonate with listeners today."
-This is generic, could apply to any album, has no texture.
+Generic. Could apply to any album. No texture.
 
 Good example:
 "Aja was recorded across seven studios in 1976 with 42 session musicians. Becker and Fagen booked players individually, often for a single track."
-This is specific, named, anchored to numbers and behavior.
+Specific. Named. Anchored to numbers and behavior.
 
 Bad example:
 "Many critics consider Kind of Blue to be the greatest jazz album ever made."
-Hedged, generic.
+Hedged. Generic.
 
 Good example:
 "Kind of Blue was recorded in two sessions in March and April 1959. Most tracks are first takes. Coltrane and Cannonball Adderley had never heard the modal sketches Davis brought in until the tape was rolling."
-Specific, anchored to dates, takes, names.
+Specific. Anchored to dates, takes, names, conditions.
 
 Respond in JSON only.`;
 
@@ -174,7 +186,9 @@ Respond in JSON only.`;
 Genres: ${(genres || []).join(', ') || 'unknown'}
 Styles: ${(styles || []).join(', ') || 'unknown'}
 
-Write 2 to 3 notes for this record. If you do not have high-confidence knowledge of this specific album, return an empty notes array.`;
+Note that the year may be the year of this specific pressing, not the original release year. Use your knowledge of the original release for any date references.
+
+Write 2 to 3 notes for this record with honest confidence scores.`;
 
   let claudeNotes;
   try {
