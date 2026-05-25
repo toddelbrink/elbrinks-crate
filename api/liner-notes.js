@@ -197,7 +197,7 @@ Write 2 to 3 notes for this record. If you do not have high-confidence knowledge
                   properties: {
                     category: { type: 'string', enum: CATEGORIES },
                     body: { type: 'string' },
-                    confidence: { type: 'number', minimum: 0, maximum: 1 },
+                    confidence: { type: 'number' },
                   },
                   required: ['category', 'body', 'confidence'],
                   additionalProperties: false,
@@ -245,12 +245,19 @@ Write 2 to 3 notes for this record. If you do not have high-confidence knowledge
     return;
   }
 
-  // 6. Validate categories server-side (defense-in-depth — should be enum-enforced)
+  // 6. Validate categories + clamp confidence to [0, 1] server-side
+  // (defense-in-depth — Anthropic's JSON schema doesn't accept min/max on
+  // number types, so range enforcement happens here).
   const categorySet = new Set(CATEGORIES);
-  const validShape = claudeNotes.filter(n =>
-    n && typeof n.body === 'string' && n.body.trim().length > 0 &&
-    typeof n.confidence === 'number' && categorySet.has(n.category)
-  );
+  const validShape = claudeNotes
+    .filter(n =>
+      n && typeof n.body === 'string' && n.body.trim().length > 0 &&
+      typeof n.confidence === 'number' && categorySet.has(n.category)
+    )
+    .map(n => ({
+      ...n,
+      confidence: Math.max(0, Math.min(1, n.confidence)),
+    }));
 
   // 7. Apply confidence floor — drop notes below 0.7
   const survivors = validShape.filter(n => n.confidence >= CONFIDENCE_FLOOR);
