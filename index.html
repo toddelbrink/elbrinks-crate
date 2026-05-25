@@ -61,7 +61,14 @@ header.bar-hidden{transform:translateY(-100%)}
 .recent-meta{display:flex;align-items:center;gap:8px;flex-shrink:0}
 .recent-when{font-size:11px;color:var(--muted);text-align:right;white-space:nowrap}
 .recent-mood-pill{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#fff;padding:3px 8px;border-radius:10px;line-height:1}
+.recent-mood-pills{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end;max-width:160px}
 .recent-source{color:var(--muted);opacity:.6;font-size:11px}
+/* Step 5 — Listening Timeline section headers */
+.recent-bucket-header{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:14px 8px 6px;display:flex;align-items:center;gap:6px}
+.recent-bucket-header.collapsible{cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.recent-bucket-header.collapsible:hover{color:var(--text)}
+.recent-bucket-caret{display:inline-block;font-size:9px;opacity:.6;transition:transform .15s}
+.recent-bucket-header.collapsed .recent-bucket-caret{transform:rotate(-90deg)}
 .btn-ghost{background:var(--surface2);border:none;border-radius:8px;color:var(--text);cursor:pointer;font-family:var(--font);font-size:13px;font-weight:600;padding:6px 12px}
 .btn-accent{background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:var(--font);font-size:13px;font-weight:600;padding:8px 14px}
 .btn-ghost-sm{background:var(--surface2);border:none;border-radius:8px;color:var(--text);cursor:pointer;font-family:var(--font);font-size:13px;font-weight:600;padding:8px 14px}
@@ -640,6 +647,7 @@ input:focus,textarea:focus{border-color:var(--accent)}
       <h2 style="font-size:20px;font-weight:700">Recent plays</h2>
       <span id="recentCount" style="color:var(--muted);font-size:12px"></span>
     </div>
+    <div style="margin-bottom:12px"><button class="ctrl-btn" id="recentMoodFilterBtn">Mood: All</button></div>
     <div id="recentList"></div>
     <div id="recentLoadMore" style="text-align:center;padding:16px;display:none">
       <button class="btn-ghost-sm" id="recentLoadMoreBtn" style="padding:8px 16px">Load more</button>
@@ -3483,6 +3491,28 @@ $('moodFilterBtn').onclick=()=>{
   applyFilters();updateShuffleLabel();
 };
 
+// §9.7 — Recent Plays mood filter chip. Same cycle-on-tap pattern as the
+// Crate view, scoped to the Recent view list.
+$('recentMoodFilterBtn').onclick=()=>{
+  const opts=['all',...MOODS.map(m=>m.id)];
+  const idx=opts.indexOf(_recentMoodFilter);
+  _recentMoodFilter=opts[(idx+1)%opts.length];
+  const mood=MOODS.find(m=>m.id===_recentMoodFilter);
+  const btn=$('recentMoodFilterBtn');
+  btn.textContent=mood?`Mood: ${mood.label}`:'Mood: All';
+  btn.className='ctrl-btn'+(_recentMoodFilter!=='all'?' active-filter':'');
+  if(_recentMoodFilter!=='all'&&mood){
+    // Tint the chip with the active mood's accent so the filter state reads
+    // at a glance — matches the visual language of mood pills on rows.
+    btn.style.background=mood.color;
+    btn.style.color='#fff';
+    btn.style.borderColor=mood.color;
+  }else{
+    btn.style.background='';btn.style.color='';btn.style.borderColor='';
+  }
+  renderRecentList();
+};
+
 // ── Settings ──────────────────────────────────────────────────
 async function updateSettingsPanel(){
   if(!db)return;
@@ -4561,10 +4591,14 @@ let crateName="";
 let shareEnabled=false;
 let shareSlug=null;
 
-// ── Recent Plays view (Multi-User v1 / Step 5) ──────────────
+// ── Recent Plays view → Listening Timeline (v1.1 Sprint 3 §9.7) ──
 let _recentPage=0;
 const RECENT_PAGE_SIZE=50;
 let _recentRows=[]; // accumulated events across pages
+// Per §9.7: mood filter chip + collapsible Earlier bucket. Filter cycles
+// through ['all', ...MOODS] on tap (mirrors moodFilterBtn on Crate view).
+// Earlier defaults collapsed since it can be deep.
+let _recentMoodFilter='all',_recentEarlierCollapsed=true;
 
 function formatPlayedAt(iso){
   const d=new Date(iso);
@@ -4586,6 +4620,23 @@ async function openRecent(){
   document.getElementById('recentList').innerHTML='<div class="loading-inline">Loading recent plays...</div>';
   document.getElementById('recentEmpty').style.display='none';
   document.getElementById('recentLoadMore').style.display='none';
+  // Sync the mood-filter chip label/visual with the persisted _recentMoodFilter.
+  // If the previously-selected mood was deleted from the user's vocabulary,
+  // reset to 'all' so the chip doesn't lie.
+  if(_recentMoodFilter!=='all'&&!MOODS.find(m=>m.id===_recentMoodFilter)){
+    _recentMoodFilter='all';
+  }
+  const btn=document.getElementById('recentMoodFilterBtn');
+  if(btn){
+    const mood=MOODS.find(m=>m.id===_recentMoodFilter);
+    btn.textContent=mood?`Mood: ${mood.label}`:'Mood: All';
+    btn.className='ctrl-btn'+(_recentMoodFilter!=='all'?' active-filter':'');
+    if(_recentMoodFilter!=='all'&&mood){
+      btn.style.background=mood.color;btn.style.color='#fff';btn.style.borderColor=mood.color;
+    }else{
+      btn.style.background='';btn.style.color='';btn.style.borderColor='';
+    }
+  }
   await loadMoreRecent();
 }
 
@@ -4605,6 +4656,30 @@ async function loadMoreRecent(){
   document.getElementById('recentLoadMore').style.display=rows.length===RECENT_PAGE_SIZE?'block':'none';
 }
 
+// Compute which time bucket (today / week / month / earlier) an event falls in.
+// Buckets are non-overlapping and ordered most-recent first.
+function recentBucketFor(playedAt){
+  const ms=Date.now()-new Date(playedAt).getTime();
+  const DAY=86400000;
+  // "Today" matches calendar-today, not last 24h — feels right when crossing
+  // midnight (a play from 11pm yesterday shouldn't read as "today").
+  const d=new Date(playedAt);const now=new Date();
+  if(d.toDateString()===now.toDateString())return 'today';
+  if(ms<7*DAY)return 'week';
+  if(ms<30*DAY)return 'month';
+  return 'earlier';
+}
+
+const RECENT_BUCKET_LABELS={today:'Today',week:'This week',month:'This month',earlier:'Earlier'};
+
+// Normalize mood_active to an array (Step 2 made the column jsonb-array;
+// any pre-Step-2 string survivors get wrapped defensively).
+function moodActiveArray(ev){
+  if(Array.isArray(ev.mood_active))return ev.mood_active;
+  if(typeof ev.mood_active==='string'&&ev.mood_active.length)return [ev.mood_active];
+  return [];
+}
+
 function renderRecentList(){
   const list=document.getElementById('recentList');
   const empty=document.getElementById('recentEmpty');
@@ -4615,16 +4690,37 @@ function renderRecentList(){
     count.textContent='';
     return;
   }
+  // §9.7 mood filter — client-side over loaded events. Server-side filter is a
+  // v1.2 candidate if pagination behavior under filter becomes annoying.
+  const filtered=_recentRows.filter(ev=>{
+    if(_recentMoodFilter==='all')return true;
+    return moodActiveArray(ev).includes(_recentMoodFilter);
+  });
+  if(filtered.length===0){
+    list.innerHTML='<div style="padding:24px 8px;color:var(--muted);font-size:13px;text-align:center">No plays match this mood yet.</div>';
+    count.textContent=`0 of ${_recentRows.length} loaded`;
+    empty.style.display='none';
+    return;
+  }
   empty.style.display='none';
-  count.textContent=`${_recentRows.length} play${_recentRows.length===1?'':'s'}`;
-  list.innerHTML=_recentRows.map(ev=>{
+  count.textContent=_recentMoodFilter==='all'
+    ?`${filtered.length} play${filtered.length===1?'':'s'}`
+    :`${filtered.length} of ${_recentRows.length} loaded`;
+  // Group rows into time buckets in render order.
+  const buckets={today:[],week:[],month:[],earlier:[]};
+  for(const ev of filtered)buckets[recentBucketFor(ev.played_at)].push(ev);
+  const renderRow=(ev)=>{
     const rec=collection.find(r=>r.releaseId===ev.release_id);
     const title=rec?.title||'Unknown release';
     const artist=rec?.artist||'';
     const art=rec?(artCache[rec.releaseId]||rec.coverImage):null;
     const artHtml=art?`<img src="${crate.proxyImage(art)}" alt="" loading="lazy">`:'';
-    const mood=ev.mood_active?MOODS.find(m=>m.id===ev.mood_active):null;
-    const moodHtml=mood?`<span class="recent-mood-pill" style="background:${mood.color}">${mood.label}</span>`:'';
+    // §9.7 — render the full mood_active array as pills. Wraps via .recent-mood-pills.
+    const moods=moodActiveArray(ev);
+    const moodHtml=moods.length?`<div class="recent-mood-pills">${moods.map(slug=>{
+      const m=MOODS.find(x=>x.id===slug);
+      return m?`<span class="recent-mood-pill" style="background:${m.color}">${m.label}</span>`:'';
+    }).filter(Boolean).join('')}</div>`:'';
     const srcIcon=(ev.source==='shuffle'||ev.source==='shuffle_by_mood')?'<span class="recent-source" title="Shuffle">↬</span>':'';
     return `<div class="recent-row" data-release-id="${ev.release_id}">
       <div class="recent-art">${artHtml}</div>
@@ -4638,13 +4734,32 @@ function renderRecentList(){
         <div class="recent-when">${formatPlayedAt(ev.played_at)}</div>
       </div>
     </div>`;
-  }).join('');
-  // Wire row taps to open album detail
+  };
+  const parts=[];
+  for(const key of ['today','week','month','earlier']){
+    const rows=buckets[key];
+    if(!rows.length)continue;
+    const isCollapsible=key==='earlier';
+    const isCollapsed=isCollapsible&&_recentEarlierCollapsed;
+    parts.push(`<div class="recent-bucket-header${isCollapsible?' collapsible':''}${isCollapsed?' collapsed':''}" data-bucket="${key}">${isCollapsible?'<span class="recent-bucket-caret">▼</span>':''}${RECENT_BUCKET_LABELS[key]} <span style="opacity:.6;font-weight:400">· ${rows.length}</span></div>`);
+    if(!isCollapsed){
+      parts.push(rows.map(renderRow).join(''));
+    }
+  }
+  list.innerHTML=parts.join('');
+  // Wire row taps
   list.querySelectorAll('.recent-row').forEach(row=>{
     row.addEventListener('click',()=>{
       const id=row.getAttribute('data-release-id');
       const rec=collection.find(r=>r.releaseId===id);
       if(rec&&typeof openSheet==='function')openSheet(rec);
+    });
+  });
+  // Wire Earlier-bucket toggle
+  list.querySelectorAll('.recent-bucket-header.collapsible').forEach(h=>{
+    h.addEventListener('click',()=>{
+      _recentEarlierCollapsed=!_recentEarlierCollapsed;
+      renderRecentList();
     });
   });
 }
