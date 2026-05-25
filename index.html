@@ -1786,13 +1786,22 @@ async function logPlay(releaseId){
   cycleLog[releaseId]=true;
   lastPlayed[releaseId]=new Date().toISOString();
   await crate.recordPlay(releaseId);
-  // Step 5: also insert per-event row for Recent Plays + future patterns.
-  // Source derived from app state: active mood filter + fromShuffle flag.
-  const moodActive=activeMoodFilter!=='all'?activeMoodFilter:null;
-  let source='manual';
-  if(fromShuffle&&moodActive)source='shuffle_by_mood';
-  else if(fromShuffle)source='shuffle';
-  else if(moodActive)source='mood_filter';
+  // §9.2 PULL inference: mood_active is a jsonb array of slugs.
+  //   filter active                    → [filter_slug]
+  //   no filter + tagged album (1..N)  → album.moods (full array)
+  //   no filter + untagged             → null (no signal for aggregation)
+  // Source taxonomy unchanged: manual / mood_filter / shuffle / shuffle_by_mood.
+  const albumMoods=moodCache[releaseId]||[];
+  let moodActive=null,source='manual';
+  if(activeMoodFilter!=='all'){
+    moodActive=[activeMoodFilter];
+    source=fromShuffle?'shuffle_by_mood':'mood_filter';
+  }else if(albumMoods.length){
+    moodActive=albumMoods.slice();
+    source=fromShuffle?'shuffle':'manual';
+  }else if(fromShuffle){
+    source='shuffle';
+  }
   if(crate.recordPlayEvent)crate.recordPlayEvent(releaseId,{mood_active:moodActive,source}).catch(e=>console.error('[play_event]',e));
   await dbSet('plays','counts',playCounts);
   await dbSet('plays','cycleLog',cycleLog);
