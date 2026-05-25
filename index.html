@@ -4927,13 +4927,21 @@ async function updatePlayCount(releaseId,count){
     delete lastPlayed[releaseId];
     delete cycleCounts[releaseId];
   }else{
-    cycleLog[releaseId]=true;
     // Mirror setPlayCount's server-side event-trim: decrement trims the most-
     // recent N events (which are this-cycle's first); increment adds nothing.
     // See _claude/memory/supabase_patterns.md §14 for the underlying contract.
     if(count<oldCount){
       cycleCounts[releaseId]=Math.max(0,(cycleCounts[releaseId]||0)-(oldCount-count));
       if(cycleCounts[releaseId]===0)delete cycleCounts[releaseId];
+    }
+    // cycleLog reflects "has cycle plays" — derives from cycleCounts, not set
+    // unconditionally. Pencil never creates events, so it cannot drive
+    // cycleLog false→true; decrement-trim can drive it true→false when the
+    // last cycle event is removed. Session 40 CC fix for phantom dim.
+    if((cycleCounts[releaseId]||0)>0){
+      cycleLog[releaseId]=true;
+    }else{
+      delete cycleLog[releaseId];
     }
   }
   // Update UI
