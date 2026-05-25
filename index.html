@@ -228,6 +228,19 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .mp-mostplayed-row .pcount{font-size:11px;color:var(--muted);font-weight:600;flex-shrink:0}
 .mp-mostplayed-row.empty{cursor:default}
 .mp-mostplayed-row.empty .ttl{color:var(--muted);font-style:italic;font-weight:400}
+/* Mood Patterns Tile 8 — full-width (mirrors Tile 5) */
+.mp-balance{grid-column:span 2}
+@media(min-width:600px){.mp-balance{grid-column:span 4}}
+/* Mood Patterns Tiles 6/7/8 graceful-degradation shared styles */
+.mp-textsum-body{flex:1;display:flex;flex-direction:column;justify-content:center;gap:6px}
+.mp-textsum-line{font-size:13px;color:var(--text);line-height:1.4}
+.mp-textsum-line strong{font-weight:700;text-transform:uppercase;letter-spacing:.3px;font-size:11px}
+.mp-textsum-secondary{font-size:11px;color:var(--muted);line-height:1.4}
+.mp-chart-wrap{flex:1;display:flex;align-items:center;justify-content:center;margin-top:6px;min-height:80px}
+.mp-chart-wrap svg{width:100%;height:auto;display:block;max-width:100%}
+.mp-chart-legend{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;font-size:10px;color:var(--muted)}
+.mp-chart-legend .leg{display:flex;align-items:center;gap:4px}
+.mp-chart-legend .swatch{width:7px;height:7px;border-radius:2px;display:inline-block}
 /* Notes */
 .notes-section{margin-bottom:16px}
 .notes-label{color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;margin-bottom:6px}
@@ -3351,7 +3364,10 @@ function renderMoodPatterns(){
     renderForgottenMoodTile()+
     renderCycleBalanceTile(_mpData.cycle)+
     renderStreakTile()+
-    renderMostPlayedTile();
+    renderMostPlayedTile()+
+    renderDayOfWeekTile()+
+    renderTimeOfDayTile()+
+    renderBalanceOverTimeTile();
   wireMoodPatternsTaps();
 }
 
@@ -3600,6 +3616,302 @@ function renderMostPlayedTile(){
   </div>`;
 }
 
+// ----------------------------------------------------------------------------
+// Phase 6.3 — Tiles 6 (Day of Week) + 7 (Time of Day) + 8 (Balance Over Time)
+// All three use graceful degradation across low/medium/high data states per
+// PRD §9.5/§9.6. Threshold-switching only; animated transition deferred to
+// v1.2 (locked Session 40 CC). All data derived client-side from
+// _mpData.recentForStreak (already loaded, limit 500); no new wrappers.
+// Multi-mood plays credit ALL involved moods (consistent with Tiles 1/3/4).
+// Backfill events excluded; null-mood plays skipped (no signal).
+// ----------------------------------------------------------------------------
+
+// Pure aggregation — returns 7-element array indexed Sun-Sat.
+function buildDayOfWeekData(events){
+  const days=Array.from({length:7},()=>({total:0,byMood:{}}));
+  events.forEach(ev=>{
+    const moods=moodActiveArray(ev);
+    const d=new Date(ev.played_at).getDay();
+    days[d].total+=1;
+    moods.forEach(slug=>{days[d].byMood[slug]=(days[d].byMood[slug]||0)+1;});
+  });
+  return days;
+}
+
+// Pure aggregation — returns 24-element array indexed 0-23.
+function buildTimeOfDayData(events){
+  const hours=Array.from({length:24},()=>({total:0,byMood:{}}));
+  events.forEach(ev=>{
+    const moods=moodActiveArray(ev);
+    const h=new Date(ev.played_at).getHours();
+    hours[h].total+=1;
+    moods.forEach(slug=>{hours[h].byMood[slug]=(hours[h].byMood[slug]||0)+1;});
+  });
+  return hours;
+}
+
+// Pure aggregation — returns sorted-asc array of {weekStartIso,label,total,byMood}.
+// Week starts on Sunday (local time).
+function buildBalanceOverTimeData(events){
+  const map={};
+  events.forEach(ev=>{
+    const moods=moodActiveArray(ev);
+    const d=new Date(ev.played_at);
+    const sunday=new Date(d);
+    sunday.setHours(0,0,0,0);
+    sunday.setDate(sunday.getDate()-sunday.getDay());
+    const key=sunday.toISOString().slice(0,10);
+    if(!map[key])map[key]={weekStartIso:key,total:0,byMood:{}};
+    map[key].total+=1;
+    moods.forEach(slug=>{map[key].byMood[slug]=(map[key].byMood[slug]||0)+1;});
+  });
+  const sorted=Object.values(map).sort((a,b)=>a.weekStartIso.localeCompare(b.weekStartIso));
+  sorted.forEach(w=>{
+    const d=new Date(w.weekStartIso+'T00:00:00');
+    w.label=d.toLocaleDateString(undefined,{month:'short',day:'numeric'});
+  });
+  return sorted;
+}
+
+// SVG helper — vertical stacked bar chart. `buckets` = array of {total,byMood}.
+// `labels` parallels buckets. Empty columns render a 2px floor for orientation.
+function buildVertStackBarSvg(buckets,labels,opts={}){
+  const w=opts.width||200,h=opts.height||80,gap=opts.gap||2,labelH=opts.labelH||12;
+  const chartH=h-labelH-2;
+  const n=buckets.length;
+  const colW=(w-(n-1)*gap)/n;
+  const maxTotal=Math.max(1,...buckets.map(b=>b.total));
+  let svg=`<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">`;
+  buckets.forEach((bucket,i)=>{
+    const x=i*(colW+gap);
+    if(bucket.total===0){
+      svg+=`<rect x="${x.toFixed(2)}" y="${(chartH-2).toFixed(2)}" width="${colW.toFixed(2)}" height="2" fill="${opts.emptyFill||'#27272a'}" rx="1"/>`;
+    }else{
+      let acc=0;
+      Object.entries(bucket.byMood).forEach(([slug,count])=>{
+        const m=MOODS.find(x=>x.id===slug)||{color:'#71717a'};
+        const segH=(count/maxTotal)*chartH;
+        svg+=`<rect x="${x.toFixed(2)}" y="${(chartH-acc-segH).toFixed(2)}" width="${colW.toFixed(2)}" height="${segH.toFixed(2)}" fill="${m.color}"/>`;
+        acc+=segH;
+      });
+    }
+    if(labels&&labels[i]!=null){
+      svg+=`<text x="${(x+colW/2).toFixed(2)}" y="${(h-2).toFixed(2)}" font-size="${opts.labelFontSize||8}" fill="${opts.labelColor||'#71717a'}" text-anchor="middle">${labels[i]}</text>`;
+    }
+  });
+  return svg+'</svg>';
+}
+
+// SVG helper — heatmap grid. moodSlugs = rows. buckets = cols (only used for
+// count). matrix[slug][i] = count. Intensity by per-mood max so each mood's
+// gradient reads independently against its own scale.
+function buildHeatmapSvg(buckets,moodSlugs,matrix,labels,opts={}){
+  const w=opts.width||200,h=opts.height||80,cellGap=opts.cellGap||1,labelH=opts.labelH||10;
+  const chartH=h-labelH-2;
+  const cols=buckets.length;
+  const rows=moodSlugs.length;
+  const cellW=(w-(cols-1)*cellGap)/cols;
+  const cellH=(chartH-(rows-1)*cellGap)/rows;
+  let svg=`<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">`;
+  moodSlugs.forEach((slug,rowI)=>{
+    const m=MOODS.find(x=>x.id===slug)||{color:'#71717a'};
+    const row=matrix[slug]||[];
+    let rowMax=0;
+    for(let i=0;i<cols;i++)if((row[i]||0)>rowMax)rowMax=row[i]||0;
+    rowMax=rowMax||1;
+    for(let i=0;i<cols;i++){
+      const v=row[i]||0;
+      const x=i*(cellW+cellGap);
+      const y=rowI*(cellH+cellGap);
+      const opacity=v===0?0.08:0.25+(v/rowMax)*0.75;
+      svg+=`<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${cellW.toFixed(2)}" height="${cellH.toFixed(2)}" fill="${m.color}" opacity="${opacity.toFixed(2)}"/>`;
+    }
+  });
+  if(labels&&labels.length===cols){
+    labels.forEach((lbl,i)=>{
+      if(!lbl)return;
+      const x=i*(cellW+cellGap)+cellW/2;
+      svg+=`<text x="${x.toFixed(2)}" y="${(h-2).toFixed(2)}" font-size="${opts.labelFontSize||7}" fill="${opts.labelColor||'#71717a'}" text-anchor="middle">${lbl}</text>`;
+    });
+  }
+  return svg+'</svg>';
+}
+
+// SVG helper — multi-line chart. weeks = sorted-asc. One line per mood slug.
+// y-axis = count for that week. x-axis = weeks evenly spaced.
+function buildMultiLineSvg(weeks,moodSlugs,opts={}){
+  const w=opts.width||300,h=opts.height||100,pad=opts.pad||8;
+  const chartW=w-pad*2;
+  const chartH=h-pad*2;
+  const n=weeks.length;
+  let max=0;
+  weeks.forEach(week=>{moodSlugs.forEach(slug=>{const v=week.byMood[slug]||0;if(v>max)max=v;});});
+  max=max||1;
+  const xs=weeks.map((_,i)=>n===1?pad+chartW/2:pad+(i/(n-1))*chartW);
+  let svg=`<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">`;
+  moodSlugs.forEach(slug=>{
+    const m=MOODS.find(x=>x.id===slug)||{color:'#71717a'};
+    const parts=[];
+    weeks.forEach((week,i)=>{
+      const v=week.byMood[slug]||0;
+      const y=pad+chartH-(v/max)*chartH;
+      parts.push((i===0?'M':'L')+xs[i].toFixed(1)+' '+y.toFixed(1));
+    });
+    svg+=`<path d="${parts.join(' ')}" fill="none" stroke="${m.color}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>`;
+  });
+  return svg+'</svg>';
+}
+
+// Tile 6 — Mood by Day of Week (graceful degradation: text → bars → heatmap).
+function renderDayOfWeekTile(){
+  const events=(_mpData.recentForStreak||[]).filter(ev=>ev.source!=='backfill'&&moodActiveArray(ev).length>0);
+  const n=events.length;
+  const emptyHtml=`<div class="mp-tile" data-tile="dayofweek">
+      <div class="mp-tile-label">Day of Week</div>
+      <div class="mp-tile-empty">Play 5 records to see this take shape.</div>
+    </div>`;
+  if(n<5)return emptyHtml;
+  const days=buildDayOfWeekData(events);
+  if(n<30){
+    const dayNames=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    let bestDay=0;
+    for(let i=1;i<7;i++)if(days[i].total>days[bestDay].total)bestDay=i;
+    if(days[bestDay].total===0)return emptyHtml;
+    const byMood=days[bestDay].byMood;
+    const slugs=Object.keys(byMood);
+    let bestSlug=slugs[0];
+    slugs.forEach(s=>{if(byMood[s]>byMood[bestSlug])bestSlug=s;});
+    const m=MOODS.find(x=>x.id===bestSlug)||{color:'var(--text)',label:bestSlug};
+    return `<div class="mp-tile" data-tile="dayofweek">
+      <div class="mp-tile-label">Day of Week</div>
+      <div class="mp-textsum-body">
+        <div class="mp-textsum-line">Mostly <strong>${dayNames[bestDay]}</strong>.</div>
+        <div class="mp-textsum-secondary">Often <strong style="color:${m.color}">${m.label}</strong> when you do.</div>
+      </div>
+    </div>`;
+  }
+  if(n<100){
+    const labels=['S','M','T','W','T','F','S'];
+    return `<div class="mp-tile" data-tile="dayofweek">
+      <div class="mp-tile-label">Day of Week</div>
+      <div class="mp-chart-wrap">${buildVertStackBarSvg(days,labels,{width:180,height:80})}</div>
+    </div>`;
+  }
+  // HIGH — heatmap (only moods that have any plays render as rows)
+  const usedSlugs=MOODS.map(m=>m.id).filter(slug=>days.some(d=>(d.byMood[slug]||0)>0));
+  const matrix={};
+  usedSlugs.forEach(slug=>{matrix[slug]=days.map(d=>d.byMood[slug]||0);});
+  const labels=['S','M','T','W','T','F','S'];
+  return `<div class="mp-tile" data-tile="dayofweek">
+    <div class="mp-tile-label">Day of Week</div>
+    <div class="mp-chart-wrap">${buildHeatmapSvg(days,usedSlugs,matrix,labels,{width:170,height:90})}</div>
+  </div>`;
+}
+
+// Tile 7 — Mood by Time of Day (graceful degradation: text → bars → heatmap).
+function renderTimeOfDayTile(){
+  const events=(_mpData.recentForStreak||[]).filter(ev=>ev.source!=='backfill'&&moodActiveArray(ev).length>0);
+  const n=events.length;
+  const emptyHtml=`<div class="mp-tile" data-tile="timeofday">
+      <div class="mp-tile-label">Time of Day</div>
+      <div class="mp-tile-empty">Play 5 records to see this take shape.</div>
+    </div>`;
+  if(n<5)return emptyHtml;
+  const hours=buildTimeOfDayData(events);
+  if(n<30){
+    // LOW — collapse to 4 broad buckets
+    const broad=[{label:'late night',s:0,e:5},{label:'morning',s:6,e:11},{label:'afternoon',s:12,e:17},{label:'evening',s:18,e:23}].map(b=>{
+      let total=0;const byMood={};
+      for(let h=b.s;h<=b.e;h++){total+=hours[h].total;Object.entries(hours[h].byMood).forEach(([s,c])=>{byMood[s]=(byMood[s]||0)+c;});}
+      return {...b,total,byMood};
+    });
+    let best=broad[0];
+    broad.forEach(b=>{if(b.total>best.total)best=b;});
+    if(best.total===0)return emptyHtml;
+    const slugs=Object.keys(best.byMood);
+    let bestSlug=slugs[0];
+    slugs.forEach(s=>{if(best.byMood[s]>best.byMood[bestSlug])bestSlug=s;});
+    const m=MOODS.find(x=>x.id===bestSlug)||{color:'var(--text)',label:bestSlug};
+    return `<div class="mp-tile" data-tile="timeofday">
+      <div class="mp-tile-label">Time of Day</div>
+      <div class="mp-textsum-body">
+        <div class="mp-textsum-line">Mostly <strong>${best.label}</strong> plays.</div>
+        <div class="mp-textsum-secondary">Often <strong style="color:${m.color}">${m.label}</strong> when you do.</div>
+      </div>
+    </div>`;
+  }
+  if(n<100){
+    // MEDIUM — 6 4-hour buckets
+    const buckets=[];const labels=['12a','4a','8a','12p','4p','8p'];
+    for(let i=0;i<6;i++){
+      let total=0;const byMood={};
+      for(let h=i*4;h<(i+1)*4;h++){total+=hours[h].total;Object.entries(hours[h].byMood).forEach(([s,c])=>{byMood[s]=(byMood[s]||0)+c;});}
+      buckets.push({total,byMood});
+    }
+    return `<div class="mp-tile" data-tile="timeofday">
+      <div class="mp-tile-label">Time of Day</div>
+      <div class="mp-chart-wrap">${buildVertStackBarSvg(buckets,labels,{width:180,height:80})}</div>
+    </div>`;
+  }
+  // HIGH — 24-hour heatmap
+  const usedSlugs=MOODS.map(m=>m.id).filter(slug=>hours.some(h=>(h.byMood[slug]||0)>0));
+  const matrix={};
+  usedSlugs.forEach(slug=>{matrix[slug]=hours.map(h=>h.byMood[slug]||0);});
+  const hourLabels=Array.from({length:24},(_,i)=>i%4===0?(i===0?'12a':i<12?i+'a':i===12?'12p':(i-12)+'p'):'');
+  return `<div class="mp-tile" data-tile="timeofday">
+    <div class="mp-tile-label">Time of Day</div>
+    <div class="mp-chart-wrap">${buildHeatmapSvg(hours,usedSlugs,matrix,hourLabels,{width:210,height:90,labelFontSize:6})}</div>
+  </div>`;
+}
+
+// Tile 8 — Mood Balance Over Time (graceful degradation: text → bars → multi-line).
+// Spans full grid width (mp-balance class) for chart legibility per PRD §9.5.
+function renderBalanceOverTimeTile(){
+  const events=(_mpData.recentForStreak||[]).filter(ev=>ev.source!=='backfill'&&moodActiveArray(ev).length>0);
+  const emptyHtml=`<div class="mp-tile mp-balance" data-tile="balanceovertime">
+      <div class="mp-tile-label">Balance Over Time</div>
+      <div class="mp-tile-empty">Play across a couple of weeks to see this take shape.</div>
+    </div>`;
+  if(events.length===0)return emptyHtml;
+  const weeks=buildBalanceOverTimeData(events);
+  if(weeks.length===0)return emptyHtml;
+  if(weeks.length<2){
+    // LOW — single week so far
+    const w=weeks[0];
+    const ranked=Object.entries(w.byMood).sort((a,b)=>b[1]-a[1]);
+    if(!ranked.length)return emptyHtml;
+    const topSlug=ranked[0][0];
+    const m=MOODS.find(x=>x.id===topSlug)||{color:'var(--text)',label:topSlug};
+    return `<div class="mp-tile mp-balance" data-tile="balanceovertime">
+      <div class="mp-tile-label">Balance Over Time</div>
+      <div class="mp-textsum-body">
+        <div class="mp-textsum-line">This week: <strong style="color:${m.color}">${m.label}</strong> heavy.</div>
+        <div class="mp-textsum-secondary">Play across another week to see the shift.</div>
+      </div>
+    </div>`;
+  }
+  const usedSlugs=MOODS.map(m=>m.id).filter(slug=>weeks.some(w=>(w.byMood[slug]||0)>0));
+  const legend=usedSlugs.map(slug=>{
+    const m=MOODS.find(x=>x.id===slug)||{color:'#71717a',label:slug};
+    return `<span class="leg"><span class="swatch" style="background:${m.color}"></span>${m.label}</span>`;
+  }).join('');
+  if(weeks.length<=8){
+    // MEDIUM — per-week stacked bars
+    const labels=weeks.map(w=>w.label);
+    return `<div class="mp-tile mp-balance" data-tile="balanceovertime">
+      <div class="mp-tile-label">Balance Over Time</div>
+      <div class="mp-chart-wrap">${buildVertStackBarSvg(weeks,labels,{width:360,height:110})}</div>
+      <div class="mp-chart-legend">${legend}</div>
+    </div>`;
+  }
+  // HIGH — multi-line chart
+  return `<div class="mp-tile mp-balance" data-tile="balanceovertime">
+    <div class="mp-tile-label">Balance Over Time</div>
+    <div class="mp-chart-wrap">${buildMultiLineSvg(weeks,usedSlugs,{width:360,height:120})}</div>
+    <div class="mp-chart-legend">${legend}</div>
+  </div>`;
+}
+
 function wireMoodPatternsTaps(){
   // Segmented control on Mood Mix tile
   $('moodPatternsGrid').querySelectorAll('.mp-segmented button').forEach(btn=>{
@@ -3643,6 +3955,12 @@ function openMoodPatternDrill(which,data={}){
   }else if(which==='streak'){
     const m=MOODS.find(x=>x.id===data.slug)||{label:data.slug||'Mood'};
     title=data.kind==='current'?`${m.label} streak`:`${m.label} streak — last 30 days`;
+  }else if(which==='dayofweek'){
+    title='Plays by Day of Week';
+  }else if(which==='timeofday'){
+    title='Plays by Time of Day';
+  }else if(which==='balanceovertime'){
+    title='Mood Balance Over Time';
   }
   $('drillHeaderTitle').textContent=title;
   $('drillContent').innerHTML='<div style="color:var(--muted);font-size:12px;text-align:center;padding:20px">Loading…</div>';
@@ -3651,7 +3969,131 @@ function openMoodPatternDrill(which,data={}){
   $('statDrillOverlay').scrollTop=0;
   if(which==='forgotten')fillForgottenDrill(data.slug);
   else if(which==='streak')fillStreakDrill(data.slug,data.kind);
+  else if(which==='dayofweek')fillDayOfWeekDrill();
+  else if(which==='timeofday')fillTimeOfDayDrill();
+  else if(which==='balanceovertime')fillBalanceOverTimeDrill();
   else fillMoodGroupedDrill(win);
+}
+
+// Shared event-row renderer for Phase 6.3 drills. Pulls from collection by
+// release_id, falls back to a "Record no longer in collection" row if missing.
+function _drillPlayRow(ev){
+  const rec=collection.find(r=>r.releaseId===ev.release_id);
+  const art=artCache[ev.release_id];
+  const when=new Date(ev.played_at);
+  const dateStr=when.toLocaleDateString(undefined,{month:'short',day:'numeric'});
+  const timeStr=when.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'});
+  if(!rec){
+    return `<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);color:var(--muted);font-size:12px">
+      <div style="flex:1">Record no longer in collection</div>
+      <div style="font-size:11px;flex-shrink:0">${dateStr} · ${timeStr}</div>
+    </div>`;
+  }
+  return `<div class="stat-record-item" data-id="${ev.release_id}" style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border)">
+    <div style="width:44px;height:44px;flex-shrink:0;background:var(--surface2);border-radius:4px;overflow:hidden">${art?`<img src="${art}" style="width:100%;height:100%;object-fit:cover" alt="">`:''}</div>
+    <div style="flex:1;min-width:0">
+      <div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${rec.title||''}</div>
+      <div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${rec.artist||''}</div>
+    </div>
+    <div style="font-size:11px;color:var(--muted);flex-shrink:0;text-align:right">
+      <div>${dateStr}</div>
+      <div style="opacity:.7">${timeStr}</div>
+    </div>
+  </div>`;
+}
+
+// Drill for Tile 6 — list of plays grouped by day of week, most-active day
+// first. Backfill events and null-mood plays excluded (mirrors tile filter).
+function fillDayOfWeekDrill(){
+  const events=(_mpData.recentForStreak||[]).filter(ev=>ev.source!=='backfill'&&moodActiveArray(ev).length>0);
+  if(!events.length){
+    $('drillContent').innerHTML='<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">No plays to chart yet.</div>';
+    return;
+  }
+  const dayNames=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const byDay=Array.from({length:7},()=>[]);
+  events.forEach(ev=>{byDay[new Date(ev.played_at).getDay()].push(ev);});
+  const ordered=byDay.map((plays,i)=>({day:i,name:dayNames[i],plays})).filter(g=>g.plays.length>0).sort((a,b)=>b.plays.length-a.plays.length);
+  let out='';
+  ordered.forEach(g=>{
+    out+=`<div style="margin-top:18px"><div style="font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">${g.name} · ${g.plays.length} ${g.plays.length===1?'play':'plays'}</div>`;
+    out+=g.plays.map(_drillPlayRow).join('');
+    out+='</div>';
+  });
+  $('drillContent').innerHTML=out;
+  wireDrillTaps([]);
+}
+
+// Drill for Tile 7 — list of plays grouped by 4-hour bucket, busiest first.
+function fillTimeOfDayDrill(){
+  const events=(_mpData.recentForStreak||[]).filter(ev=>ev.source!=='backfill'&&moodActiveArray(ev).length>0);
+  if(!events.length){
+    $('drillContent').innerHTML='<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">No plays to chart yet.</div>';
+    return;
+  }
+  const buckets=[
+    {label:'Late night (12a–4a)',s:0,e:3,plays:[]},
+    {label:'Early morning (4a–8a)',s:4,e:7,plays:[]},
+    {label:'Morning (8a–12p)',s:8,e:11,plays:[]},
+    {label:'Afternoon (12p–4p)',s:12,e:15,plays:[]},
+    {label:'Late afternoon (4p–8p)',s:16,e:19,plays:[]},
+    {label:'Evening (8p–12a)',s:20,e:23,plays:[]},
+  ];
+  events.forEach(ev=>{
+    const h=new Date(ev.played_at).getHours();
+    const b=buckets.find(x=>h>=x.s&&h<=x.e);
+    if(b)b.plays.push(ev);
+  });
+  const ordered=buckets.filter(b=>b.plays.length>0).sort((a,b)=>b.plays.length-a.plays.length);
+  let out='';
+  ordered.forEach(g=>{
+    out+=`<div style="margin-top:18px"><div style="font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">${g.label} · ${g.plays.length} ${g.plays.length===1?'play':'plays'}</div>`;
+    out+=g.plays.map(_drillPlayRow).join('');
+    out+='</div>';
+  });
+  $('drillContent').innerHTML=out;
+  wireDrillTaps([]);
+}
+
+// Drill for Tile 8 — multi-line chart at top regardless of data size per PRD
+// §9.5 "drill-down with full multi-line chart regardless of data size", then
+// list of plays grouped by week (most-recent first).
+function fillBalanceOverTimeDrill(){
+  const events=(_mpData.recentForStreak||[]).filter(ev=>ev.source!=='backfill'&&moodActiveArray(ev).length>0);
+  if(!events.length){
+    $('drillContent').innerHTML='<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">No plays to chart yet.</div>';
+    return;
+  }
+  const weeks=buildBalanceOverTimeData(events);
+  let out='';
+  if(weeks.length>=2){
+    const usedSlugs=MOODS.map(m=>m.id).filter(slug=>weeks.some(w=>(w.byMood[slug]||0)>0));
+    const svg=buildMultiLineSvg(weeks,usedSlugs,{width:340,height:140});
+    const legend=usedSlugs.map(slug=>{
+      const m=MOODS.find(x=>x.id===slug)||{color:'#71717a',label:slug};
+      return `<span class="leg"><span class="swatch" style="background:${m.color}"></span>${m.label}</span>`;
+    }).join('');
+    out+=`<div class="mp-chart-wrap" style="margin:18px 0 6px">${svg}</div><div class="mp-chart-legend" style="margin-bottom:8px">${legend}</div>`;
+  }
+  // Group plays by week, most-recent first
+  const grouped={};
+  events.forEach(ev=>{
+    const d=new Date(ev.played_at);
+    const sunday=new Date(d);sunday.setHours(0,0,0,0);sunday.setDate(sunday.getDate()-sunday.getDay());
+    const key=sunday.toISOString().slice(0,10);
+    (grouped[key]||(grouped[key]=[])).push(ev);
+  });
+  const orderedKeys=Object.keys(grouped).sort((a,b)=>b.localeCompare(a));
+  orderedKeys.forEach(key=>{
+    const d=new Date(key+'T00:00:00');
+    const label='Week of '+d.toLocaleDateString(undefined,{month:'short',day:'numeric'});
+    const plays=grouped[key];
+    out+=`<div style="margin-top:18px"><div style="font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);margin-bottom:8px">${label} · ${plays.length} ${plays.length===1?'play':'plays'}</div>`;
+    out+=plays.map(_drillPlayRow).join('');
+    out+='</div>';
+  });
+  $('drillContent').innerHTML=out;
+  wireDrillTaps([]);
 }
 
 // Synchronous drill for Forgotten Mood — list of lifetime-never-played records
