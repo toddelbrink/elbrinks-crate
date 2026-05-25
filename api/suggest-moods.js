@@ -89,7 +89,7 @@ export default async function handler(req, res) {
   // 4. Cache check
   const { data: cached } = await supabase
     .from('vinyl_mood_suggestions')
-    .select('suggested_moods, reasoning, created_at')
+    .select('suggested_moods, reasoning, confidence, created_at')
     .eq('release_id', String(release_id))
     .eq('user_moods_hash', user_moods_hash)
     .maybeSingle();
@@ -98,6 +98,7 @@ export default async function handler(req, res) {
     res.status(200).json({
       moods: cached.suggested_moods || [],
       reasoning: cached.reasoning || null,
+      confidence: cached.confidence || null,
       cached: true,
     });
     return;
@@ -131,11 +132,14 @@ export default async function handler(req, res) {
   const client = new Anthropic({ apiKey });
 
   const systemPrompt =
-    'You assign moods to vinyl records based on metadata. Pick 1-3 moods from the user\'s available list that best fit the album. ' +
+    'You assign moods to vinyl records based on metadata AND what you already know about the album. ' +
+    'First consider the album itself — its overall feel, pacing, listening context, whether it\'s a popular standout or a deep cut. Use your training-data knowledge of the artist, album, and any cultural context. ' +
+    'Then map that understanding onto the user\'s available moods. Pick 1-3 moods that best fit. ' +
     'Each mood has a name, an optional description, and optional keywords. ' +
     'When a description is present, treat it as the user\'s own explanation of what the mood means to them — trust it as the authority on intent over your interpretation of the bare label. ' +
     'Keywords are sample genres or styles the user associates with the mood; treat them as hints, not requirements. ' +
-    'Only use moods from the provided list — never invent new ones. Respond in JSON only.';
+    'Only use moods from the provided list — never invent new ones. ' +
+    'Also return a confidence value: "high" if you have detailed knowledge of this specific album, "medium" if you know the artist and approximate era well, "low" if you\'re working mostly from the genre/style metadata. Respond in JSON only.';
 
   const moodBlocks = moods.map(m => {
     const lines = [`- Mood name: "${m.mood_name}"`];
@@ -153,6 +157,7 @@ export default async function handler(req, res) {
 
   let suggestedNames;
   let reasoning = null;
+  let confidence = null;
   try {
     const response = await client.messages.create({
       model: 'claude-haiku-4-5',
@@ -171,12 +176,17 @@ export default async function handler(req, res) {
                 items: { type: 'string', enum: availableNames },
                 description: '1-3 moods from the available list',
               },
+              confidence: {
+                type: 'string',
+                enum: ['high', 'medium', 'low'],
+                description: 'How well you know this specific album',
+              },
               reasoning: {
                 type: 'string',
                 description: 'One short sentence on the choice',
               },
             },
-            required: ['moods'],
+            required: ['moods', 'confidence'],
             additionalProperties: false,
           },
         },
@@ -189,6 +199,10 @@ export default async function handler(req, res) {
     if (!Array.isArray(parsed.moods)) throw new Error('LLM response missing moods array');
     suggestedNames = parsed.moods;
     reasoning = typeof parsed.reasoning === 'string' ? parsed.reasoning : null;
+    if (typeof parsed.confidence === 'string' &&
+        ['high', 'medium', 'low'].includes(parsed.confidence)) {
+      confidence = parsed.confidence;
+    }
   } catch (e) {
     if (e instanceof Anthropic.RateLimitError) {
       res.setHeader('Retry-After', '60');
@@ -221,10 +235,11 @@ export default async function handler(req, res) {
       user_moods_hash,
       suggested_moods: slugs,
       reasoning,
+      confidence,
     });
   if (cacheError) {
     console.error('[suggest-moods] cache insert failed', cacheError.message);
   }
 
-  res.status(200).json({ moods: slugs, reasoning, cached: false });
+  res.status(200).json({ moods: slugs, reasoning, confidence, cached: false });
 }

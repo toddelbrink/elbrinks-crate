@@ -325,6 +325,14 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .reset-card .mood-color-swatch{width:40px;height:40px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0;flex-shrink:0;-webkit-tap-highlight-color:transparent;touch-action:manipulation;display:block}
 .reset-card .mood-color-swatch.selected{border-color:var(--text);box-shadow:0 0 0 2px var(--bg) inset}
 .reset-card .mood-color-swatch:active{opacity:.7}
+/* Auto-Suggest section (Step 4, PRD §9.10) — toggle + status + history + manual trigger */
+.autosuggest-status-row{padding:10px 16px;border-bottom:1px solid var(--border);font-size:13px;color:var(--muted);line-height:1.4}
+.autosuggest-status-row.active{color:var(--text)}
+.autosuggest-progress-bar{margin-top:8px;height:4px;background:var(--surface2);border-radius:2px;overflow:hidden}
+.autosuggest-progress-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .2s}
+/* Tiny status dot for Settings → Moods row when worker is active */
+.settings-row-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);margin-left:6px;vertical-align:middle;animation:settings-row-dot-pulse 1.6s ease-in-out infinite}
+@keyframes settings-row-dot-pulse{0%,100%{opacity:.45}50%{opacity:1}}
 /* Theme preset cards */
 .theme-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:16px}
 @media(min-width:600px){.theme-grid{grid-template-columns:1fr 1fr 1fr}}
@@ -955,6 +963,54 @@ input:focus,textarea:focus{border-color:var(--accent)}
       </div>
       <div class="subpanel-foot-note">Re-runs Claude on every record, including ones you've already tagged. Use to see Claude's suggestions alongside your current moods. Cached results don't count against the daily limit. Review before save — choose Merge or Overwrite per batch.</div>
     </div>
+
+    <div class="subpanel-section-header" style="margin-top:24px">Auto-suggest</div>
+
+    <div class="share-toggle-row">
+      <div class="share-toggle-label">
+        <div class="share-toggle-title">Let Claude suggest moods on new albums</div>
+        <div class="share-toggle-sub" id="autoSuggestToggleSub">Runs in the background when you add records. Skips anything you've tagged yourself.</div>
+      </div>
+      <label class="share-switch">
+        <input type="checkbox" id="autoSuggestToggle" />
+        <span class="share-switch-slider"></span>
+      </label>
+    </div>
+
+    <div class="autosuggest-status-row" id="autoSuggestStatusRow">Caught up.</div>
+
+    <div class="auto-tag-group">
+      <div class="subpanel-row">
+        <span class="subpanel-row-label">Re-tag entire collection (no review)</span>
+        <button class="subpanel-row-action" id="autoSuggestRetagBtn">Run</button>
+      </div>
+      <div class="subpanel-foot-note">Asks Claude for moods across your whole collection. Writes directly — no review modal. Skips records you've manually tagged. Use "Compare Claude's picks" above if you want to review each suggestion first.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Auto-Suggest consent modal (Step 4, PRD §9.10) — shows once at onboarding -->
+<div id="autoSuggestConsentModal" class="reset-modal" style="display:none">
+  <div class="reset-card">
+    <h2>Let Claude suggest moods for your collection?</h2>
+    <p style="color:var(--muted);font-size:14px;line-height:1.5;margin:12px 0">Claude reads what it knows about each album and picks the moods that fit best. You can review and re-tag anything. We never overwrite moods you set yourself.</p>
+    <p style="color:var(--muted);font-size:13px;line-height:1.4;margin:8px 0 20px">You can change this any time in Settings → Moods.</p>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button class="btn-accent" id="autoSuggestConsentYes" style="padding:12px;font-size:15px;font-weight:600">Yes, let Claude tag my collection</button>
+      <button class="btn-ghost-sm" id="autoSuggestConsentNo" style="padding:10px;background:transparent;border:none;color:var(--muted);font-family:var(--font);font-size:14px;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation">Not now</button>
+    </div>
+  </div>
+</div>
+
+<!-- Re-tag-all confirmation modal (Step 4) -->
+<div id="autoSuggestRetagConfirmModal" class="reset-modal" style="display:none">
+  <div class="reset-card">
+    <h2>Re-tag entire collection?</h2>
+    <p style="color:var(--muted);font-size:14px;line-height:1.5;margin:12px 0">Claude will look at every record except the ones you've manually tagged. New picks save directly — no review. This will take a few minutes and uses the daily Claude limit.</p>
+    <div style="display:flex;gap:10px;margin-top:20px">
+      <button class="btn-ghost-sm" id="autoSuggestRetagCancel" style="flex:1;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation">Cancel</button>
+      <button class="btn-accent" id="autoSuggestRetagConfirm" style="flex:1;padding:10px;font-size:14px;font-weight:600">Re-tag</button>
+    </div>
   </div>
 </div>
 
@@ -1479,8 +1535,11 @@ async function applyMoodHeuristicToCollection({force=false, onProgress=null}={})
     if(existing.length===1&&existing[0]===slug)continue;
     const newMoods=[slug];
     moodCache[rid]=newMoods;
+    moodsSource[rid]='heuristic';
     try{await dbSet('moods',rid,newMoods);}catch{}
-    bulk[rid]={moods:newMoods};
+    // Tag provenance: heuristic-applied at sync time. Auto-suggest worker
+    // can upgrade these to 'claude_auto' on its next run.
+    bulk[rid]={moods:newMoods,moods_source:'heuristic'};
     result.changed++;
     result.perMood[slug]=(result.perMood[slug]||0)+1;
     if(onProgress)onProgress(result.scanned,collection.length,result.changed);
@@ -1500,6 +1559,12 @@ let playCounts={},cycleLog={},lastPlayed={},currentCycle=1;
 // cycleStartedAt comes from vinyl_user_profile.cycle_started_at; resetCycle
 // bumps it to now() and zeros cycleCounts.
 let cycleCounts={},cycleStartedAt=null;
+// Auto-suggest state (Step 4, PRD §9.10). autoSuggestEnabled mirrors
+// vinyl_user_profile.auto_suggest_enabled. moodsSource tracks per-release
+// provenance ('manual' / 'heuristic' / 'claude_suggest' / 'claude_auto').
+// autoSuggestRunning is the worker re-entrancy guard; the rest drives UI.
+let autoSuggestEnabled=null,moodsSource={};
+let autoSuggestRunning=false,autoSuggestDone=0,autoSuggestTotal=0,autoSuggestLastSummary=null;
 let sortMode='alpha',sortIdx=2,artFetching=false,genreFetching=false;
 let shuffleMode='unplayed',activeMoodFilter='all',currentRecord=null,fromShuffle=false;
 let activeView='crate'; // 'crate','want','stats'
@@ -1710,6 +1775,11 @@ async function init(){
     await loadMetaFromAPI();
     await loadArtistsFromAPI();
     showCollection();seedDiscogsNotes();startArtFetch();startGenreFetch();startWikiFetch();
+    // Step 4 — fire auto-suggest worker after meta loads. Self-gated on the
+    // user's opt-in flag + skips manual/claude_suggest rows. For Todd today,
+    // all 112 rows are 'manual' so this no-ops; for John (or any fresh user),
+    // it'll process the entire collection.
+    startAutoSuggestFetch().catch(e=>console.error('[autoSuggest]',e));
     if(token)setTimeout(silentSync,5000);
   }else{
     $('initLoading').style.display='none';$('setupCard').style.display='block';
@@ -1749,8 +1819,10 @@ async function loadCycleStateFromAPI(){
     const session=await crate.getSession();
     if(!session)return;
     const profRes=await crate.loadProfile();
-    if(profRes.success&&profRes.data&&profRes.data.cycle_started_at){
-      cycleStartedAt=profRes.data.cycle_started_at;
+    if(profRes.success&&profRes.data){
+      if(profRes.data.cycle_started_at)cycleStartedAt=profRes.data.cycle_started_at;
+      // null means "no preference set" → treat as enabled (matches column default)
+      autoSuggestEnabled=profRes.data.auto_suggest_enabled!==false;
     }
     const cRes=await crate.loadCyclePlayCounts({userId:session.user.id,since:cycleStartedAt});
     if(cRes.success&&cRes.data)cycleCounts=cRes.data;
@@ -1777,6 +1849,8 @@ async function loadMetaFromAPI(){
       if(row.art_url){artCache[id]=row.art_url;dbSet('art',id,row.art_url);}
       // Wiki: same, only update if present
       if(row.artist_wiki_url){wikiCache[id]=row.artist_wiki_url;}
+      // moods_source: provenance per album. Drives Step 4 auto-suggest skip-list.
+      moodsSource[id]=row.moods_source||'manual';
     });
   }
 }
@@ -1994,6 +2068,152 @@ async function startGenreFetch(){
   }else{
     showToast('Genres loaded');
   }
+}
+
+// Step 4 (PRD §9.10) — background auto-suggest worker.
+// Mirrors startArtFetch / startGenreFetch pattern: serial 1100ms loop,
+// halts on 429 rate-limit. Writes moods directly + sets moods_source=
+// 'claude_auto' so subsequent runs respect provenance. Honors tag protection
+// rules: skips 'manual' and 'claude_suggest' rows. The {retagAuto} option
+// includes already-claude_auto rows in the queue (manual "Re-tag entire
+// collection" trigger from Settings); default run only takes NULL or
+// 'heuristic' rows.
+async function startAutoSuggestFetch({retagAuto=false}={}){
+  if(autoSuggestRunning)return;
+  if(!collection.length)return;
+  if(autoSuggestEnabled===false)return; // gated by user toggle
+  // Determine queue based on retag mode + moods_source protection rules.
+  const candidates=collection.filter(r=>{
+    if(!r.releaseId)return false;
+    const src=moodsSource[r.releaseId];
+    if(src==='manual'||src==='claude_suggest')return false;
+    if(retagAuto)return true; // null / 'heuristic' / 'claude_auto'
+    return !src||src==='heuristic';
+  });
+  if(!candidates.length){
+    autoSuggestLastSummary={count:0,at:new Date().toISOString(),caughtUp:true};
+    renderAutoSuggestStatus();
+    return;
+  }
+  autoSuggestRunning=true;autoSuggestDone=0;autoSuggestTotal=candidates.length;
+  renderAutoSuggestStatus();updateSettingsRowDots();
+  showToast(`Claude is tagging ${candidates.length} record${candidates.length===1?'':'s'} in the background.`,3500);
+  let tagged=0,errored=0,rateLimited=false,haltedByOptOut=false;
+  for(const r of candidates){
+    // PRD §9.10 — if user toggles off mid-run, halt after current record.
+    // Cheap check: re-read the global at the top of each iteration.
+    if(autoSuggestEnabled===false){haltedByOptOut=true;break;}
+    try{
+      const res=await crate.suggestMoods({
+        release_id:r.releaseId,
+        artist:r.artist||null,
+        title:r.title||'',
+        year:r.year||null,
+        genres:genreCache[r.releaseId]||r.genres||[],
+        styles:stylesCache[r.releaseId]||r.styles||[],
+      });
+      if(!res.success){
+        if(res.rateLimited){rateLimited=true;break;}
+        errored++;
+      }else{
+        const slugs=res.data?.moods||[];
+        if(slugs.length){
+          // Write moods + provenance. Mirror into in-memory caches so the UI
+          // reflects the change without a reload. Pills re-render via
+          // applyFilters() at end of run for efficiency.
+          await crate.saveMeta(r.releaseId,{moods:slugs,moods_source:'claude_auto'});
+          moodCache[r.releaseId]=slugs;
+          moodsSource[r.releaseId]='claude_auto';
+          await dbSet('moods',r.releaseId,slugs);
+          tagged++;
+        }
+      }
+    }catch(e){console.error('[autoSuggest]',e);errored++;}
+    autoSuggestDone++;renderAutoSuggestStatus();
+    await sleep(1100);
+  }
+  autoSuggestRunning=false;
+  autoSuggestLastSummary={count:tagged,errored,at:new Date().toISOString(),rateLimited,haltedByOptOut};
+  renderAutoSuggestStatus();updateSettingsRowDots();
+  if(typeof applyFilters==='function')applyFilters();
+  if(haltedByOptOut){
+    // Silent — toggle handler already showed the "Auto-suggest off" toast.
+  }else if(rateLimited){
+    showToast(`Claude limit reached — tagged ${tagged} so far. Resumes tomorrow.`,4000);
+  }else if(tagged>0){
+    showToast(`Claude tagged ${tagged} record${tagged===1?'':'s'}.`,3500);
+  }else if(errored>0){
+    showToast(`Auto-suggest finished with ${errored} error${errored===1?'':'s'}.`,3500);
+  }
+}
+
+// Render the live status row in Settings → Moods → Auto-Suggest. Safe to call
+// when subpanel isn't open — guards on element presence.
+function renderAutoSuggestStatus(){
+  const row=document.getElementById('autoSuggestStatusRow');
+  if(!row)return;
+  if(autoSuggestRunning){
+    row.classList.add('active');
+    const pct=autoSuggestTotal?Math.round(autoSuggestDone/autoSuggestTotal*100):0;
+    row.innerHTML=`Tagging ${autoSuggestDone} of ${autoSuggestTotal} records<div class="autosuggest-progress-bar"><div class="autosuggest-progress-fill" style="width:${pct}%"></div></div>`;
+    return;
+  }
+  row.classList.remove('active');
+  if(!autoSuggestLastSummary){
+    row.textContent='Caught up.';
+    return;
+  }
+  if(autoSuggestLastSummary.caughtUp){
+    row.textContent='Caught up.';
+  }else if(autoSuggestLastSummary.rateLimited){
+    row.textContent=`Hit daily Claude limit. Tagged ${autoSuggestLastSummary.count} record${autoSuggestLastSummary.count===1?'':'s'}. Resumes tomorrow.`;
+  }else{
+    const d=new Date(autoSuggestLastSummary.at);
+    const today=new Date();
+    const isToday=d.toDateString()===today.toDateString();
+    const stamp=isToday?'today':d.toLocaleDateString(undefined,{month:'short',day:'numeric'});
+    row.textContent=`Last tagged: ${autoSuggestLastSummary.count} record${autoSuggestLastSummary.count===1?'':'s'} ${stamp}.`;
+  }
+}
+
+// Toggle the worker status dot on the Settings → Moods menu row (only
+// when worker is actively running). Idempotent.
+function updateSettingsRowDots(){
+  const sec=document.getElementById('rowMoodsSecondary');
+  if(!sec)return;
+  // Strip any existing dot first
+  const existing=sec.querySelector('.settings-row-dot');
+  if(existing)existing.remove();
+  if(autoSuggestRunning){
+    sec.insertAdjacentHTML('beforeend','<span class="settings-row-dot" title="Claude is tagging records"></span>');
+  }
+}
+
+// Onboarding consent — shows the auto-suggest consent card and resolves
+// to the user's choice (true/false). Persists to vinyl_user_profile.
+// Resolves immediately if the user has already completed onboarding (i.e.,
+// auto_suggest_enabled was set previously). Used in the OAuth-callback
+// first-sync flow + accessible via Settings.
+async function showAutoSuggestConsent(){
+  return new Promise(resolve=>{
+    const modal=document.getElementById('autoSuggestConsentModal');
+    if(!modal){resolve(autoSuggestEnabled!==false);return;}
+    const yes=document.getElementById('autoSuggestConsentYes');
+    const no=document.getElementById('autoSuggestConsentNo');
+    const finish=async(choice)=>{
+      modal.style.display='none';
+      yes.onclick=null;no.onclick=null;
+      autoSuggestEnabled=choice;
+      const tog=document.getElementById('autoSuggestToggle');
+      if(tog)tog.checked=choice;
+      try{await crate.updateProfile({auto_suggest_enabled:choice});}
+      catch(e){console.error('[consent]',e);}
+      resolve(choice);
+    };
+    yes.onclick=()=>finish(true);
+    no.onclick=()=>finish(false);
+    modal.style.display='flex';
+  });
 }
 
 async function seedDiscogsNotes(){
@@ -2277,7 +2497,12 @@ async function silentSync(){
     collection=merged;filtered=[...collection];
     await dbSet('meta','collection',collection);await dbSet('meta','lastSync',new Date().toISOString());saveCollectionToAPI(collection);
     await loadPlaysFromAPI();await loadMetaFromAPI();await loadArtistsFromAPI();
-    applyFilters();seedDiscogsNotes();if(hasNew){startArtFetch();startGenreFetch();startWikiFetch();showToast('Collection updated');}
+    applyFilters();seedDiscogsNotes();
+    if(hasNew){
+      startArtFetch();startGenreFetch();startWikiFetch();showToast('Collection updated');
+      // New records → enqueue them for auto-suggest (self-gated on opt-in flag).
+      startAutoSuggestFetch().catch(e=>console.error('[autoSuggest]',e));
+    }
   }catch(e){console.log('Silent sync failed:',e);}
 }
 
@@ -2376,6 +2601,8 @@ async function fullSync(){
     // Step 2: Pull meta from Supabase (merges data from all devices)
     await loadPlaysFromAPI();await loadMetaFromAPI();await loadArtistsFromAPI();
     filtered=[...collection];applyFilters();showToast(`Synced — ${collection.length} records`);startArtFetch();startGenreFetch();startWikiFetch();seedDiscogsNotes();
+    // Step 4 — fire auto-suggest for any new records (self-gated on opt-in).
+    startAutoSuggestFetch().catch(e=>console.error('[autoSuggest]',e));
   }catch(e){showToast('Sync failed: '+e.message,4000);}
   hideProgress();
   $('fullSyncBtn').disabled=false;$('fullSyncBtn').textContent='Full Sync';
@@ -2617,8 +2844,11 @@ async function suggestMoodsForCurrentRecord(){
   const slugs=res.data?.moods||[];
   if(!slugs.length){showToast('No suggestion');return;}
   moodCache[rid]=slugs;
+  moodsSource[rid]='claude_suggest';
   await dbSet('moods',rid,slugs);
-  try{await crate.bulkMeta({[rid]:{moods:slugs}});}catch{}
+  // Tag provenance: user explicitly invoked ✦ Suggest, so 'claude_suggest'
+  // (sticky — auto-suggest worker won't re-tag this).
+  try{await crate.bulkMeta({[rid]:{moods:slugs,moods_source:'claude_suggest'}});}catch{}
   // Re-render the pills row
   $('moodPills').querySelectorAll('.mood-pill-btn').forEach(b=>{
     const mid=b.getAttribute('data-mood');
@@ -2637,8 +2867,11 @@ async function toggleMood(releaseId,moodId,btn){
   const idx=moods.indexOf(moodId);
   if(idx>-1)moods.splice(idx,1);else moods.push(moodId);
   moodCache[releaseId]=moods;
+  moodsSource[releaseId]='manual';
   await dbSet('moods',releaseId,moods);
-  saveMetaToAPI(releaseId,{moods});
+  // Tag provenance: user explicitly tapped pills, so 'manual' (sticky —
+  // auto-suggest worker will never overwrite).
+  saveMetaToAPI(releaseId,{moods,moods_source:'manual'});
   const m=MOODS.find(x=>x.id===moodId);
   const selected=moods.includes(moodId);
   btn.className='mood-pill-btn'+(selected?' selected':'');
@@ -4134,11 +4367,18 @@ window.addEventListener('message',async (event)=>{
     // Pull fresh credentials from Supabase — the popup just wrote them there.
     await reloadDiscogsCredentials();
     if(onboardingInProgress){
-      // Fresh user just completed OAuth from the setupCard. Run first-sync to
-      // pull their collection and land them in the app — no second hop needed.
+      // Fresh user just completed OAuth from the setupCard. Show the auto-
+      // suggest consent moment (PRD §9.10) BEFORE first-sync so any worker
+      // firing after sync respects the user's choice. Then run first-sync to
+      // pull their collection and land them in the app.
       onboardingInProgress=false;
       showToast(d.username?('Welcome — connected as @'+d.username):'Welcome — Discogs connected');
+      const optedIn=await showAutoSuggestConsent();
       await completeFirstSync();
+      if(optedIn){
+        // Fire after first sync so collection + meta are loaded.
+        startAutoSuggestFetch().catch(err=>console.error('[autoSuggest]',err));
+      }
     }else{
       showToast(d.username?('Connected to Discogs as @'+d.username):'Discogs connected');
     }
@@ -4546,9 +4786,56 @@ function renderMoodsSubpanel(){
   if(llmUntaggedBtn)llmUntaggedBtn.onclick=()=>runLLMReview('untagged');
   const llmRetagBtn=document.getElementById('llmRetagBtn');
   if(llmRetagBtn)llmRetagBtn.onclick=()=>runLLMReview('retag');
+  // Step 4 — Auto-Suggest toggle + Re-tag-all trigger
+  const autoTog=document.getElementById('autoSuggestToggle');
+  if(autoTog){
+    autoTog.checked=autoSuggestEnabled!==false;
+    autoTog.onchange=async(e)=>{
+      const want=e.target.checked;
+      autoTog.disabled=true;
+      const prev=autoSuggestEnabled;
+      autoSuggestEnabled=want;
+      try{
+        const res=await crate.updateProfile({auto_suggest_enabled:want});
+        if(!res.success)throw new Error(res.error?.message||'unknown');
+        showToast(want?'Auto-suggest on':'Auto-suggest off');
+        if(want){
+          // Fire worker immediately if there's anything to tag
+          startAutoSuggestFetch().catch(err=>console.error('[autoSuggest]',err));
+        }
+      }catch(err){
+        // Revert UI on failure
+        autoSuggestEnabled=prev;
+        autoTog.checked=prev!==false;
+        showToast('Save failed — '+err.message);
+      }
+      autoTog.disabled=false;
+    };
+  }
+  const retagBtn=document.getElementById('autoSuggestRetagBtn');
+  if(retagBtn){
+    retagBtn.disabled=autoSuggestRunning;
+    retagBtn.onclick=()=>{
+      document.getElementById('autoSuggestRetagConfirmModal').style.display='flex';
+    };
+  }
+  const retagCancel=document.getElementById('autoSuggestRetagCancel');
+  if(retagCancel)retagCancel.onclick=()=>{
+    document.getElementById('autoSuggestRetagConfirmModal').style.display='none';
+  };
+  const retagConfirm=document.getElementById('autoSuggestRetagConfirm');
+  if(retagConfirm)retagConfirm.onclick=()=>{
+    document.getElementById('autoSuggestRetagConfirmModal').style.display='none';
+    startAutoSuggestFetch({retagAuto:true}).catch(err=>console.error('[autoSuggest]',err));
+  };
+  // Render the live status row
+  renderAutoSuggestStatus();
   // Update Moods row secondary text in the main settings list
   const sec=document.getElementById('rowMoodsSecondary');
-  if(sec)sec.textContent=`${MOODS.length} mood${MOODS.length===1?'':'s'}`;
+  if(sec){
+    sec.textContent=`${MOODS.length} mood${MOODS.length===1?'':'s'}`;
+    updateSettingsRowDots();
+  }
 }
 
 // ── v1.1 Sprint 1: Review-and-approve modal for bulk auto-tag ───────────
@@ -4815,9 +5102,14 @@ function closeReviewModal(){
 
 async function applyReviewChanges(){
   if(!_reviewState)return;
-  const {proposals,dismissed,mode,toggle,overrides}=_reviewState;
+  const {proposals,dismissed,mode,toggle,overrides,source}=_reviewState;
   const approved=proposals.filter(p=>!dismissed.has(p.releaseId));
   if(!approved.length){closeReviewModal();return;}
+  // Step 4 — tag provenance for the bulk write. User explicitly reviewed +
+  // accepted, so the result is "user-committed via review modal":
+  //   heuristic review → 'heuristic' (still auto-upgradable later)
+  //   LLM review       → 'claude_suggest' (sticky from auto-suggest worker)
+  const newSource=source==='llm'?'claude_suggest':'heuristic';
   const bulk={};
   for(const p of approved){
     // §2.A — resolve effective mode per row. Override (if present) is the
@@ -4836,8 +5128,9 @@ async function applyReviewChanges(){
     }else{
       next=[...p.proposed];
     }
-    bulk[p.releaseId]={moods:next};
+    bulk[p.releaseId]={moods:next,moods_source:newSource};
     moodCache[p.releaseId]=next;
+    moodsSource[p.releaseId]=newSource;
     try{await dbSet('moods',p.releaseId,next);}catch{}
   }
   const applyBtn=document.getElementById('reviewApplyBtn');
