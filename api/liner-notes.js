@@ -192,7 +192,6 @@ Write 2 to 3 notes for this record. If you do not have high-confidence knowledge
             properties: {
               notes: {
                 type: 'array',
-                maxItems: 3,
                 items: {
                   type: 'object',
                   properties: {
@@ -216,7 +215,9 @@ Write 2 to 3 notes for this record. If you do not have high-confidence knowledge
     if (!textBlock) throw new Error('No text block in LLM response');
     const parsed = JSON.parse(textBlock.text);
     if (!Array.isArray(parsed.notes)) throw new Error('LLM response missing notes array');
-    claudeNotes = parsed.notes;
+    // Defensive clip to 3 — prompt asks for 2-3 but Anthropic's JSON schema
+    // does not enforce maxItems on arrays, so we clip here.
+    claudeNotes = parsed.notes.slice(0, 3);
   } catch (e) {
     if (e instanceof Anthropic.RateLimitError) {
       res.setHeader('Retry-After', '60');
