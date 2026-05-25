@@ -170,6 +170,35 @@ input:focus,textarea:focus{border-color:var(--accent)}
 /* Swipe-to-close */
 .fullpage-overlay{transition:transform .2s ease-out}
 .fullpage-overlay.swiping{transition:none}
+/* Mood Patterns sub-page — slide from right. Sits below statDrillOverlay (z:200)
+   so tile-tap drill opens above the sub-page. Above the main view (no z-index). */
+#moodPatternsOverlay{position:fixed;inset:0;background:var(--bg);z-index:195;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .25s ease-out;overflow:hidden;padding-bottom:calc(var(--nav-h) + env(safe-area-inset-bottom))}
+#moodPatternsOverlay.open{transform:translateX(0)}
+#moodPatternsOverlay .mp-header{display:flex;align-items:center;gap:8px;padding:14px 16px 10px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg);z-index:10;flex-shrink:0}
+#moodPatternsOverlay .mp-back{background:none;border:none;color:var(--text);font-size:28px;line-height:1;padding:0 8px;cursor:pointer}
+#moodPatternsOverlay .mp-title{font-size:18px;font-weight:700}
+#moodPatternsOverlay .mp-body{flex:1;overflow-y:auto;padding:0 16px 40px;-webkit-overflow-scrolling:touch}
+#moodPatternsOverlay .mp-callout{font-style:italic;color:var(--muted);font-size:13px;text-align:center;padding:16px 8px 20px;line-height:1.5}
+.mp-tile-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(min-width:600px){.mp-tile-grid{grid-template-columns:1fr 1fr 1fr 1fr}}
+.mp-tile{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;cursor:pointer;transition:opacity .15s;display:flex;flex-direction:column;min-height:160px}
+.mp-tile:active{opacity:.8}
+.mp-tile-label{font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.mp-tile-empty{flex:1;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--muted);font-size:13px;line-height:1.4;padding:8px}
+.mp-tile-empty-with-preview{flex-direction:column;gap:8px}
+.mp-segmented{display:flex;background:var(--surface2);border-radius:8px;padding:3px;margin-bottom:12px;gap:2px}
+.mp-segmented button{flex:1;background:none;border:none;color:var(--muted);font-size:11px;font-weight:600;padding:6px 4px;border-radius:6px;cursor:pointer;letter-spacing:.2px;-webkit-tap-highlight-color:transparent}
+.mp-segmented button.active{background:var(--bg);color:var(--text)}
+.mp-donut-wrap{position:relative;display:flex;align-items:center;justify-content:center;margin:4px 0 6px}
+.mp-donut-wrap svg{width:120px;height:120px;display:block}
+.mp-donut-center{position:absolute;text-align:center;pointer-events:none}
+.mp-donut-center .pct{font-size:22px;font-weight:700;line-height:1;color:var(--text)}
+.mp-donut-center .lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:3px}
+.mp-balance-bar{display:flex;height:24px;border-radius:6px;overflow:hidden;background:var(--surface2);margin:8px 0}
+.mp-balance-seg{display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;min-width:0;overflow:hidden;white-space:nowrap}
+.mp-balance-legend{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;font-size:11px;color:var(--muted)}
+.mp-balance-legend .leg{display:flex;align-items:center;gap:4px}
+.mp-balance-legend .swatch{width:8px;height:8px;border-radius:2px;display:inline-block}
 /* Notes */
 .notes-section{margin-bottom:16px}
 .notes-label{color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;margin-bottom:6px}
@@ -225,6 +254,12 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .tile-rose{background:#2e0a1a;color:#fb7185}
 .tile-indigo{background:#1a1a3a;color:#818cf8}
 .tile-yellow{background:#2e2a00;color:#facc15}
+.tile-emerald{background:#082820;color:#5eead4}
+.tile-mood-patterns{background:var(--surface2);color:var(--text)}
+.tile-mood-patterns .stat-tile-label,.tile-mood-patterns .stat-tile-sub{color:var(--muted)}
+.tile-mood-patterns .mini-donut{display:flex;align-items:center;justify-content:center;height:48px;margin:4px 0}
+.tile-mood-patterns .mini-donut svg{width:48px;height:48px;display:block}
+.tile-mood-patterns .mini-donut-empty{width:48px;height:48px;border-radius:50%;border:3px solid var(--border);box-sizing:border-box}
 .stat-list{margin-bottom:20px}
 .stat-list-title{font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px}
 .stat-record-item{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer;border-radius:8px;transition:background .15s}
@@ -746,6 +781,18 @@ input:focus,textarea:focus{border-color:var(--accent)}
   </div>
   <div class="fullpage-body" style="padding:0 16px 40px">
     <div id="drillContent"></div>
+  </div>
+</div>
+
+<!-- Mood Patterns sub-page (Sprint 3 §9 Step 6.1) -->
+<div id="moodPatternsOverlay" aria-hidden="true">
+  <div class="mp-header">
+    <button class="mp-back" id="moodPatternsBack" aria-label="Back">&lsaquo;</button>
+    <span class="mp-title">Mood Patterns</span>
+  </div>
+  <div class="mp-body">
+    <div class="mp-callout">Your patterns grow with every play. Keep spinning.</div>
+    <div class="mp-tile-grid" id="moodPatternsGrid"></div>
   </div>
 </div>
 
@@ -1600,10 +1647,12 @@ function sortPlaysList(records){
 
 function closeAllOverlays(){
   const subpanelWasOpen=document.querySelectorAll('.settings-subpanel.open').length>0;
-  const wasOpen=subpanelWasOpen||$('sheetOverlay').classList.contains('open')||$('statDrillOverlay').classList.contains('open')||$('settingsOverlay').classList.contains('open')||$('artistOverlay').classList.contains('open');
+  const mpOpen=$('moodPatternsOverlay')&&$('moodPatternsOverlay').classList.contains('open');
+  const wasOpen=subpanelWasOpen||mpOpen||$('sheetOverlay').classList.contains('open')||$('statDrillOverlay').classList.contains('open')||$('settingsOverlay').classList.contains('open')||$('artistOverlay').classList.contains('open');
   document.querySelectorAll('.settings-subpanel.open').forEach(el=>el.classList.remove('open'));
   $('sheetOverlay').classList.remove('open');currentRecord=null;
   $('statDrillOverlay').classList.remove('open');
+  if($('moodPatternsOverlay')){$('moodPatternsOverlay').classList.remove('open');$('moodPatternsOverlay').setAttribute('aria-hidden','true');}
   $('settingsOverlay').classList.remove('open');
   $('artistOverlay').classList.remove('open');
   if(wasOpen&&history.state?.modal)history.back();
@@ -1988,6 +2037,7 @@ window.addEventListener('popstate',()=>{
   if(typeof anySubpanelOpen==='function'&&anySubpanelOpen()){closeSubpanel();return;}
   if($('artistOverlay').classList.contains('open'))closeArtistPage();
   else if($('statDrillOverlay').classList.contains('open'))closeStatDrill();
+  else if($('moodPatternsOverlay')&&$('moodPatternsOverlay').classList.contains('open'))closeMoodPatterns();
   else if($('sheetOverlay').classList.contains('open'))closeSheet();
   else if($('settingsOverlay').classList.contains('open'))closeSettings();
   closeHamburger();
@@ -2908,8 +2958,55 @@ $('notesSave').onclick=async()=>{
 };
 
 // ── Stats ─────────────────────────────────────────────────────
+// Mood Patterns mini-donut on Stats grid + Tile 1 All Time read from this.
+// {counts: {slug:count}, totalPlays:int}. Loaded on first openStats() then
+// refreshed on subsequent openStats() so plays since last visit are reflected.
+let moodMixAllTime={counts:{},totalPlays:0};
+let moodMixAllTimeLoaded=false;
+
+// Hand-rolled SVG donut. stroke-dasharray draws each arc against a transparent
+// fill. transform rotate(-90) starts the first slice at 12 o'clock. Empty
+// totalPlays renders a faded ring (empty-as-invitation per
+// [[feedback-empty-as-invitation]]). Slugs not in MOODS (deleted moods that
+// still have historical events) fall back to neutral grey.
+function buildMoodDonutSvg({counts, totalPlays}, opts={}){
+  const size=opts.size||96;
+  const strokeWidth=opts.strokeWidth||(size*0.20);
+  const r=(size/2)-(strokeWidth/2);
+  const cx=size/2, cy=size/2;
+  const circumference=2*Math.PI*r;
+  if(!totalPlays){
+    return `<svg viewBox="0 0 ${size} ${size}" aria-label="No mood data yet"><circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--border)" stroke-width="${strokeWidth}" opacity="0.6"/></svg>`;
+  }
+  const entries=Object.entries(counts).filter(([,n])=>n>0).sort((a,b)=>b[1]-a[1]);
+  let offset=0;
+  const arcs=entries.map(([slug,count])=>{
+    const m=MOODS.find(x=>x.id===slug);
+    const color=m?m.color:'#71717a';
+    const len=(count/totalPlays)*circumference;
+    const dasharray=`${len} ${circumference-len}`;
+    const dashoffset=-offset;
+    offset+=len;
+    return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${color}" stroke-width="${strokeWidth}" stroke-dasharray="${dasharray}" stroke-dashoffset="${dashoffset}" transform="rotate(-90 ${cx} ${cy})"/>`;
+  }).join('');
+  return `<svg viewBox="0 0 ${size} ${size}" aria-label="Mood mix donut">${arcs}</svg>`;
+}
+
+async function loadMoodMixAllTime(){
+  if(!crate.loadMoodEventCounts)return;
+  try{
+    const session=await crate.getSession();
+    if(!session)return;
+    const r=await crate.loadMoodEventCounts({userId:session.user.id});
+    if(r.success&&r.data){moodMixAllTime=r.data;moodMixAllTimeLoaded=true;}
+  }catch(e){console.error('[moodMix]',e);}
+}
+
 function openStats(){
   switchView('stats');renderStats();
+  // Refresh mood mix in background so the mini-donut + Mood Patterns tile reflect
+  // any plays since last visit. First-render uses cached or empty values.
+  loadMoodMixAllTime().then(()=>{if($('statsView').style.display!=='none')renderStats();});
 }
 
 // Smart normalize for wantlist records loaded from MySQL. The cache stores already-normalized records (flat `artist`/`title` fields), but older code paths sometimes pushed raw Discogs records (with `basic_information`). Detect which format we're holding and only normalize the raw ones.
@@ -2937,6 +3034,7 @@ function computeStatsData(){
   const playedRecords=collection.filter(r=>playCounts[r.releaseId]>0);
   const unplayedRecords=collection.filter(r=>!playCounts[r.releaseId]);
   const cycleRemaining=collection.filter(r=>!cycleLog[r.releaseId]);
+  const cyclePlayed=collection.filter(r=>cycleLog[r.releaseId]);
 
   const artistPlays={};
   collection.forEach(r=>{
@@ -2976,6 +3074,7 @@ function computeStatsData(){
     playedCount:playedRecords.length,
     unplayedCount:unplayedRecords.length,
     cycleRemainingCount:cycleRemaining.length,
+    cyclePlayedCount:cyclePlayed.length,
     topArtist,
     topGenre,
     topDecade,
@@ -3017,6 +3116,11 @@ function renderStats(){
       <div class="stat-tile-value">${s.cycleRemainingCount}</div>
       <div class="stat-tile-sub">remaining this cycle</div>
     </div>
+    <div class="stat-tile tile-emerald" data-tile="cycleplayed">
+      <div class="stat-tile-label">Cycle ${s.currentCycle}</div>
+      <div class="stat-tile-value">${s.cyclePlayedCount}</div>
+      <div class="stat-tile-sub">played this cycle</div>
+    </div>
     <div class="stat-tile tile-purple" data-tile="topartist">
       <div class="stat-tile-label">Top Artist</div>
       <div class="stat-tile-value" style="font-size:20px;line-height:1.2">${s.topArtist[0]}</div>
@@ -3042,6 +3146,11 @@ function renderStats(){
       <div class="stat-tile-value">${decadeLabel}</div>
       <div class="stat-tile-sub">${decadeSub}</div>
     </div>
+    <div class="stat-tile tile-mood-patterns" data-tile="moodpatterns">
+      <div class="stat-tile-label">Mood Patterns</div>
+      <div class="mini-donut">${buildMoodDonutSvg(moodMixAllTime,{size:56})}</div>
+      <div class="stat-tile-sub">your listening shape</div>
+    </div>
     <div class="stat-tile tile-yellow" data-tile="wantlist">
       <div class="stat-tile-label">Wantlist</div>
       <div class="stat-tile-value">${s.wantlistCount}</div>
@@ -3052,6 +3161,8 @@ function renderStats(){
     tile.onclick=()=>{
       // Wantlist tile opens the existing Wantlist view (which has its own sort/filter/search and Discogs links) instead of a stat drill overlay
       if(tile.dataset.tile==='wantlist'){closeAllOverlays();setActiveNav('navWantlist');openWantlist();return;}
+      // Mood Patterns tile opens the dedicated sub-page (Sprint 3 §9 Step 6.1)
+      if(tile.dataset.tile==='moodpatterns'){openMoodPatterns();return;}
       openStatDrill(tile.dataset.tile);
     };
   });
@@ -3061,6 +3172,7 @@ function openStatDrill(tile){
   const playedRecords=collection.filter(r=>playCounts[r.releaseId]>0);
   const unplayedRecords=collection.filter(r=>!playCounts[r.releaseId]);
   const cycleRemaining=collection.filter(r=>!cycleLog[r.releaseId]);
+  const cyclePlayed=collection.filter(r=>cycleLog[r.releaseId]);
   let title='',html='';
 
   if(tile==='plays'){
@@ -3075,6 +3187,9 @@ function openStatDrill(tile){
   }else if(tile==='cycle'){
     title='Remaining This Cycle';
     html=renderRecordList(cycleRemaining);
+  }else if(tile==='cycleplayed'){
+    title='Played This Cycle';
+    html=renderRecordList([...cyclePlayed].sort((a,b)=>new Date(lastPlayed[b.releaseId]||0)-new Date(lastPlayed[a.releaseId]||0)));
   }else if(tile==='topartist'){
     title='Artists by Plays';
     const artistPlays={};const artistIdMap={};
@@ -3147,6 +3262,201 @@ function wireDrillTaps(playedRecords){
 
 function closeStatDrill(){
   $('statDrillOverlay').classList.remove('open');
+}
+
+// ── Mood Patterns sub-page (Sprint 3 §9 Step 6.1) ─────────────
+// Cached state for the sub-page. Loaded on each open() so plays since last
+// visit reflect immediately. _mpMixWindow is the segmented control selection
+// for Tile 1 ('cycle' | '30d' | 'all'). Persists across opens via the global.
+let _mpMixWindow='all';
+let _mpData={all:{counts:{},totalPlays:0}, d30:{counts:{},totalPlays:0}, cycle:{counts:{},totalPlays:0}};
+
+async function loadMoodPatternsData(){
+  if(!crate.loadMoodEventCounts)return;
+  try{
+    const session=await crate.getSession();
+    if(!session)return;
+    const userId=session.user.id;
+    const d30Iso=new Date(Date.now()-30*24*60*60*1000).toISOString();
+    // Fire three queries in parallel — small scale, no batching needed.
+    const [allRes,d30Res,cycleRes]=await Promise.all([
+      crate.loadMoodEventCounts({userId}),
+      crate.loadMoodEventCounts({userId,since:d30Iso}),
+      crate.loadMoodEventCounts({userId,since:cycleStartedAt||undefined}),
+    ]);
+    if(allRes.success&&allRes.data)_mpData.all=allRes.data;
+    if(d30Res.success&&d30Res.data)_mpData.d30=d30Res.data;
+    if(cycleRes.success&&cycleRes.data)_mpData.cycle=cycleRes.data;
+    // Mirror All Time into the Stats-grid mini-donut state so the two surfaces
+    // never drift after a refresh.
+    moodMixAllTime=_mpData.all;moodMixAllTimeLoaded=true;
+  }catch(e){console.error('[moodPatterns]',e);}
+}
+
+async function openMoodPatterns(){
+  pushModalState();
+  $('moodPatternsOverlay').setAttribute('aria-hidden','false');
+  $('moodPatternsOverlay').classList.add('open');
+  renderMoodPatterns(); // first render uses cached / empty data
+  await loadMoodPatternsData();
+  renderMoodPatterns(); // re-render with fresh data
+}
+
+function closeMoodPatterns(){
+  $('moodPatternsOverlay').classList.remove('open');
+  $('moodPatternsOverlay').setAttribute('aria-hidden','true');
+}
+
+function renderMoodPatterns(){
+  const mix=_mpData[_mpMixWindow==='cycle'?'cycle':_mpMixWindow==='30d'?'d30':'all'];
+  $('moodPatternsGrid').innerHTML=
+    renderMoodMixTile(mix,_mpMixWindow)+
+    renderCycleBalanceTile(_mpData.cycle);
+  wireMoodPatternsTaps();
+}
+
+function renderMoodMixTile(mix,win){
+  const segCtrl=`<div class="mp-segmented" data-control="mixwindow">
+    <button data-win="cycle"${win==='cycle'?' class="active"':''}>This Cycle</button>
+    <button data-win="30d"${win==='30d'?' class="active"':''}>30 Days</button>
+    <button data-win="all"${win==='all'?' class="active"':''}>All Time</button>
+  </div>`;
+  if(!mix.totalPlays){
+    return `<div class="mp-tile" data-tile="mix">
+      <div class="mp-tile-label">Mood Mix</div>
+      ${segCtrl}
+      <div class="mp-tile-empty mp-tile-empty-with-preview">
+        <div class="mp-donut-wrap">${buildMoodDonutSvg({counts:{},totalPlays:0},{size:96})}</div>
+        <div>Play 1 record to see your mix</div>
+      </div>
+    </div>`;
+  }
+  // Top slug for center text
+  const top=Object.entries(mix.counts).sort((a,b)=>b[1]-a[1])[0];
+  const topPct=top?Math.round((top[1]/mix.totalPlays)*100):0;
+  const topMood=top?(MOODS.find(m=>m.id===top[0])||{}):{};
+  const center=`<div class="mp-donut-center"><div class="pct" style="color:${topMood.color||'var(--text)'}">${topPct}%</div><div class="lbl">${(topMood.label||top[0]||'').toString().slice(0,10)}</div></div>`;
+  return `<div class="mp-tile" data-tile="mix">
+    <div class="mp-tile-label">Mood Mix</div>
+    ${segCtrl}
+    <div class="mp-donut-wrap">${buildMoodDonutSvg(mix,{size:120})}${center}</div>
+  </div>`;
+}
+
+function renderCycleBalanceTile(cycleMix){
+  if(!cycleMix.totalPlays){
+    return `<div class="mp-tile" data-tile="cyclebalance">
+      <div class="mp-tile-label">Cycle Mood Balance</div>
+      <div class="mp-tile-empty">Cycle just reset. Play a record to start the mix.</div>
+    </div>`;
+  }
+  const entries=Object.entries(cycleMix.counts).filter(([,n])=>n>0).sort((a,b)=>b[1]-a[1]);
+  const total=entries.reduce((s,[,n])=>s+n,0);
+  const segs=entries.map(([slug,count])=>{
+    const m=MOODS.find(x=>x.id===slug)||{color:'#71717a',label:slug};
+    const pct=Math.round((count/total)*100);
+    return `<div class="mp-balance-seg" style="background:${m.color};width:${(count/total)*100}%" title="${m.label}: ${count} plays">${pct>=10?pct+'%':''}</div>`;
+  }).join('');
+  const legend=entries.map(([slug,count])=>{
+    const m=MOODS.find(x=>x.id===slug)||{color:'#71717a',label:slug};
+    return `<span class="leg"><span class="swatch" style="background:${m.color}"></span>${m.label} · ${count}</span>`;
+  }).join('');
+  return `<div class="mp-tile" data-tile="cyclebalance">
+    <div class="mp-tile-label">Cycle Mood Balance</div>
+    <div class="mp-balance-bar">${segs}</div>
+    <div class="mp-balance-legend">${legend}</div>
+  </div>`;
+}
+
+function wireMoodPatternsTaps(){
+  // Segmented control on Mood Mix tile
+  $('moodPatternsGrid').querySelectorAll('.mp-segmented button').forEach(btn=>{
+    btn.onclick=(e)=>{
+      e.stopPropagation();
+      _mpMixWindow=btn.dataset.win;
+      renderMoodPatterns();
+    };
+  });
+  // Tile taps → drill-down (skip if tap originated on the segmented control)
+  $('moodPatternsGrid').querySelectorAll('.mp-tile').forEach(tile=>{
+    tile.onclick=(e)=>{
+      if(e.target.closest('.mp-segmented'))return;
+      openMoodPatternDrill(tile.dataset.tile);
+    };
+  });
+}
+
+function openMoodPatternDrill(which){
+  let title='',win='all';
+  if(which==='mix'){
+    win=_mpMixWindow;
+    const winLabel=win==='cycle'?'This Cycle':win==='30d'?'Last 30 Days':'All Time';
+    title=`Mood Mix — ${winLabel}`;
+  }else if(which==='cyclebalance'){
+    title='Cycle Mood Balance';
+    win='cycle';
+  }
+  $('drillHeaderTitle').textContent=title;
+  $('drillContent').innerHTML='<div style="color:var(--muted);font-size:12px;text-align:center;padding:20px">Loading…</div>';
+  pushModalState();showNav();
+  $('statDrillOverlay').classList.add('open');
+  $('statDrillOverlay').scrollTop=0;
+  fillMoodGroupedDrill(win);
+}
+
+// Async drill content loader. Pulls recent play events, filters to the time
+// window, groups by mood (multi-mood plays appear under each mood), patches
+// #drillContent in place. Backfill events excluded per Session 37 CC decision.
+async function fillMoodGroupedDrill(win){
+  try{
+    const session=await crate.getSession();
+    if(!session)return;
+    const r=await crate.loadRecentPlays(500,0);
+    if(!r.success)return;
+    const events=r.data||[];
+    let cutoff=null;
+    if(win==='cycle'&&cycleStartedAt)cutoff=new Date(cycleStartedAt).getTime();
+    else if(win==='30d')cutoff=Date.now()-30*24*60*60*1000;
+    const filtered=events.filter(ev=>{
+      if(ev.source==='backfill')return false;
+      const moods=moodActiveArray(ev);
+      if(!moods.length)return false;
+      if(cutoff&&new Date(ev.played_at).getTime()<cutoff)return false;
+      return true;
+    });
+    // Group by mood (multi-mood plays appear under each)
+    const grouped={};
+    filtered.forEach(ev=>{
+      moodActiveArray(ev).forEach(slug=>{
+        (grouped[slug]||(grouped[slug]=[])).push(ev);
+      });
+    });
+    const slugsByCount=Object.entries(grouped).sort((a,b)=>b[1].length-a[1].length).map(([s])=>s);
+    let out='';
+    slugsByCount.forEach(slug=>{
+      const m=MOODS.find(x=>x.id===slug)||{color:'#71717a',label:slug};
+      out+=`<div style="margin-top:18px"><div style="font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;color:${m.color};margin-bottom:8px">${m.label} · ${grouped[slug].length}</div>`;
+      out+=grouped[slug].map(ev=>{
+        const rec=collection.find(r=>r.releaseId===ev.release_id);
+        if(!rec)return '';
+        const art=artCache[ev.release_id];
+        const when=new Date(ev.played_at);
+        const dateStr=when.toLocaleDateString(undefined,{month:'short',day:'numeric'});
+        return `<div class="stat-record-item" data-id="${ev.release_id}" style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border)">
+          <div style="width:44px;height:44px;flex-shrink:0;background:var(--surface2);border-radius:4px;overflow:hidden">${art?`<img src="${art}" style="width:100%;height:100%;object-fit:cover" alt="">`:''}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${rec.title||''}</div>
+            <div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${rec.artist||''}</div>
+          </div>
+          <div style="font-size:11px;color:var(--muted);flex-shrink:0">${dateStr}</div>
+        </div>`;
+      }).join('');
+      out+='</div>';
+    });
+    if(!out)out='<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">No plays in this window yet.</div>';
+    $('drillContent').innerHTML=out;
+    wireDrillTaps([]);
+  }catch(e){console.error('[moodGroupedDrill]',e);}
 }
 
 function closeArtistPage(){
@@ -3673,6 +3983,7 @@ $('artistClose').onclick=()=>{if(history.state?.modal)history.back();else closeA
 $('artistOverlay').querySelector('.sheet-drag-handle').onclick=()=>{if(history.state?.modal)history.back();else closeArtistPage();};
 $('settingsClose').onclick=()=>{if(history.state?.modal)history.back();else closeSettings();};
 $('settingsDoneBtn').onclick=()=>{if(history.state?.modal)history.back();else closeSettings();};
+$('moodPatternsBack').onclick=()=>{if(history.state?.modal)history.back();else closeMoodPatterns();};
 
 // Swipe-down to close album detail
 (function(){
