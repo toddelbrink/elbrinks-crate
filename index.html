@@ -3506,7 +3506,7 @@ function renderForgottenMoodTile(){
 // length >=2. 'longest30d': longest such run within last 30d if no current.
 // Rules: null mood_active SKIPS (no signal), no overlap BREAKS, overlap CONTINUES.
 function computeStreak(){
-  const events=(_mpData.recentForStreak||[]).filter(ev=>ev.source!=='backfill');
+  const events=(_mpData.recentForStreak||[]).slice();
   if(!events.length)return null;
   // Events come back played_at desc already (per loadRecentPlays). Reverse-scan
   // so we walk most-recent → older.
@@ -3774,7 +3774,7 @@ function buildMultiLineSvg(weeks,moodSlugs,opts={}){
 
 // Tile 6 — Mood by Day of Week (graceful degradation: text → bars → heatmap).
 function renderDayOfWeekTile(){
-  const events=(_mpData.recentForStreak||[]).filter(ev=>ev.source!=='backfill'&&moodActiveArray(ev).length>0);
+  const events=(_mpData.recentForStreak||[]).filter(ev=>moodActiveArray(ev).length>0);
   const n=events.length;
   const emptyHtml=`<div class="mp-tile" data-tile="dayofweek">
       <div class="mp-tile-label">Day of Week</div>
@@ -3820,7 +3820,7 @@ function renderDayOfWeekTile(){
 
 // Tile 7 — Mood by Time of Day (graceful degradation: text → bars → heatmap).
 function renderTimeOfDayTile(){
-  const events=(_mpData.recentForStreak||[]).filter(ev=>ev.source!=='backfill'&&moodActiveArray(ev).length>0);
+  const events=(_mpData.recentForStreak||[]).filter(ev=>moodActiveArray(ev).length>0);
   const n=events.length;
   const emptyHtml=`<div class="mp-tile" data-tile="timeofday">
       <div class="mp-tile-label">Time of Day</div>
@@ -3877,7 +3877,7 @@ function renderTimeOfDayTile(){
 // Tile 8 — Mood Balance Over Time (graceful degradation: text → bars → multi-line).
 // Spans full grid width (mp-balance class) for chart legibility per PRD §9.5.
 function renderBalanceOverTimeTile(){
-  const events=(_mpData.recentForStreak||[]).filter(ev=>ev.source!=='backfill'&&moodActiveArray(ev).length>0);
+  const events=(_mpData.recentForStreak||[]).filter(ev=>moodActiveArray(ev).length>0);
   const emptyHtml=`<div class="mp-tile mp-balance" data-tile="balanceovertime">
       <div class="mp-tile-label">Balance Over Time</div>
       <div class="mp-tile-empty">Play across a couple of weeks to see this take shape.</div>
@@ -4015,7 +4015,7 @@ function _drillPlayRow(ev){
 // Drill for Tile 6 — list of plays grouped by day of week, most-active day
 // first. Backfill events and null-mood plays excluded (mirrors tile filter).
 function fillDayOfWeekDrill(){
-  const events=(_mpData.recentForStreak||[]).filter(ev=>ev.source!=='backfill'&&moodActiveArray(ev).length>0);
+  const events=(_mpData.recentForStreak||[]).filter(ev=>moodActiveArray(ev).length>0);
   if(!events.length){
     $('drillContent').innerHTML='<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">No plays to chart yet.</div>';
     return;
@@ -4036,7 +4036,7 @@ function fillDayOfWeekDrill(){
 
 // Drill for Tile 7 — list of plays grouped by 4-hour bucket, busiest first.
 function fillTimeOfDayDrill(){
-  const events=(_mpData.recentForStreak||[]).filter(ev=>ev.source!=='backfill'&&moodActiveArray(ev).length>0);
+  const events=(_mpData.recentForStreak||[]).filter(ev=>moodActiveArray(ev).length>0);
   if(!events.length){
     $('drillContent').innerHTML='<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">No plays to chart yet.</div>';
     return;
@@ -4069,7 +4069,7 @@ function fillTimeOfDayDrill(){
 // §9.5 "drill-down with full multi-line chart regardless of data size", then
 // list of plays grouped by week (most-recent first).
 function fillBalanceOverTimeDrill(){
-  const events=(_mpData.recentForStreak||[]).filter(ev=>ev.source!=='backfill'&&moodActiveArray(ev).length>0);
+  const events=(_mpData.recentForStreak||[]).filter(ev=>moodActiveArray(ev).length>0);
   if(!events.length){
     $('drillContent').innerHTML='<div style="color:var(--muted);font-size:13px;text-align:center;padding:20px">No plays to chart yet.</div>';
     return;
@@ -4184,7 +4184,6 @@ async function fillMoodGroupedDrill(win){
     if(win==='cycle'&&cycleStartedAt)cutoff=new Date(cycleStartedAt).getTime();
     else if(win==='30d')cutoff=Date.now()-30*24*60*60*1000;
     const filtered=events.filter(ev=>{
-      if(ev.source==='backfill')return false;
       const moods=moodActiveArray(ev);
       if(!moods.length)return false;
       if(cutoff&&new Date(ev.played_at).getTime()<cutoff)return false;
