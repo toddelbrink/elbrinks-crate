@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Elbrink's Crate</title>
 <meta name="description" content="Todd Elbrink's vinyl collection. Browse the crate, explore stats, and see what's spinning.">
@@ -119,10 +120,10 @@ input:focus{border-color:var(--accent)}
    by Claude" footer is plain text (not tappable) — no transparency modal. */
 .tab .spark{display:inline-block;margin-left:4px;color:var(--accent);opacity:.85}
 .liner-notes-list{padding:6px 0 4px}
-.liner-note{margin-bottom:16px}
+.liner-note{margin-bottom:18px}
 .liner-note:last-of-type{margin-bottom:12px}
+.liner-note-category{font-size:11px;font-weight:600;color:var(--muted);opacity:.75;margin-bottom:6px;letter-spacing:.06em;text-transform:uppercase}
 .liner-note-body{color:var(--text);font-size:14px;line-height:1.55}
-.liner-note-category{font-size:11px;font-style:italic;color:var(--muted);opacity:.7;margin-top:4px;letter-spacing:.02em}
 .liner-notes-footer{display:block;font-size:11px;color:var(--muted);opacity:.7;padding:10px 0 4px;border-top:1px solid var(--border);margin-top:8px}
 .liner-notes-placeholder{color:var(--muted);font-size:13px;font-style:italic;line-height:1.6;padding:8px 0 12px}
 .loading-inline{color:var(--muted);font-size:13px;padding:12px 0;text-align:center}
@@ -716,9 +717,9 @@ function renderLinerNotes(releaseId){
   if(status==='generated'&&Array.isArray(notes)&&notes.length){
     notes.forEach(n=>{
       const wrap=document.createElement('div');wrap.className='liner-note';
-      const body=document.createElement('div');body.className='liner-note-body';body.textContent=n.body||'';
       const cat=document.createElement('div');cat.className='liner-note-category';cat.textContent=n.category||'';
-      wrap.appendChild(body);wrap.appendChild(cat);
+      const body=document.createElement('div');body.className='liner-note-body';body.textContent=n.body||'';
+      wrap.appendChild(cat);wrap.appendChild(body);
       el.appendChild(wrap);
     });
     const footer=document.createElement('div');
