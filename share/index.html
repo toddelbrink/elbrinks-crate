@@ -113,9 +113,18 @@ input:focus{border-color:var(--accent)}
 .track-pos{color:var(--muted);font-size:12px;min-width:24px;text-align:right}
 .track-title{font-size:13px;flex:1}
 .track-dur{color:var(--muted);font-size:12px}
-.about-text{color:var(--muted);font-size:13px;line-height:1.7}
-.about-text p{margin-bottom:10px}
 .wiki-link{color:var(--accent);font-size:12px;display:inline-block;margin-top:6px}
+/* Liner Notes tab (Sprint 3 §13) — replaces former About tab. Wikipedia bio
+   preserved on Artist Page only per PRD §13.15. On share page the "Generated
+   by Claude" footer is plain text (not tappable) — no transparency modal. */
+.tab .spark{display:inline-block;margin-left:4px;color:var(--accent);opacity:.85}
+.liner-notes-list{padding:6px 0 4px}
+.liner-note{margin-bottom:16px}
+.liner-note:last-of-type{margin-bottom:12px}
+.liner-note-body{color:var(--text);font-size:14px;line-height:1.55}
+.liner-note-category{font-size:11px;font-style:italic;color:var(--muted);opacity:.7;margin-top:4px;letter-spacing:.02em}
+.liner-notes-footer{display:block;font-size:11px;color:var(--muted);opacity:.7;padding:10px 0 4px;border-top:1px solid var(--border);margin-top:8px}
+.liner-notes-placeholder{color:var(--muted);font-size:13px;font-style:italic;line-height:1.6;padding:8px 0 12px}
 .loading-inline{color:var(--muted);font-size:13px;padding:12px 0;text-align:center}
 /* Stats */
 .stat-tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px}
@@ -275,15 +284,14 @@ input:focus{border-color:var(--accent)}
       </div>
       <div class="tabs">
         <button class="tab active" data-tab="Tracks">Tracks</button>
-        <button class="tab" data-tab="About">About</button>
+        <button class="tab" data-tab="LinerNotes">Liner Notes<span class="spark">✦</span></button>
       </div>
       <div class="tab-panel active" id="tabTracks">
         <div class="loading-inline" id="tracksLoading">Loading tracks...</div>
         <ul class="track-list" id="trackList"></ul>
       </div>
-      <div class="tab-panel" id="tabAbout">
-        <div class="loading-inline" id="aboutLoading">Loading...</div>
-        <div class="about-text" id="aboutText"></div>
+      <div class="tab-panel" id="tabLinerNotes">
+        <div class="liner-notes-list" id="linerNotesList"></div>
       </div>
     </div>
   </div>
@@ -342,6 +350,9 @@ const MOODS=[
 ];
 
 let collection=[],filtered=[],artCache={},genreCache={},moodCache={},notesCache={},wikiCache={},artistsDB={};
+// Liner notes caches (Sprint 3 §13) — read-only on share page, populated
+// from vinyl_meta via the owner's RLS-gated anon read.
+let linerNotesCache={},linerNotesStatusCache={};
 let playCounts={},cycleLog={},lastPlayed={},currentCycle=1;
 let sortMode='alpha',sortIdx=0,activeMoodFilter='all';
 let activeView='crate',currentRecord=null;
@@ -435,6 +446,9 @@ async function loadAllData(){
         if(m.moods&&m.moods.length)moodCache[id]=m.moods;
         if(m.notes)notesCache[id]=m.notes;
         if(m.artist_wiki_url)wikiCache[id]=m.artist_wiki_url;
+        // Sprint 3 §13: Liner Notes (parity with PWA)
+        if(Array.isArray(m.liner_notes))linerNotesCache[id]=m.liner_notes;
+        linerNotesStatusCache[id]=m.liner_notes_status||'pending';
       });
     }
 
@@ -675,7 +689,6 @@ function openSheet(r){
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab==='Tracks'));
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active',p.id==='tabTracks'));
   $('trackList').innerHTML='';$('tracksLoading').style.display='block';
-  $('aboutText').innerHTML='';$('aboutLoading').style.display='block';
 
   $('sheetOverlay').classList.add('open');
   $('sheetOverlay').scrollTop=0;
@@ -687,13 +700,37 @@ function openSheet(r){
     $('trackList').innerHTML=tracks.map(t=>'<li class="track"><span class="track-pos">'+(t.position||'\u2014')+'</span><span class="track-title">'+t.title+'</span><span class="track-dur">'+(t.duration||'')+'</span></li>').join('');
   });
 
-  // Load about/bio
-  loadAbout(r).then(wiki=>{
-    $('aboutLoading').style.display='none';
-    if(!wiki){$('aboutText').innerHTML='<p>No Wikipedia entry found.</p>';return;}
-    const paras=wiki.text.split('\n').filter(p=>p.trim().length>30).slice(0,4);
-    $('aboutText').innerHTML=paras.map(p=>'<p>'+p+'</p>').join('')+'<a href="'+wiki.url+'" target="_blank" class="wiki-link">Read more on Wikipedia \u2192</a>';
-  });
+  // Sprint 3 \u00a713: Liner Notes tab renders synchronously from cache.
+  // Wikipedia bio moved to Artist Page only per PRD \u00a713.15.
+  renderLinerNotes(r.releaseId);
+}
+
+// Render the album-detail Liner Notes tab from cached state (Sprint 3 \u00a713).
+// Read-only on share page \u2014 no flag-as-wrong, no transparency modal.
+function renderLinerNotes(releaseId){
+  const el=$('linerNotesList');
+  if(!el)return;
+  el.innerHTML='';
+  const status=linerNotesStatusCache[releaseId]||'pending';
+  const notes=linerNotesCache[releaseId];
+  if(status==='generated'&&Array.isArray(notes)&&notes.length){
+    notes.forEach(n=>{
+      const wrap=document.createElement('div');wrap.className='liner-note';
+      const body=document.createElement('div');body.className='liner-note-body';body.textContent=n.body||'';
+      const cat=document.createElement('div');cat.className='liner-note-category';cat.textContent=n.category||'';
+      wrap.appendChild(body);wrap.appendChild(cat);
+      el.appendChild(wrap);
+    });
+    const footer=document.createElement('div');
+    footer.className='liner-notes-footer';
+    footer.textContent='Generated by Claude';
+    el.appendChild(footer);
+  }else{
+    const ph=document.createElement('div');
+    ph.className='liner-notes-placeholder';
+    ph.textContent="Liner notes for this record aren't available yet. We may try again as Claude learns.";
+    el.appendChild(ph);
+  }
 }
 
 function closeSheet(){
