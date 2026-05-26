@@ -286,6 +286,10 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .liner-notes-footer{display:inline-block;font-size:11px;color:var(--muted);opacity:.7;padding:10px 0 4px;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;border-top:1px solid var(--border);margin-top:8px;width:100%}
 .liner-notes-footer:active{opacity:1}
 .liner-notes-placeholder{color:var(--muted);font-size:13px;font-style:italic;line-height:1.6;padding:8px 0 12px}
+.liner-notes-abstain-flag{display:inline-flex;align-items:center;gap:6px;margin:4px 0 12px;padding:8px 14px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:var(--font);font-size:12px;font-weight:600;letter-spacing:.04em;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.liner-notes-abstain-flag:hover{color:var(--text);border-color:var(--text)}
+.liner-notes-abstain-flag:active{background:var(--surface2)}
+.liner-notes-abstain-flag .flag-glyph{font-size:14px;line-height:1}
 .loading-inline{color:var(--muted);font-size:13px;padding:12px 0;text-align:center}
 /* Progress */
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -1149,14 +1153,17 @@ input:focus,textarea:focus{border-color:var(--accent)}
   </div>
 </div>
 
-<!-- Liner Notes flag-as-wrong modal (Sprint 3 §13 Step 5) — tap the ⚐ icon on a note -->
+<!-- Liner Notes flag modal (Sprint 3 §13 Step 5) — used for two modes:
+     1. Flag-as-wrong on a shipped note (tap ⚐ on the note)
+     2. Flag the abstention on a low_confidence record ("Know about this record?")
+     Title, subtitle, quote box, and textarea placeholder switch based on mode. -->
 <div id="linerNoteFlagModal" class="reset-modal" style="display:none">
   <div class="reset-card" style="max-width:480px;text-align:left">
-    <h2 style="text-align:center">Flag this liner note?</h2>
-    <p style="color:var(--muted);font-size:14px;line-height:1.5;margin:12px 0 16px;text-align:center">
+    <h2 id="linerNoteFlagTitle" style="text-align:center">Flag this liner note?</h2>
+    <p id="linerNoteFlagSub" style="color:var(--muted);font-size:14px;line-height:1.5;margin:12px 0 16px;text-align:center">
       Sends this note to Todd for review. Add a comment if you know what's wrong.
     </p>
-    <div style="background:var(--surface2);border-radius:8px;padding:12px;margin-bottom:14px">
+    <div id="linerNoteFlagQuoteBox" style="background:var(--surface2);border-radius:8px;padding:12px;margin-bottom:14px">
       <div id="linerNoteFlagAlbum" style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px"></div>
       <div id="linerNoteFlagCategory" style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px"></div>
       <div id="linerNoteFlagBody" style="font-size:13px;color:var(--text);line-height:1.5;font-style:italic"></div>
@@ -2786,6 +2793,16 @@ function renderLinerNotes(releaseId){
     ph.className='liner-notes-placeholder';
     ph.textContent="Liner notes for this record aren't available. Claude chose silence over guessing — likely a recent, regional, or limited-data release. Better than wrong content.";
     el.appendChild(ph);
+    // Symmetrical flag affordance — over-abstention path (Step 5 polish).
+    // Lets knowledgeable users contribute ground truth when Claude silenced.
+    const flagBtn=document.createElement('button');
+    flagBtn.type='button';
+    flagBtn.className='liner-notes-abstain-flag';
+    flagBtn.innerHTML='<span class="flag-glyph">⚐</span><span>Know about this record?</span>';
+    const openAbstain=(e)=>{e.preventDefault();e.stopPropagation();openLinerNoteAbstainModal(releaseId);};
+    flagBtn.addEventListener('touchend',openAbstain);
+    flagBtn.addEventListener('click',openAbstain);
+    el.appendChild(flagBtn);
   }else{
     // pending or failed — differentiate by whether the worker is mid-run
     const ph=document.createElement('div');
@@ -2815,12 +2832,28 @@ function closeLinerNotesProvenanceModal(){
 let _pendingLinerNoteFlag=null;
 
 function openLinerNoteFlagModal(releaseId,note){
-  _pendingLinerNoteFlag={releaseId,note};
+  _pendingLinerNoteFlag={releaseId,note,abstention:false};
   const rec=collection.find(r=>r.releaseId===releaseId);
+  $('linerNoteFlagTitle').textContent='Flag this liner note?';
+  $('linerNoteFlagSub').textContent='Sends this note to Todd for review. Add a comment if you know what\'s wrong.';
+  $('linerNoteFlagQuoteBox').style.display='';
   $('linerNoteFlagAlbum').textContent=rec?`${rec.artist||'?'} — ${rec.title||'?'}`:'Unknown record';
   $('linerNoteFlagCategory').textContent=note.category||'';
   $('linerNoteFlagBody').textContent=note.body||'';
+  $('linerNoteFlagComment').placeholder="What's wrong with this note? (optional)";
   $('linerNoteFlagComment').value='';
+  const m=$('linerNoteFlagModal');if(m)m.style.display='flex';
+}
+
+function openLinerNoteAbstainModal(releaseId){
+  _pendingLinerNoteFlag={releaseId,note:null,abstention:true};
+  const rec=collection.find(r=>r.releaseId===releaseId);
+  $('linerNoteFlagTitle').textContent='Know about this record?';
+  $('linerNoteFlagSub').textContent='Claude didn\'t have enough information to write liner notes for this one. Tell Todd what you know — he\'ll review.';
+  $('linerNoteFlagQuoteBox').style.display='none';
+  $('linerNoteFlagComment').placeholder='Producer, year, recording story, anything you know about this record…';
+  $('linerNoteFlagComment').value='';
+  // Stash album info for the body builder (read by submitLinerNoteFlag via _pendingLinerNoteFlag.releaseId)
   const m=$('linerNoteFlagModal');if(m)m.style.display='flex';
 }
 
@@ -2831,21 +2864,33 @@ function closeLinerNoteFlagModal(){
 
 async function submitLinerNoteFlag(){
   if(!_pendingLinerNoteFlag)return;
-  const {releaseId,note}=_pendingLinerNoteFlag;
+  const {releaseId,note,abstention}=_pendingLinerNoteFlag;
   const rec=collection.find(r=>r.releaseId===releaseId);
   const comment=$('linerNoteFlagComment').value.trim();
-  const bodyText=[
-    'LINER NOTES FLAG',
-    `Release: ${releaseId} — ${rec?.artist||'?'} — ${rec?.title||'?'} (${rec?.year||'?'})`,
-    `Category: ${note.category||'?'}`,
-    `Confidence: ${note.confidence??'?'}`,
-    '',
-    'Flagged note:',
-    note.body||'',
-    '',
-    'User comment:',
-    comment||'(none)',
-  ].join('\n');
+  let bodyText;
+  if(abstention){
+    bodyText=[
+      'LINER NOTES ABSTENTION FLAG',
+      `Release: ${releaseId} — ${rec?.artist||'?'} — ${rec?.title||'?'} (${rec?.year||'?'})`,
+      'Status: low_confidence (Claude chose silence)',
+      '',
+      'User knowledge:',
+      comment||'(none)',
+    ].join('\n');
+  }else{
+    bodyText=[
+      'LINER NOTES FLAG',
+      `Release: ${releaseId} — ${rec?.artist||'?'} — ${rec?.title||'?'} (${rec?.year||'?'})`,
+      `Category: ${note.category||'?'}`,
+      `Confidence: ${note.confidence??'?'}`,
+      '',
+      'Flagged note:',
+      note.body||'',
+      '',
+      'User comment:',
+      comment||'(none)',
+    ].join('\n');
+  }
   const btn=$('linerNoteFlagSubmitBtn');
   btn.disabled=true;const orig=btn.textContent;btn.textContent='Sending…';
   const res=await crate.submitFeedback({
