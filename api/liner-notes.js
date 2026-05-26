@@ -346,10 +346,16 @@ Write 2 to 3 notes for this record with honest confidence scores.`;
     console.error('[liner-notes] audit insert failed', auditError.message);
   }
 
+  // Temporary debug surface (Session 41 CC QA). Pass ?debug=1 to see Claude's
+  // raw response alongside the floor-filtered version. Lets us diagnose
+  // low_confidence cases — did Claude self-abstain (empty array) or did
+  // the 0.7 floor drop all notes. Revert after investigation.
+  const debug = (req.query && req.query.debug === '1') || req.url?.includes('debug=1');
   res.status(200).json({
     notes: finalNotes,
     status: outcome,
     generated_at: generatedAt,
     cached: false,
+    ...(debug ? { _debug_raw_claude_notes: claudeNotes, _debug_pre_floor_valid: validShape } : {}),
   });
 }
