@@ -147,6 +147,10 @@ Editorial bar — what each note must do:
 - "When was it released" and "what label" and "who produced it" are jacket-back facts. Use them only when they are the surprising part (an unexpected label, a producer with one credit, a release blocked by litigation, an album held back for years).
 - Personnel notes earn their place when the player did something specific (Clare Torry's improvised vocal on one £30 session, Steve Gadd's one-take drum part). Just listing the band lineup is not a liner note.
 - Recording notes earn their place when the studio behavior was unusual (recorded in under two weeks, recorded across seven studios, first album in a new EMI desk room). Just listing the studio and dates is not a liner note.
+- Cover Art notes earn their place when the artwork has a named designer or photographer (Hipgnosis / Storm Thorgerson for Pink Floyd, Reid Miles for Blue Note, Robert Crumb for Big Brother and the Holding Company, Vaughan Oliver for 4AD, Roger Dean for Yes, Mati Klarwein for Bitches Brew or Abraxas), a real art-direction story behind a known image, or significant artwork differences between original and reissue pressings. Vinyl listeners care about cover art when it has a story — surface it when it does. Skip the category entirely when the artwork is generic or the story isn't known. Don't force it.
+
+Quantity rule:
+- Aim for 2 to 3 notes per record. One strong note is fine if that's all you have — never pad with weaker content. But if you know multiple specific angles for a less-famous record, surface them all. Quality over quantity remains the rule, but completeness when knowledge exists. Don't undersell a record by stopping at one note when you have two or three real ones to share.
 
 Your response will be filtered server-side: notes with confidence below 0.7 are dropped before the user sees them. Write what you know with honest confidence scores. You do NOT need to self-censor lower-confidence notes — just score them honestly. Trust the floor.
 

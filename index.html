@@ -2748,7 +2748,7 @@ function renderLinerNotes(releaseId){
   }else if(status==='low_confidence'){
     const ph=document.createElement('div');
     ph.className='liner-notes-placeholder';
-    ph.textContent="Liner notes for this record aren't available yet. We may try again as Claude learns.";
+    ph.textContent="Liner notes for this record aren't available. Claude chose silence over guessing — likely a recent, regional, or limited-data release. Better than wrong content.";
     el.appendChild(ph);
   }else{
     // pending or failed — differentiate by whether the worker is mid-run

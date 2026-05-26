@@ -729,7 +729,11 @@ function renderLinerNotes(releaseId){
   }else{
     const ph=document.createElement('div');
     ph.className='liner-notes-placeholder';
-    ph.textContent="Liner notes for this record aren't available yet. We may try again as Claude learns.";
+    if(status==='low_confidence'){
+      ph.textContent="Liner notes for this record aren't available. Claude chose silence over guessing — likely a recent, regional, or limited-data release. Better than wrong content.";
+    }else{
+      ph.textContent="Liner notes for this record aren't available yet.";
+    }
     el.appendChild(ph);
   }
 }
