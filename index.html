@@ -1097,8 +1097,8 @@ input:focus,textarea:focus{border-color:var(--accent)}
 
     <div class="share-toggle-row">
       <div class="share-toggle-label">
-        <div class="share-toggle-title">Let Claude write liner notes for your records</div>
-        <div class="share-toggle-sub">2 to 3 short notes per record with specific facts about recording, personnel, history. Replaces the old About tab on album detail. Onboarding consent is being redesigned — for now, turn this on here when you're ready.</div>
+        <div class="share-toggle-title">Let Claude write liner notes</div>
+        <div class="share-toggle-sub">2 to 3 short notes per record (recording, personnel, history) on every album detail page. Runs in the background when you sync. Turn off to stop generation; existing notes stay.</div>
       </div>
       <label class="share-switch">
         <input type="checkbox" id="linerNotesToggle" />
@@ -1106,7 +1106,7 @@ input:focus,textarea:focus{border-color:var(--accent)}
       </label>
     </div>
 
-    <div class="autosuggest-status-row" id="linerNotesStatusRow">Ready.</div>
+    <div class="autosuggest-status-row" id="linerNotesStatusRow">Caught up.</div>
   </div>
 </div>
 
@@ -1926,6 +1926,11 @@ async function init(){
     // all 112 rows are 'manual' so this no-ops; for John (or any fresh user),
     // it'll process the entire collection.
     startAutoSuggestFetch().catch(e=>console.error('[autoSuggest]',e));
+    // Sprint 3 §13 — fire liner notes worker on init too. Self-gated on
+    // linerNotesEnabled. No consent gate (PRD §13.12 default-on, Todd
+    // 2026-05-25: "why consent if they aren't paying for it" — no privacy
+    // or cost concern; the off-switch lives in Settings → Moods).
+    startLinerNotesFetch().catch(e=>console.error('[linerNotes]',e));
     if(token)setTimeout(silentSync,5000);
   }else{
     $('initLoading').style.display='none';$('setupCard').style.display='block';
@@ -2740,10 +2745,22 @@ function renderLinerNotes(releaseId){
     footer.addEventListener('touchend',e=>{e.preventDefault();openLinerNotesProvenanceModal();});
     footer.addEventListener('click',openLinerNotesProvenanceModal);
     el.appendChild(footer);
-  }else{
+  }else if(status==='low_confidence'){
     const ph=document.createElement('div');
     ph.className='liner-notes-placeholder';
     ph.textContent="Liner notes for this record aren't available yet. We may try again as Claude learns.";
+    el.appendChild(ph);
+  }else{
+    // pending or failed — differentiate by whether the worker is mid-run
+    const ph=document.createElement('div');
+    ph.className='liner-notes-placeholder';
+    if(linerNotesRunning){
+      ph.textContent="Claude is writing liner notes for your collection. This record will populate as soon as it comes up in the queue.";
+    }else if(linerNotesEnabled===false){
+      ph.textContent="Liner notes are off. Turn them on in Settings → Moods → Liner notes.";
+    }else{
+      ph.textContent="Liner notes for this record haven't been generated yet. Claude will write them on the next sync.";
+    }
     el.appendChild(ph);
   }
 }
@@ -2806,6 +2823,8 @@ async function silentSync(){
       startArtFetch();startGenreFetch();startWikiFetch();showToast('Collection updated');
       // New records → enqueue them for auto-suggest (self-gated on opt-in flag).
       startAutoSuggestFetch().catch(e=>console.error('[autoSuggest]',e));
+      // Sprint 3 §13 — generate liner notes for new records too.
+      startLinerNotesFetch().catch(e=>console.error('[linerNotes]',e));
     }
   }catch(e){console.log('Silent sync failed:',e);}
 }
@@ -2907,6 +2926,8 @@ async function fullSync(){
     filtered=[...collection];applyFilters();showToast(`Synced — ${collection.length} records`);startArtFetch();startGenreFetch();startWikiFetch();seedDiscogsNotes();
     // Step 4 — fire auto-suggest for any new records (self-gated on opt-in).
     startAutoSuggestFetch().catch(e=>console.error('[autoSuggest]',e));
+    // Sprint 3 §13 — generate liner notes for any new records.
+    startLinerNotesFetch().catch(e=>console.error('[linerNotes]',e));
   }catch(e){showToast('Sync failed: '+e.message,4000);}
   hideProgress();
   $('fullSyncBtn').disabled=false;$('fullSyncBtn').textContent='Full Sync';
