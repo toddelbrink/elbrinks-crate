@@ -1092,6 +1092,21 @@ input:focus,textarea:focus{border-color:var(--accent)}
       </div>
       <div class="subpanel-foot-note">Asks Claude for moods across your whole collection. Writes directly — no review modal. Skips records you've manually tagged. Use "Compare Claude's picks" above if you want to review each suggestion first.</div>
     </div>
+
+    <div class="subpanel-section-header" style="margin-top:24px">Liner notes</div>
+
+    <div class="share-toggle-row">
+      <div class="share-toggle-label">
+        <div class="share-toggle-title">Let Claude write liner notes for your records</div>
+        <div class="share-toggle-sub">2 to 3 short notes per record with specific facts about recording, personnel, history. Replaces the old About tab on album detail. Onboarding consent is being redesigned — for now, turn this on here when you're ready.</div>
+      </div>
+      <label class="share-switch">
+        <input type="checkbox" id="linerNotesToggle" />
+        <span class="share-switch-slider"></span>
+      </label>
+    </div>
+
+    <div class="autosuggest-status-row" id="linerNotesStatusRow">Ready.</div>
   </div>
 </div>
 
@@ -1686,6 +1701,13 @@ let autoSuggestEnabled=null,moodsSource={};
 // vinyl_meta.liner_notes (jsonb array of {category, body, confidence}) and
 // vinyl_meta.liner_notes_status (pending | generated | low_confidence | failed).
 let linerNotesCache={},linerNotesStatusCache={};
+// Background worker state (Sprint 3 §13 Step 4). Mirrors the §9 auto-suggest
+// pattern exactly — same shape, same lifecycle, same UI conventions.
+// linerNotesEnabled is the per-user opt-in flag (loaded from
+// vinyl_user_profile.liner_notes_enabled). linerNotesRunning is the worker
+// re-entrancy guard; the rest drives progress UI.
+let linerNotesEnabled=null;
+let linerNotesRunning=false,linerNotesDone=0,linerNotesTotal=0,linerNotesLastSummary=null;
 let autoSuggestRunning=false,autoSuggestDone=0,autoSuggestTotal=0,autoSuggestLastSummary=null;
 let sortMode='alpha',sortIdx=2,artFetching=false,genreFetching=false;
 let shuffleMode='unplayed',activeMoodFilter='all',currentRecord=null,fromShuffle=false;
@@ -1947,6 +1969,8 @@ async function loadCycleStateFromAPI(){
       if(profRes.data.cycle_started_at)cycleStartedAt=profRes.data.cycle_started_at;
       // null means "no preference set" → treat as enabled (matches column default)
       autoSuggestEnabled=profRes.data.auto_suggest_enabled!==false;
+      // Sprint 3 §13 Step 4 — paired toggle, same default-true semantics.
+      linerNotesEnabled=profRes.data.liner_notes_enabled!==false;
     }
     const cRes=await crate.loadCyclePlayCounts({userId:session.user.id,since:cycleStartedAt});
     if(cRes.success&&cRes.data)cycleCounts=cRes.data;
@@ -2323,8 +2347,110 @@ function updateSettingsRowDots(){
   // Strip any existing dot first
   const existing=sec.querySelector('.settings-row-dot');
   if(existing)existing.remove();
-  if(autoSuggestRunning){
-    sec.insertAdjacentHTML('beforeend','<span class="settings-row-dot" title="Claude is tagging records"></span>');
+  if(autoSuggestRunning||linerNotesRunning){
+    sec.insertAdjacentHTML('beforeend','<span class="settings-row-dot" title="Claude is working"></span>');
+  }
+}
+
+// ── Liner Notes worker (Sprint 3 §13 Step 4) ──────────────────────
+// Mirrors the §9 auto-suggest worker exactly. Self-gated on
+// linerNotesEnabled. Queues records whose vinyl_meta.liner_notes_status
+// is 'pending' or 'failed' ('generated' and 'low_confidence' are
+// terminal; treat them as cached and skip).
+//
+// IMPORTANT (Session 41 CC scope split): this worker fires ONLY from
+// the Settings → Moods → Liner notes toggle. No init hook, no
+// silentSync hook, no onboarding hook — those wiring decisions wait
+// for Cowork resolution of the post-OAuth onboarding redesign. See
+// _claude/inbox/inbox_post_oauth_onboarding_for_claude_features_2026-05-25.md.
+async function startLinerNotesFetch(){
+  if(linerNotesRunning)return;
+  if(!collection.length)return;
+  if(linerNotesEnabled===false)return; // gated by user toggle
+  const candidates=collection.filter(r=>{
+    if(!r.releaseId)return false;
+    const st=linerNotesStatusCache[r.releaseId]||'pending';
+    // Only retry pending + failed. generated + low_confidence are terminal.
+    return st==='pending'||st==='failed';
+  });
+  if(!candidates.length){
+    linerNotesLastSummary={count:0,at:new Date().toISOString(),caughtUp:true};
+    renderLinerNotesStatus();
+    return;
+  }
+  linerNotesRunning=true;linerNotesDone=0;linerNotesTotal=candidates.length;
+  renderLinerNotesStatus();updateSettingsRowDots();
+  showToast(`Claude is writing liner notes for ${candidates.length} record${candidates.length===1?'':'s'} in the background.`,3500);
+  let generated=0,errored=0,rateLimited=false,haltedByOptOut=false;
+  for(const r of candidates){
+    // Mid-run opt-out check.
+    if(linerNotesEnabled===false){haltedByOptOut=true;break;}
+    try{
+      const res=await crate.generateLinerNotes({
+        release_id:r.releaseId,
+        artist:r.artist||null,
+        title:r.title||'',
+        year:r.year||null,
+        genres:genreCache[r.releaseId]||r.genres||[],
+        styles:stylesCache[r.releaseId]||r.styles||[],
+      });
+      if(!res.success){
+        if(res.rateLimited){rateLimited=true;break;}
+        errored++;
+      }else{
+        const notes=res.data?.notes||[];
+        const status=res.data?.status||'pending';
+        // Server already wrote to vinyl_meta. Mirror into client cache so
+        // the album-detail Liner Notes tab renders fresh content on next
+        // open without a reload.
+        linerNotesCache[r.releaseId]=notes;
+        linerNotesStatusCache[r.releaseId]=status;
+        if(status==='generated')generated++;
+      }
+    }catch(e){console.error('[linerNotes]',e);errored++;}
+    linerNotesDone++;renderLinerNotesStatus();
+    await sleep(1100);
+  }
+  linerNotesRunning=false;
+  linerNotesLastSummary={count:generated,errored,at:new Date().toISOString(),rateLimited,haltedByOptOut};
+  renderLinerNotesStatus();updateSettingsRowDots();
+  if(haltedByOptOut){
+    // Silent — toggle handler already showed the "Liner notes off" toast.
+  }else if(rateLimited){
+    showToast(`Claude limit reached — wrote ${generated} so far. Resumes tomorrow.`,4000);
+  }else if(generated>0){
+    showToast(`Claude wrote liner notes for ${generated} record${generated===1?'':'s'}.`,3500);
+  }else if(errored>0){
+    showToast(`Liner notes finished with ${errored} error${errored===1?'':'s'}.`,3500);
+  }
+}
+
+// Render the live status row in Settings → Moods → Liner notes.
+// Safe to call when subpanel isn't open — guards on element presence.
+function renderLinerNotesStatus(){
+  const row=document.getElementById('linerNotesStatusRow');
+  if(!row)return;
+  if(linerNotesRunning){
+    row.classList.add('active');
+    const pct=linerNotesTotal?Math.round(linerNotesDone/linerNotesTotal*100):0;
+    row.innerHTML=`Writing ${linerNotesDone} of ${linerNotesTotal} records<div class="autosuggest-progress-bar"><div class="autosuggest-progress-fill" style="width:${pct}%"></div></div>`;
+    return;
+  }
+  row.classList.remove('active');
+  if(!linerNotesLastSummary){
+    row.textContent='Ready.';
+    return;
+  }
+  if(linerNotesLastSummary.caughtUp){
+    row.textContent='Caught up.';
+  }else if(linerNotesLastSummary.rateLimited){
+    row.textContent=`Hit daily Claude limit. Wrote ${linerNotesLastSummary.count} record${linerNotesLastSummary.count===1?'':'s'}. Resumes tomorrow.`;
+  }else{
+    const d=new Date(linerNotesLastSummary.at);
+    const today=new Date();
+    const isToday=d.toDateString()===today.toDateString();
+    const stamp=isToday?'today':d.toLocaleDateString(undefined,{month:'short',day:'numeric'});
+    row.textContent=`Last wrote: ${linerNotesLastSummary.count} record${linerNotesLastSummary.count===1?'':'s'} ${stamp}.`;
   }
 }
 
@@ -6099,6 +6225,35 @@ function renderMoodsSubpanel(){
   };
   // Render the live status row
   renderAutoSuggestStatus();
+
+  // Sprint 3 §13 Step 4 — Liner notes toggle (paired with auto-suggest)
+  const lnTog=document.getElementById('linerNotesToggle');
+  if(lnTog){
+    lnTog.checked=linerNotesEnabled!==false;
+    lnTog.onchange=async(e)=>{
+      const want=e.target.checked;
+      lnTog.disabled=true;
+      const prev=linerNotesEnabled;
+      linerNotesEnabled=want;
+      try{
+        const res=await crate.updateProfile({liner_notes_enabled:want});
+        if(!res.success)throw new Error(res.error?.message||'unknown');
+        showToast(want?'Liner notes on':'Liner notes off');
+        if(want){
+          // Fire the worker now to backfill pending records.
+          startLinerNotesFetch().catch(err=>console.error('[linerNotes]',err));
+        }
+      }catch(err){
+        // Revert UI on failure
+        linerNotesEnabled=prev;
+        lnTog.checked=prev!==false;
+        showToast('Save failed — '+err.message);
+      }
+      lnTog.disabled=false;
+    };
+  }
+  renderLinerNotesStatus();
+
   // Update Moods row secondary text in the main settings list
   const sec=document.getElementById('rowMoodsSecondary');
   if(sec){
