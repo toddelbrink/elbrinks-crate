@@ -279,8 +279,9 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .liner-note:last-of-type{margin-bottom:12px}
 .liner-note-category{font-size:11px;font-weight:600;color:var(--muted);opacity:.75;margin-bottom:6px;letter-spacing:.06em;text-transform:uppercase}
 .liner-note-body{color:var(--text);font-size:14px;line-height:1.55}
-.liner-note-flag{position:absolute;top:-4px;right:-6px;background:transparent;border:none;color:var(--muted);font-size:14px;opacity:.45;padding:6px 8px;cursor:pointer;border-radius:6px;line-height:1;-webkit-tap-highlight-color:transparent;touch-action:manipulation;font-family:var(--font)}
-.liner-note-flag:hover{opacity:.85}
+.liner-note-flag{position:absolute;top:-2px;right:-4px;background:transparent;border:none;color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;opacity:.6;padding:6px 10px;cursor:pointer;border-radius:6px;line-height:1;-webkit-tap-highlight-color:transparent;touch-action:manipulation;font-family:var(--font);display:inline-flex;align-items:center;gap:4px}
+.liner-note-flag .flag-glyph{font-size:13px;line-height:1}
+.liner-note-flag:hover{opacity:.9}
 .liner-note-flag:active{opacity:1;background:var(--surface2)}
 .liner-notes-footer{display:inline-block;font-size:11px;color:var(--muted);opacity:.7;padding:10px 0 4px;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;border-top:1px solid var(--border);margin-top:8px;width:100%}
 .liner-notes-footer:active{opacity:1}
@@ -2765,7 +2766,7 @@ function renderLinerNotes(releaseId){
       const flag=document.createElement('button');
       flag.type='button';
       flag.className='liner-note-flag';
-      flag.textContent='⚐';
+      flag.innerHTML='<span class="flag-glyph">⚐</span><span>Flag</span>';
       flag.title='Flag this note as inaccurate';
       flag.setAttribute('aria-label','Flag this note as inaccurate');
       const openFlag=(e)=>{e.preventDefault();e.stopPropagation();openLinerNoteFlagModal(releaseId,n);};
