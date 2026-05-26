@@ -77,6 +77,11 @@ export default async function handler(req, res) {
     return;
   }
 
+  // Temporary debug bypass — ?debug=1 forces a fresh Claude call even when
+  // status is generated or low_confidence, so the raw Claude output can be
+  // inspected. Revert with the rest of the debug surface after the QA pass.
+  const bypassCache = (req.query && req.query.debug === '1') || req.url?.includes('debug=1');
+
   // 3. Cache check — if this user already has notes for this release with
   // status='generated' or status='low_confidence', return cached. Only
   // 'pending' or 'failed' triggers a fresh Anthropic call.
@@ -86,8 +91,8 @@ export default async function handler(req, res) {
     .eq('release_id', String(release_id))
     .maybeSingle();
 
-  if (cached && (cached.liner_notes_status === 'generated' ||
-                 cached.liner_notes_status === 'low_confidence')) {
+  if (!bypassCache && cached && (cached.liner_notes_status === 'generated' ||
+                                  cached.liner_notes_status === 'low_confidence')) {
     res.status(200).json({
       notes: cached.liner_notes || [],
       status: cached.liner_notes_status,
