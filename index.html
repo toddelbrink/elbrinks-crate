@@ -678,8 +678,8 @@ input:focus,textarea:focus{border-color:var(--accent)}
   </div>
   <div class="setup-card" id="revocationCard" style="display:none">
     <h2>Access required</h2>
-    <p id="revocationMsg" style="margin-bottom:16px">Your email isn't on the invite list for Crate yet.</p>
-    <p style="color:var(--muted);font-size:13px;margin-bottom:16px">Crate is invite-only. Reach out to Todd if you'd like access.</p>
+    <p id="revocationMsg" style="margin-bottom:16px">—</p>
+    <p id="revocationHint" style="color:var(--muted);font-size:13px;margin-bottom:16px">—</p>
     <a href="mailto:toddelbrink@gmail.com?subject=Crate%20access%20request" id="revocationContactBtn" class="btn-accent" style="display:block;text-align:center;width:100%;padding:12px;font-size:14px;text-decoration:none;color:#fff;border-radius:10px">Email Todd</a>
     <button class="btn-ghost-sm" id="revocationSignOutBtn" style="width:100%;padding:10px;font-size:13px;margin-top:10px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted)">Sign out</button>
   </div>
@@ -1851,9 +1851,16 @@ async function init(){
   if(inv.status==='revoked'||inv.status==='none'){
     await crate.signOut();
     $('initLoading').style.display='none';
+    // P0 Defect 4 — name the account. "Your email isn't on the invite list"
+    // doesn't tell a user with two Google accounts that they picked the wrong
+    // one. John hit this and the rejection screen gave him nowhere to go.
+    const signedInAs=session.user.email||'this account';
     $('revocationMsg').textContent=inv.status==='revoked'
-      ? 'Your access to Crate has been revoked.'
-      : "Your email isn't on the invite list for Crate yet.";
+      ? `Access to Crate has been revoked for ${signedInAs}.`
+      : `${signedInAs} isn't on the invite list for Crate yet.`;
+    $('revocationHint').textContent=inv.status==='revoked'
+      ? 'Reach out to Todd if you think this is a mistake.'
+      : 'Crate is invite-only. If you have more than one Google account, sign out and try the other one. Otherwise reach out to Todd.';
     $('revocationCard').style.display='block';
     return;
   }
@@ -2071,9 +2078,27 @@ function mergeConditions(fresh,existing){
 }
 
 async function saveCollectionToAPI(records){
-  // Don't overwrite DB with data missing conditions if token wasn't available
-  if(!token&&records.length&&!records[0].mediaCondition){console.log('Skipping collection save — no token, conditions would be lost');return;}
-  await crate.saveCollection(records);
+  // Guard intent: never persist a collection that was fetched WITHOUT Discogs
+  // auth — those records carry no mediaCondition and would clobber good rows.
+  // `token` is the "authenticated" flag for BOTH modes (PAT users hold their
+  // PAT here, OAuth users hold their access token), so an empty token means no
+  // credentials at all. Spelled out because this reads as a PAT-era check and
+  // is one refactor away from silently disabling persistence for OAuth users.
+  const hasDiscogsAuth=!!token;
+  if(!hasDiscogsAuth&&records.length&&!records[0].mediaCondition){
+    console.warn('[crate] Skipping collection save — no Discogs auth, conditions would be lost');
+    return;
+  }
+  // P0 Defect 2 — check the result. This used to fire and forget, so a failed
+  // or partial write looked exactly like a successful one. Every caller wraps
+  // this in try/catch, so throwing is the way the failure becomes visible.
+  const res=await crate.saveCollection(records);
+  if(!res||!res.success){
+    const msg=(res&&res.error&&res.error.message)||(res&&res.error)||'unknown error';
+    showToast('Collection not saved: '+msg,6000);
+    throw new Error('saveCollection failed: '+msg);
+  }
+  return res;
 }
 
 async function saveMetaToAPI(releaseId,fields){
@@ -2959,7 +2984,7 @@ async function silentSync(){
     const hasNew=fresh.some(r=>!existingIds.has(r.releaseId));
     const merged=mergeConditions(fresh,collection);
     collection=merged;filtered=[...collection];
-    await dbSet('meta','collection',collection);await dbSet('meta','lastSync',new Date().toISOString());saveCollectionToAPI(collection);
+    await dbSet('meta','collection',collection);await dbSet('meta','lastSync',new Date().toISOString());await saveCollectionToAPI(collection);
     await loadPlaysFromAPI();await loadMetaFromAPI();await loadArtistsFromAPI();
     applyFilters();seedDiscogsNotes();
     if(hasNew){
@@ -2983,7 +3008,7 @@ async function connect(){
     crate.saveSetting('username',username);
     crate.saveSetting('discogs_mode','pat');
     collection=await fetchCollection();
-    await dbSet('meta','collection',collection);await dbSet('meta','lastSync',new Date().toISOString());saveCollectionToAPI(collection);
+    await dbSet('meta','collection',collection);await dbSet('meta','lastSync',new Date().toISOString());await saveCollectionToAPI(collection);
     filtered=[...collection];await loadPlaysFromAPI();await loadMetaFromAPI();await loadArtistsFromAPI();showCollection();startArtFetch();startGenreFetch();startWikiFetch();seedDiscogsNotes();
   }catch(e){showToast('Error: '+e.message,4000);$('connectBtn').textContent='Connect with Token';$('connectBtn').disabled=false;hideProgress();}
 }
@@ -3005,7 +3030,7 @@ async function completeFirstSync(){
     collection=await fetchCollection();
     await dbSet('meta','collection',collection);
     await dbSet('meta','lastSync',new Date().toISOString());
-    saveCollectionToAPI(collection);
+    await saveCollectionToAPI(collection);
     filtered=[...collection];
     await loadPlaysFromAPI();await loadMetaFromAPI();await loadArtistsFromAPI();
     showCollection();
@@ -3116,7 +3141,7 @@ async function fullSync(){
     const old=collection.slice();
     collection=await fetchCollection();
     collection=mergeConditions(collection,old);
-    await dbSet('meta','collection',collection);await dbSet('meta','lastSync',new Date().toISOString());saveCollectionToAPI(collection);
+    await dbSet('meta','collection',collection);await dbSet('meta','lastSync',new Date().toISOString());await saveCollectionToAPI(collection);
     // Step 2: Pull meta from Supabase (merges data from all devices)
     await loadPlaysFromAPI();await loadMetaFromAPI();await loadArtistsFromAPI();
     filtered=[...collection];applyFilters();showToast(`Synced — ${collection.length} records`);startArtFetch();startGenreFetch();startWikiFetch();seedDiscogsNotes();
