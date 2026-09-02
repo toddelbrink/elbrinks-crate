@@ -1965,6 +1965,13 @@ async function init(){
     // or cost concern; the off-switch lives in Settings → Moods).
     startLinerNotesFetch().catch(e=>console.error('[linerNotes]',e));
     if(token)setTimeout(silentSync,5000);
+  }else if(discogsMode&&token){
+    // P0 Defect 3 — credentials exist but no collection in Supabase OR
+    // IndexedDB. Do NOT show setupCard: being asked to reconnect when you're
+    // already connected is the confusing half of John's loop. Resync instead.
+    // This is also the recovery path when Firefox Android unloads the app tab
+    // mid-OAuth — the reload lands here with valid credentials and no rows.
+    await recoverCollection();
   }else{
     $('initLoading').style.display='none';$('setupCard').style.display='block';
   }
@@ -3010,6 +3017,59 @@ async function completeFirstSync(){
     filtered=[...collection];
     showCollection();
   }
+}
+
+// P0 Defect 3 — recovery path for "credentials valid, collection empty".
+// Reached from init() when discogsMode + token are present but neither Supabase
+// nor IndexedDB returned any rows. John's case: his collection never reached
+// Supabase (Defect 2 — un-awaited writes) and his second browser had an empty
+// IndexedDB, so init() dropped him at setupCard while his OAuth tokens were
+// valid the whole time. Resync instead of re-prompting.
+async function recoverCollection(){
+  $('setupCard').style.display='none';
+  $('initLoading').style.display='block';
+  $('initLoading').innerHTML='<div style="font-size:13px">Restoring your collection…</div>';
+  try{
+    collection=await fetchCollection();
+    await dbSet('meta','collection',collection);
+    await dbSet('meta','lastSync',new Date().toISOString());
+    // Awaited deliberately. An un-awaited write here would "recover" the user
+    // and then drop the collection again on the next tab suspend — the exact
+    // hole this path exists to climb out of. Defect 2 fixes the other 4 sites.
+    await saveCollectionToAPI(collection);
+    filtered=[...collection];
+    await loadPlaysFromAPI();await loadMetaFromAPI();await loadArtistsFromAPI();
+    showCollection();
+    // A genuinely empty Discogs collection is a valid state, not a recovery —
+    // don't claim to have restored something.
+    if(collection.length)showToast(`Restored ${collection.length} records`);
+    startArtFetch();startGenreFetch();startWikiFetch();seedDiscogsNotes();
+    startAutoSuggestFetch().catch(e=>console.error('[autoSuggest]',e));
+    startLinerNotesFetch().catch(e=>console.error('[linerNotes]',e));
+  }catch(e){
+    showRecoveryError(e&&e.message?e.message:'unknown error');
+  }
+}
+
+// Failure surface for recoverCollection. Deliberately NOT setupCard — the user
+// IS connected, so "Connect Discogs" would be a lie and would restart the loop.
+// Retry is the primary action; reconnect is available but demoted.
+function showRecoveryError(msg){
+  $('setupCard').style.display='none';
+  $('initLoading').style.display='block';
+  $('initLoading').innerHTML=
+    '<div style="font-size:15px;color:var(--text);margin-bottom:8px">Couldn\'t load your collection</div>'+
+    '<div style="font-size:13px;margin-bottom:4px">You\'re still connected to Discogs — the sync itself failed.</div>'+
+    '<div style="font-size:12px;color:var(--muted);margin-bottom:18px" id="recoveryErrMsg"></div>'+
+    '<button class="btn-accent" id="recoveryRetryBtn" style="padding:12px 20px;font-size:14px">Try again</button>'+
+    '<div style="margin-top:14px"><button id="recoveryReconnectBtn" style="padding:9px 16px;font-size:13px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted)">Reconnect Discogs</button></div>';
+  // textContent, not innerHTML — the message is an upstream error string.
+  $('recoveryErrMsg').textContent=msg;
+  $('recoveryRetryBtn').onclick=()=>recoverCollection();
+  $('recoveryReconnectBtn').onclick=()=>{
+    $('initLoading').style.display='none';
+    $('setupCard').style.display='block';
+  };
 }
 
 // Push all local meta (moods, notes, genres, art) to Supabase
@@ -5035,6 +5095,10 @@ $('setupConnectBtn').onclick=async()=>{
       showToast('Popup blocked. Allow popups for elbrink.com and tap Connect Discogs again.',6000);
       return;
     }
+    // P0 Defect 1 — arm the polling fallback. On Firefox Android this popup is
+    // a real tab and our opener reference may not survive; the poll is what
+    // completes onboarding when postMessage never arrives.
+    startOAuthWatch();
   }catch(e){
     onboardingInProgress=false;
     showToast('Connection error: '+(e.message||'unknown'),4000);
@@ -5803,12 +5867,16 @@ $('discogsReconnectBtn').onclick=async()=>{
     }
     // Open as a popup. 900x800 fits Discogs's authorize page layout without
     // horizontal clipping of the app description. Mobile browsers ignore the
-    // size hints and open a full-width tab — same flow, postMessage still works.
+    // size hints and open a full-width tab. That tab can be unloaded under
+    // memory pressure (Firefox Android), which drops window.opener and kills
+    // the postMessage — so startOAuthWatch() below is the real completion
+    // guarantee, not the message. See P0 Defect 1.
     const popup=window.open(res.authorize_url,'discogs-oauth','width=900,height=800,noopener=no');
     if(!popup){
       showToast('Popup blocked. Allow popups for elbrink.com and try again.',5000);
       return;
     }
+    startOAuthWatch();
   }catch(e){
     showToast('Connection error: '+(e.message||'unknown'),4000);
   }finally{
@@ -5816,6 +5884,85 @@ $('discogsReconnectBtn').onclick=async()=>{
     setTimeout(()=>{if(btn){btn.disabled=false;btn.textContent=discogsMode==='oauth'?'Reconnect':'Connect';}},2000);
   }
 };
+
+// ── OAuth completion detection (P0 Defect 1) ──────────────────
+//
+// postMessage from the popup used to be the ONLY completion signal. On Firefox
+// Android window.open yields a real tab, and Firefox unloads background tabs
+// under memory pressure — so window.opener is null by the time the callback
+// fires and the message goes nowhere. The credential write still succeeds
+// (supabase_patterns.md §13: the callback page writes via the user's own
+// session inside the popup), which made success and failure look identical
+// from the app's side. That's verification_can_lie_silently.md in a new costume.
+//
+// Fix: two independent detection channels feeding one guarded handler.
+// postMessage stays the fast path; the poll is the safety net.
+let oauthCompletionHandled=false;
+let oauthPollTimer=null;
+let oauthPollDeadline=0;
+let oauthTokenAtWatchStart=null;
+
+// Called right after the popup opens. Snapshots the CURRENT oauth token so a
+// Settings-side reconnect (where a token already exists) doesn't instantly
+// report success off the stale value — we require the token to actually change.
+// Snapshot comes from in-memory state, not a fresh read: init() and
+// reloadDiscogsCredentials() both hydrate `token` from discogs_oauth_token, so
+// it's exact, and staying synchronous keeps this off the popup's gesture path.
+function startOAuthWatch(){
+  oauthCompletionHandled=false;
+  oauthTokenAtWatchStart=(discogsMode==='oauth'&&token)?token:null;
+  oauthPollDeadline=Date.now()+180000; // 3 min — long enough to read + authorize
+  if(oauthPollTimer)clearInterval(oauthPollTimer);
+  oauthPollTimer=setInterval(()=>{
+    if(Date.now()>oauthPollDeadline){stopOAuthWatch();return;}
+    checkOAuthCompletion();
+  },2500);
+}
+
+function stopOAuthWatch(){
+  if(oauthPollTimer){clearInterval(oauthPollTimer);oauthPollTimer=null;}
+  oauthPollDeadline=0;
+}
+
+// Reads vinyl_settings and treats a NEW oauth token as completion.
+async function checkOAuthCompletion(){
+  if(oauthCompletionHandled)return false;
+  try{
+    const s=await crate.loadSettings();
+    if(!s.success||!s.data)return false;
+    const tok=s.data.discogs_oauth_token||null;
+    if(!tok)return false;
+    if(oauthTokenAtWatchStart&&tok===oauthTokenAtWatchStart)return false;
+    await finishOAuth(s.data.username||'');
+    return true;
+  }catch(e){return false;}
+}
+
+// The single completion handler. Both channels funnel here; the guard makes it
+// idempotent so postMessage and the poll can't both run completeFirstSync().
+async function finishOAuth(uname){
+  if(oauthCompletionHandled)return;
+  oauthCompletionHandled=true;
+  stopOAuthWatch();
+  // Pull fresh credentials from Supabase — the popup just wrote them there.
+  await reloadDiscogsCredentials();
+  if(onboardingInProgress){
+    // Fresh user just completed OAuth from the setupCard. Show the auto-
+    // suggest consent moment (PRD §9.10) BEFORE first-sync so any worker
+    // firing after sync respects the user's choice. Then run first-sync to
+    // pull their collection and land them in the app.
+    onboardingInProgress=false;
+    showToast(uname?('Welcome — connected as @'+uname):'Welcome — Discogs connected');
+    const optedIn=await showAutoSuggestConsent();
+    await completeFirstSync();
+    if(optedIn){
+      // Fire after first sync so collection + meta are loaded.
+      startAutoSuggestFetch().catch(err=>console.error('[autoSuggest]',err));
+    }
+  }else{
+    showToast(uname?('Connected to Discogs as @'+uname):'Discogs connected');
+  }
+}
 
 // Listen for the postMessage from /api/discogs-oauth/callback (popup → opener).
 // Same-origin check is the security gate — the callback page lives at our own
@@ -5825,28 +5972,27 @@ window.addEventListener('message',async (event)=>{
   const d=event.data;
   if(!d||d.source!=='discogs-oauth')return;
   if(d.status==='success'){
-    // Pull fresh credentials from Supabase — the popup just wrote them there.
-    await reloadDiscogsCredentials();
-    if(onboardingInProgress){
-      // Fresh user just completed OAuth from the setupCard. Show the auto-
-      // suggest consent moment (PRD §9.10) BEFORE first-sync so any worker
-      // firing after sync respects the user's choice. Then run first-sync to
-      // pull their collection and land them in the app.
-      onboardingInProgress=false;
-      showToast(d.username?('Welcome — connected as @'+d.username):'Welcome — Discogs connected');
-      const optedIn=await showAutoSuggestConsent();
-      await completeFirstSync();
-      if(optedIn){
-        // Fire after first sync so collection + meta are loaded.
-        startAutoSuggestFetch().catch(err=>console.error('[autoSuggest]',err));
-      }
-    }else{
-      showToast(d.username?('Connected to Discogs as @'+d.username):'Discogs connected');
-    }
+    await finishOAuth(d.username||'');
   }else{
+    stopOAuthWatch();
     onboardingInProgress=false;
     showToast('Discogs connection failed: '+(d.error||'unknown'),5000);
   }
+});
+
+// Second channel. Fires when the user comes back to the app tab — exactly the
+// moment John's flow was dying. Two cases:
+//   1. Watch still armed → check immediately rather than waiting for the tick.
+//   2. Watch expired (>3 min on the Discogs page) but we're still parked on
+//      setupCard mid-onboarding → check anyway rather than leave them stuck.
+// Gated on onboardingInProgress so this can't fire after Clear All Data, which
+// zeroes the in-memory token while leaving valid credentials in vinyl_settings.
+// A full tab reload isn't covered here and doesn't need to be — init() lands on
+// the Defect 3 recovery branch instead.
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState!=='visible')return;
+  if(oauthPollTimer){checkOAuthCompletion();return;}
+  if(onboardingInProgress&&$('setupCard')&&$('setupCard').style.display==='block')checkOAuthCompletion();
 });
 
 // Re-read vinyl_settings after OAuth completes and refresh in-memory state + UI.
