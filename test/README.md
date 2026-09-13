@@ -9,6 +9,7 @@ Run them:
     node test/oauth-completion.test.mjs
     node test/collection-writes.test.mjs
     node test/share-parity.test.mjs
+    node test/collection-prune.test.mjs
 
 No dependencies, no install. Exit code 0 means pass.
 

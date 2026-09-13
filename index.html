@@ -2222,16 +2222,52 @@ window.addEventListener('popstate',()=>{
 // HDR() retired in Step 8 — auth now lives server-side in /api/discogs-proxy.
 
 async function fetchCollection(silent=false){
-  let page=1,results=[];if(!silent)setProgress('Loading collection…',0);
+  let page=1,results=[],total=0;if(!silent)setProgress('Loading collection…',0);
   while(true){
     const res=await discogsGet(`https://api.discogs.com/users/${username}/collection/folders/0/releases?per_page=100&page=${page}`);
     const data=await res.json();
-    results=results.concat(data.releases);
+    results=results.concat(data.releases);total=data.pagination.items;
     if(!silent)setProgress(`Loading collection… ${results.length} of ${data.pagination.items}`,Math.round(results.length/data.pagination.items*100));
     if(page>=data.pagination.pages)break;
     page++;await sleep(500);
   }
-  return results.map(normalizeRelease);
+  const out=results.map(normalizeRelease);
+  // Discogs' own item count for the listing, so pruneRemovedRecords can tell a
+  // whole collection from a short one. Lives on the array this call returns
+  // only — copies (mergeConditions, spreads) don't carry it, by design.
+  out.discogsTotal=total;
+  return out;
+}
+
+// Records removed on Discogs used to linger in vinyl_collection forever
+// (saveCollection only upserts), so the public share page kept showing them.
+// Deleting from a bad listing would empty a crate, so this refuses unless the
+// listing is provably whole:
+//   - `fresh` is the array fetchCollection returned, carrying discogsTotal, and
+//     every item arrived (a page that errored throws before we get here)
+//   - it removes only rows it has just read and confirmed are absent
+//   - it never removes more than a quarter of the stored crate in one pass
+// Never throws — a skipped or failed prune just leaves the old rows for next sync.
+async function pruneRemovedRecords(fresh){
+  try{
+    if(!Array.isArray(fresh)||!fresh.length)return;
+    if(typeof fresh.discogsTotal!=='number'||fresh.length!==fresh.discogsTotal){
+      console.warn('[crate] prune skipped: listing incomplete',fresh.length,'of',fresh.discogsTotal);
+      return;
+    }
+    const keep=new Set(fresh.map(r=>String(r.releaseId)));
+    const stored=await crate.loadCollection();
+    if(!stored.success||!stored.data)return;
+    const stale=[...new Set(stored.data.map(r=>String(r.releaseId||r.id||'')).filter(id=>id&&!keep.has(id)))];
+    if(!stale.length)return;
+    if(stale.length>Math.max(3,Math.floor(stored.data.length/4))){
+      console.warn('[crate] prune skipped: would remove',stale.length,'of',stored.data.length,'records');
+      return;
+    }
+    const res=await crate.removeFromCollection(stale);
+    if(!res.success){console.warn('[crate] prune failed:',res.error);return;}
+    if(res.data.length)console.log('[crate] removed (no longer in Discogs):',res.data.join(', '));
+  }catch(e){console.warn('[crate] prune failed:',e);}
 }
 
 function normalizeRelease(r){
@@ -2985,6 +3021,7 @@ async function silentSync(){
     const merged=mergeConditions(fresh,collection);
     collection=merged;filtered=[...collection];
     await dbSet('meta','collection',collection);await dbSet('meta','lastSync',new Date().toISOString());await saveCollectionToAPI(collection);
+    await pruneRemovedRecords(fresh);
     await loadPlaysFromAPI();await loadMetaFromAPI();await loadArtistsFromAPI();
     applyFilters();seedDiscogsNotes();
     if(hasNew){
@@ -3139,9 +3176,10 @@ async function fullSync(){
       return;
     }
     const old=collection.slice();
-    collection=await fetchCollection();
-    collection=mergeConditions(collection,old);
+    const fresh=await fetchCollection();
+    collection=mergeConditions(fresh,old);
     await dbSet('meta','collection',collection);await dbSet('meta','lastSync',new Date().toISOString());await saveCollectionToAPI(collection);
+    await pruneRemovedRecords(fresh);
     // Step 2: Pull meta from Supabase (merges data from all devices)
     await loadPlaysFromAPI();await loadMetaFromAPI();await loadArtistsFromAPI();
     filtered=[...collection];applyFilters();showToast(`Synced — ${collection.length} records`);startArtFetch();startGenreFetch();startWikiFetch();seedDiscogsNotes();
