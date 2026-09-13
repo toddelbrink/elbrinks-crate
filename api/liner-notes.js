@@ -27,8 +27,9 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
 
-// Web search plus adaptive thinking runs well past the old single-shot call.
-export const config = { runtime: 'nodejs', maxDuration: 120 };
+// Web search plus thinking runs well past the old single-shot call: 72s for a
+// record that needed three searches, and one timed out at the earlier 120s cap.
+export const config = { runtime: 'nodejs', maxDuration: 300 };
 
 const SUPABASE_URL = 'https://cejdraimvieqjopiccpb.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_n63_gkGCZwL1DodV18o8kA_sJxUcrly';
@@ -38,6 +39,11 @@ const MODEL = 'claude-opus-5';
 const MAX_SEARCHES = 3;
 // pause_turn continuations. Bounds cost if a search turn keeps pausing.
 const MAX_TURNS = 4;
+// Stop well inside maxDuration so a slow record is written as 'failed' by the
+// catch below instead of the platform killing the function mid-request, which
+// leaves the row 'pending' and re-bills it on every app open.
+const DEADLINE_MS = 250_000;
+const MIN_TURN_MS = 45_000;
 
 // Six-category taxonomy enum per PRD §13.7. Enforced via Anthropic JSON
 // schema; revalidated server-side as defense-in-depth.
@@ -133,6 +139,7 @@ function selectNotes(rawNotes, searchedUrls) {
 }
 
 export default async function handler(req, res) {
+  const startedAt = Date.now();
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'Method not allowed' });
     return;
@@ -314,6 +321,8 @@ Write 2 to 3 notes for this record with honest confidence scores.`;
   try {
     const messages = [{ role: 'user', content: userPrompt }];
     for (let turn = 0; turn < MAX_TURNS; turn++) {
+      const remaining = DEADLINE_MS - (Date.now() - startedAt);
+      if (remaining < MIN_TURN_MS) throw new Error('liner notes timed out before finishing research');
       const response = await client.beta.messages.create({
         model: MODEL,
         max_tokens: 16000,
@@ -321,13 +330,16 @@ Write 2 to 3 notes for this record with honest confidence scores.`;
         // instead of coming back as a refusal.
         betas: ['server-side-fallback-2026-07-01'],
         fallbacks: 'default',
+        // Medium is strong on Opus 5 and the main latency lever for a
+        // background job; high ran long enough on search-heavy records to time out.
+        output_config: { effort: 'medium' },
         system: systemPrompt,
         tools: [
           { type: 'web_search_20260209', name: 'web_search', max_uses: MAX_SEARCHES },
           NOTES_TOOL,
         ],
         messages,
-      });
+      }, { timeout: remaining, maxRetries: 0 });
       collectSearchUrls(response.content, searchedUrls);
       modelStop = response.stop_reason;
       const call = response.content.find(b => b.type === 'tool_use' && b.name === NOTES_TOOL.name);

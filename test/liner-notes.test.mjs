@@ -95,7 +95,9 @@ check('an ordinary factual note is kept',
 
 // ── request shape guards for claude-opus-5 ────────────────────
 check('model is claude-opus-5', /const MODEL = 'claude-opus-5';/.test(SRC));
-check('no sampling params or structured output (400 / incompatible with web search)', !/temperature\s*:/.test(SRC) && !/output_config\s*:/.test(SRC));
+check('no sampling params or structured output (400 / incompatible with web search)', !/temperature\s*:/.test(SRC) && !/format\s*:\s*\{/.test(SRC));
+check('each request is bounded by the remaining deadline, with no silent retries',
+  /timeout: remaining, maxRetries: 0/.test(SRC) && /DEADLINE_MS = 250_000/.test(SRC) && /maxDuration: 300/.test(SRC));
 check('refusal fallbacks and pause_turn resume are wired',
   /fallbacks: 'default'/.test(SRC) && /server-side-fallback-2026-07-01/.test(SRC) && /stop_reason !== 'pause_turn'/.test(SRC));
 
