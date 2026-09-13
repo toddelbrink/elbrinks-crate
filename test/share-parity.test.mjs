@@ -86,6 +86,27 @@ const sortKeys = (o) => Object.fromEntries(Object.entries(o).sort(([a], [b]) => 
   check('negative: the retired EC mark fails the comparison', retired !== priv);
 }
 
+// ── pieces copied verbatim from /vinyl ────────────────────────
+// Theme palettes, rating stars, last-played wording, condition shorthand, and
+// the Most Played sort were each re-implemented slightly differently on the
+// share page. They're now copies; these checks keep them copies.
+{
+  const PRIV = read('index.html');
+  const block = (src, startRe, end) => { try { return sliceTo(src, startRe, end).replace(/\s+/g, ' '); } catch { return null; } };
+  const same = (label, startRe, end) => {
+    const p = block(PRIV, startRe, end), q = block(SHARE, startRe, end);
+    check(`${label} matches /vinyl`, !!p && p === q, p && q ? '' : 'missing on one page');
+  };
+  same('THEMES palette list', /^const THEMES=\{/, '};');
+  const line = (src, re) => (src.split('\n').find(l => re.test(l)) || null);
+  check('stars() matches /vinyl', !!line(PRIV, /^function stars\(n\)/) && line(PRIV, /^function stars\(n\)/) === line(SHARE, /^function stars\(n\)/));
+  same('formatLastPlayed()', /^function formatLastPlayed\(/, '}');
+  same('shortCondition()', /^function shortCondition\(c\)\{/, '}');
+  same('sortPlaysList()', /^function sortPlaysList\(records\)\{/, '}');
+  check('share page applies the owner theme from public_settings',
+    /loadPublicSettings\(\{userId:ownerUserId\}\)/.test(SHARE) && /applyTheme\(settings\.success/.test(SHARE));
+}
+
 // ── moods ─────────────────────────────────────────────────────
 {
   const sb = runIn(`${PALETTE}\n${BUILD_MOODS}`, {});
