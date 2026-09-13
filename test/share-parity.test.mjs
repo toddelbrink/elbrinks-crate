@@ -75,6 +75,17 @@ function shareSandbox(events, cycleStartedAt) {
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const sortKeys = (o) => Object.fromEntries(Object.entries(o).sort(([a], [b]) => a.localeCompare(b)));
 
+// ── header logo ───────────────────────────────────────────────
+// The share page kept the retired "EC" mark after /vinyl moved to the record
+// logo. Compare the header SVGs so the next logo change can't skip one page.
+{
+  const logoSvg = (html) => ((html.match(/<div class="logo">\s*(<svg[\s\S]*?<\/svg>)/) || [])[1] || '').replace(/\s+/g, ' ');
+  const priv = logoSvg(read('index.html'));
+  check('share page header logo matches /vinyl', priv.length > 0 && logoSvg(SHARE) === priv);
+  const retired = logoSvg(SHARE.replace(/<div class="logo">\s*<svg[\s\S]*?<\/svg>/, '<div class="logo"><svg width="28" height="28"><text>EC</text></svg>'));
+  check('negative: the retired EC mark fails the comparison', retired !== priv);
+}
+
 // ── moods ─────────────────────────────────────────────────────
 {
   const sb = runIn(`${PALETTE}\n${BUILD_MOODS}`, {});
