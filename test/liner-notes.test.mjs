@@ -13,6 +13,8 @@ const SRC = read('api/liner-notes.js');
 const PIECES = [
   sliceTo(SRC, /^const CONFIDENCE_FLOOR = /, 'const CONFIDENCE_FLOOR = 0.7;'),
   sliceTo(SRC, /^const CATEGORIES = \[/, '];'),
+  sliceTo(SRC, /^const BLOCKED_DOMAINS = \[/, '];'),
+  sliceTo(SRC, /^function isBlockedSource\(url\) \{/, '}'),
   sliceTo(SRC, /^const SELF_REFERENCE = \[/, '];'),
   sliceTo(SRC, /^function isSelfReferential\(body\) \{/, '}'),
   sliceTo(SRC, /^function collectSearchUrls\(node, out\) \{/, '}'),
@@ -21,7 +23,7 @@ const PIECES = [
 mustContain(PIECES, /searchedUrls\.has\(u\)/, 'the searched-URL check on sources');
 mustContain(PIECES, /!isSelfReferential\(n\.body\)/, 'the self-reference filter');
 
-const sb = runIn(PIECES, {});
+const sb = runIn(PIECES, { URL });
 const note = (body, extra = {}) => ({ category: 'History', body, confidence: 0.9, sources: [], ...extra });
 
 // ── self-referential notes ────────────────────────────────────
@@ -53,6 +55,17 @@ check('an ordinary factual note is kept',
 {
   const [kept] = sb.selectNotes([note('From memory.', { sources: ['https://invented.example.com'] })], new Set());
   check('a note from its own knowledge keeps no invented link', kept && kept.sources.length === 0);
+}
+
+{
+  // Hear Say's backfill cited a piracy site (israbox-music.com) on the public page.
+  const urls = ['https://israbox-music.com/1234-hear-say.html', 'https://www.facebook.com/uncle.kunkel/posts/1', 'https://m.x.com/band/status/9', 'https://unclekunkelsonegramband.bandcamp.com/album/hear-say', 'https://notamazon.com/review'];
+  const [kept] = sb.selectNotes([note('Tracked at Wright Way Studios in Baltimore.', { category: 'Recording', sources: urls })], new Set(urls));
+  check('blocked sites are dropped (subdomains too) but lookalike domains are not',
+    JSON.stringify(kept.sources) === JSON.stringify(['https://unclekunkelsonegramband.bandcamp.com/album/hear-say', 'https://notamazon.com/review']), JSON.stringify(kept.sources));
+  check('the blocklist is sent to the search tool', /blocked_domains: BLOCKED_DOMAINS/.test(SRC));
+  check('blocklist entries are bare ASCII domains, as the API requires',
+    sb.BLOCKED_DOMAINS.every(d => /^[a-z0-9.-]+\.[a-z]{2,}$/.test(d)));
 }
 
 // ── collectSearchUrls walks nested dynamic-filtering results ──
@@ -89,7 +102,7 @@ check('an ordinary factual note is kept',
 
 // Negative case: without the self-reference filter the junk note ships again.
 {
-  const broken = runIn(PIECES.replace(' && !isSelfReferential(n.body)', ''), {});
+  const broken = runIn(PIECES.replace(' && !isSelfReferential(n.body)', ''), { URL });
   check('negative: without the filter, the Great Divide junk note would ship', broken.selectNotes([note(JUNK, { confidence: 0.95 })], new Set()).length === 1);
 }
 

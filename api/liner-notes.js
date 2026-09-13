@@ -45,6 +45,16 @@ const MAX_TURNS = 4;
 const DEADLINE_MS = 250_000;
 const MIN_TURN_MS = 45_000;
 
+// Never used as sources: notes and their links render on public share pages.
+// Piracy/download sites, social and user-generated posts, and storefronts.
+// Bare domains; subdomains are covered automatically by the search tool.
+const BLOCKED_DOMAINS = [
+  'israbox-music.com', 'israbox.com', 'rutracker.org', 'thepiratebay.org', '1337x.to',
+  'x.com', 'twitter.com', 'facebook.com', 'instagram.com', 'tiktok.com', 'threads.net',
+  'reddit.com', 'pinterest.com', 'quora.com',
+  'amazon.com', 'ebay.com', 'walmart.com', 'etsy.com',
+];
+
 // Six-category taxonomy enum per PRD §13.7. Enforced via Anthropic JSON
 // schema; revalidated server-side as defense-in-depth.
 const CATEGORIES = [
@@ -99,6 +109,12 @@ const SELF_REFERENCE = [
   /\bsearch results?\b/i,
 ];
 
+function isBlockedSource(url) {
+  let host;
+  try { host = new URL(url).hostname.toLowerCase(); } catch { return true; }
+  return BLOCKED_DOMAINS.some(d => host === d || host.endsWith('.' + d));
+}
+
 function isSelfReferential(body) {
   const unquoted = String(body || '').replace(/["\u201c][^"\u201d]*["\u201d]/g, '');
   return SELF_REFERENCE.some(re => re.test(unquoted));
@@ -132,7 +148,7 @@ function selectNotes(rawNotes, searchedUrls) {
       body: n.body.trim(),
       confidence: Math.max(0, Math.min(1, n.confidence)),
       sources: [...new Set((Array.isArray(n.sources) ? n.sources : [])
-        .filter(u => typeof u === 'string' && searchedUrls.has(u)))].slice(0, 3),
+        .filter(u => typeof u === 'string' && searchedUrls.has(u) && !isBlockedSource(u)))].slice(0, 3),
     }))
     .filter(n => n.confidence >= CONFIDENCE_FLOOR && !isSelfReferential(n.body))
     .slice(0, 3);
@@ -335,7 +351,7 @@ Write 2 to 3 notes for this record with honest confidence scores.`;
         output_config: { effort: 'medium' },
         system: systemPrompt,
         tools: [
-          { type: 'web_search_20260209', name: 'web_search', max_uses: MAX_SEARCHES },
+          { type: 'web_search_20260209', name: 'web_search', max_uses: MAX_SEARCHES, blocked_domains: BLOCKED_DOMAINS },
           NOTES_TOOL,
         ],
         messages,
