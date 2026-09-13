@@ -567,7 +567,7 @@ input:focus,textarea:focus{border-color:var(--accent)}
 /* Alphabet / index scrubber */
 .alpha-scrubber{position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:90;display:flex;flex-direction:column;align-items:center;padding:6px 4px;background:rgba(22,22,22,.9);border-radius:12px 0 0 12px;backdrop-filter:blur(6px);opacity:0;transition:opacity .25s;pointer-events:none;user-select:none;-webkit-user-select:none;touch-action:manipulation}
 .alpha-scrubber.visible{opacity:1;pointer-events:auto}
-.alpha-scrubber.scroll-fade{opacity:.25}
+.alpha-scrubber.visible.scroll-fade{opacity:.25}
 .alpha-scrubber span{display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--muted);min-height:34px;min-width:32px;padding:0 6px;cursor:pointer;-webkit-tap-highlight-color:transparent;border-radius:6px;white-space:nowrap}
 .alpha-scrubber span:active,.alpha-scrubber span.active{color:var(--accent);background:rgba(232,55,44,.15)}
 .alpha-jump-toast{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:80px;font-weight:800;color:#fff;opacity:0;transition:opacity .4s ease-out;pointer-events:none;z-index:91;text-shadow:0 2px 20px rgba(0,0,0,.6)}
