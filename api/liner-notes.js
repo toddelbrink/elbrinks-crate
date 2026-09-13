@@ -1,4 +1,4 @@
-// Vercel serverless function — Claude Haiku album liner notes generation
+// Vercel serverless function — Claude album liner notes generation
 //
 // POST /api/liner-notes
 // Body: { release_id, artist, title, year, genres, styles }
@@ -6,9 +6,10 @@
 //
 // Flow: verify session → cache check (vinyl_meta.liner_notes_status='generated')
 //   → rate-limit gate (500/day from vinyl_liner_notes_calls)
-//   → Anthropic Claude Haiku call with strict JSON schema (6-category enum +
-//     per-note confidence float 0-1)
-//   → server-side filter notes below 0.7 confidence floor
+//   → Claude Opus 5 with web search (for records it doesn't know) and a strict
+//     record_liner_notes tool (6-category enum + confidence 0-1 + source URLs)
+//   → server-side selectNotes: confidence floor, self-referential filter,
+//     sources limited to URLs that actually came back from search
 //   → UPDATE vinyl_meta.liner_notes + status + generated_at
 //   → INSERT audit row into vinyl_liner_notes_calls
 //   → return notes + status to caller
@@ -26,12 +27,17 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
 
-export const config = { runtime: 'nodejs' };
+// Web search plus adaptive thinking runs well past the old single-shot call.
+export const config = { runtime: 'nodejs', maxDuration: 120 };
 
 const SUPABASE_URL = 'https://cejdraimvieqjopiccpb.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_n63_gkGCZwL1DodV18o8kA_sJxUcrly';
 const DAILY_LIMIT = 500;
 const CONFIDENCE_FLOOR = 0.7;
+const MODEL = 'claude-opus-5';
+const MAX_SEARCHES = 3;
+// pause_turn continuations. Bounds cost if a search turn keeps pausing.
+const MAX_TURNS = 4;
 
 // Six-category taxonomy enum per PRD §13.7. Enforced via Anthropic JSON
 // schema; revalidated server-side as defense-in-depth.
@@ -43,6 +49,88 @@ const CATEGORIES = [
   'Trivia',
   'Cover Art',
 ];
+
+// Web search always returns citations, and citations can't be combined with
+// output_config.format, so the notes come back as a strict tool call instead.
+const NOTES_TOOL = {
+  name: 'record_liner_notes',
+  description: 'Submit the finished liner notes for this record. Call it exactly once, after any research. Submit an empty notes array when neither your knowledge nor a search turned up anything specific about this record.',
+  strict: true,
+  input_schema: {
+    type: 'object',
+    properties: {
+      notes: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            category: { type: 'string', enum: CATEGORIES },
+            body: { type: 'string' },
+            confidence: { type: 'number' },
+            sources: { type: 'array', items: { type: 'string' } },
+          },
+          required: ['category', 'body', 'confidence', 'sources'],
+          additionalProperties: false,
+        },
+      },
+    },
+    required: ['notes'],
+    additionalProperties: false,
+  },
+};
+
+// Notes about the model instead of the record ("The Great Divide does not
+// exist in my training data...") once shipped at 0.95 confidence. The prompt
+// forbids them; this is the backstop. Quoted lyrics and interview lines are
+// stripped first so "I don't know," Kahan said doesn't trip it.
+const SELF_REFERENCE = [
+  /\b(my|our) (training|knowledge|information|data)\b/i,
+  /\btraining (data|cut-?off|set)\b/i,
+  /\bknowledge cut-?off\b/i,
+  /\b(as an ai|language model)\b/i,
+  /\bI (do not|don't|cannot|can't|could not|couldn't|am not|have no|am unable)\b/i,
+  /\bnot (aware of|familiar with)\b/i,
+  /\bsearch results?\b/i,
+];
+
+function isSelfReferential(body) {
+  const unquoted = String(body || '').replace(/["\u201c][^"\u201d]*["\u201d]/g, '');
+  return SELF_REFERENCE.some(re => re.test(unquoted));
+}
+
+// Every URL the search tool returned or cited in this request, walked
+// recursively because dynamic filtering nests results under code execution.
+function collectSearchUrls(node, out) {
+  if (Array.isArray(node)) { node.forEach(n => collectSearchUrls(n, out)); return; }
+  if (!node || typeof node !== 'object') return;
+  if ((node.type === 'web_search_result' || node.type === 'web_search_result_location') &&
+      typeof node.url === 'string') {
+    out.add(node.url);
+  }
+  for (const v of Object.values(node)) {
+    if (v && typeof v === 'object') collectSearchUrls(v, out);
+  }
+}
+
+// Validate, filter, and cap what the model submitted. Sources survive only if
+// the search tool actually returned them, so a note can't cite a made-up link.
+function selectNotes(rawNotes, searchedUrls) {
+  const categorySet = new Set(CATEGORIES);
+  return (Array.isArray(rawNotes) ? rawNotes : [])
+    .filter(n =>
+      n && typeof n.body === 'string' && n.body.trim().length > 0 &&
+      typeof n.confidence === 'number' && categorySet.has(n.category)
+    )
+    .map(n => ({
+      category: n.category,
+      body: n.body.trim(),
+      confidence: Math.max(0, Math.min(1, n.confidence)),
+      sources: [...new Set((Array.isArray(n.sources) ? n.sources : [])
+        .filter(u => typeof u === 'string' && searchedUrls.has(u)))].slice(0, 3),
+    }))
+    .filter(n => n.confidence >= CONFIDENCE_FLOOR && !isSelfReferential(n.body))
+    .slice(0, 3);
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -152,15 +240,21 @@ Editorial bar — what each note must do:
 Quantity rule:
 - Aim for 2 to 3 notes per record. One strong note is fine if that's all you have — never pad with weaker content. But if you know multiple specific angles for a less-famous record, surface them all. Quality over quantity remains the rule, but completeness when knowledge exists. Don't undersell a record by stopping at one note when you have two or three real ones to share.
 
-Your response will be filtered server-side: notes with confidence below 0.7 are dropped before the user sees them. Write what you know with honest confidence scores. You do NOT need to self-censor lower-confidence notes — just score them honestly. Trust the floor.
+Research:
+- You have a web_search tool. If you don't have specific knowledge of this exact record (common for recent releases, reissues, and regional pressings), search before writing, up to ${MAX_SEARCHES} searches. Don't search for records you already know well.
+- Notes built from search results list the result URLs they rely on in "sources". Notes from your own knowledge use an empty "sources" array.
+
+Every note is about the record. Never write about yourself, your knowledge, your training, or what you could or couldn't find. If you have nothing specific, submit an empty notes array. That is the correct result, and the page shows a placeholder instead.
+
+Your notes will be filtered server-side: notes with confidence below 0.7 are dropped before the user sees them. Score confidence honestly. You do NOT need to self-censor lower-confidence notes. Trust the floor.
 
 Confidence scale:
-- 0.9 and up: detailed knowledge from training (specific recording dates, exact personnel, named facts you're sure of)
+- 0.9 and up: specific facts you're sure of (recording dates, exact personnel, named facts), from your own knowledge or a reliable source you found
 - 0.75 to 0.89: confident on substance, slightly less sure of specific details
 - 0.6 to 0.74: reasonably confident but could be off on a detail
 - below 0.6: speculation — don't write these notes at all
 
-Return 2 to 3 notes per record. Even one strong note is fine if you only have one. Empty array ONLY if you genuinely have no specific knowledge of this album.
+Return 2 to 3 notes per record. Even one strong note is fine if you only have one. Empty array ONLY if neither your knowledge nor a search turns up anything specific about this record.
 
 Pick from this fixed category list (Claude picks 2 to 3 most interesting):
 - Recording: who, when, where, how — studio, producer, session timing, technical approach
@@ -203,64 +297,51 @@ Good example (specific and surprising):
 "Kind of Blue was recorded in two sessions in March and April 1959. Most tracks are first takes. Coltrane and Cannonball Adderley had never heard the modal sketches Davis brought in until the tape was rolling."
 Specific. Anchored to dates, takes, names, conditions. The surprise is the first-takes / unfamiliar-charts angle.
 
-Respond in JSON only.`;
+When you're done, call record_liner_notes exactly once with your notes.`;
 
   const userPrompt =
 `Album: ${artist || 'Unknown'} — ${title}${year ? ' (' + year + ')' : ''}
 Genres: ${(genres || []).join(', ') || 'unknown'}
 Styles: ${(styles || []).join(', ') || 'unknown'}
 
-Note that the year may be the year of this specific pressing, not the original release year. Use your knowledge of the original release for any date references.
+Note that the year may be the year of this specific pressing, not the original release year. Use the original release for any date references.
 
 Write 2 to 3 notes for this record with honest confidence scores.`;
 
-  let claudeNotes;
+  let claudeNotes = null;
+  let searchedUrls = new Set();
+  let modelStop = null;
   try {
-    const response = await client.messages.create({
-      // Sonnet over Haiku — Haiku self-rated three of the most well-known
-      // records ever (All Eyez On Me, Dark Side of the Moon, Pulse) below
-      // its empty-array trigger in the first smoke test. Factual recall
-      // on specific albums is a Sonnet job. Cost goes from ~$0.20 to
-      // ~$0.60 per 107-record collection sweep. Trivial.
-      model: 'claude-sonnet-4-5',
-      max_tokens: 600,
-      temperature: 0,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }],
-      output_config: {
-        format: {
-          type: 'json_schema',
-          schema: {
-            type: 'object',
-            properties: {
-              notes: {
-                type: 'array',
-                items: {
-                  type: 'object',
-                  properties: {
-                    category: { type: 'string', enum: CATEGORIES },
-                    body: { type: 'string' },
-                    confidence: { type: 'number' },
-                  },
-                  required: ['category', 'body', 'confidence'],
-                  additionalProperties: false,
-                },
-              },
-            },
-            required: ['notes'],
-            additionalProperties: false,
-          },
-        },
-      },
-    });
-
-    const textBlock = response.content.find(b => b.type === 'text');
-    if (!textBlock) throw new Error('No text block in LLM response');
-    const parsed = JSON.parse(textBlock.text);
-    if (!Array.isArray(parsed.notes)) throw new Error('LLM response missing notes array');
-    // Defensive clip to 3 — prompt asks for 2-3 but Anthropic's JSON schema
-    // does not enforce maxItems on arrays, so we clip here.
-    claudeNotes = parsed.notes.slice(0, 3);
+    const messages = [{ role: 'user', content: userPrompt }];
+    for (let turn = 0; turn < MAX_TURNS; turn++) {
+      const response = await client.beta.messages.create({
+        model: MODEL,
+        max_tokens: 16000,
+        // Declined requests re-run on Anthropic's recommended fallback model
+        // instead of coming back as a refusal.
+        betas: ['server-side-fallback-2026-07-01'],
+        fallbacks: 'default',
+        system: systemPrompt,
+        tools: [
+          { type: 'web_search_20260209', name: 'web_search', max_uses: MAX_SEARCHES },
+          NOTES_TOOL,
+        ],
+        messages,
+      });
+      collectSearchUrls(response.content, searchedUrls);
+      modelStop = response.stop_reason;
+      const call = response.content.find(b => b.type === 'tool_use' && b.name === NOTES_TOOL.name);
+      if (call) { claudeNotes = call.input?.notes || []; break; }
+      if (response.stop_reason !== 'pause_turn') break;
+      // A long search turn paused server-side; send it back unchanged to resume.
+      messages.push({ role: 'assistant', content: response.content });
+    }
+    // Finished (or refused) without submitting: nothing to say about this
+    // record. Truncated or still paused after MAX_TURNS: a real failure, retry later.
+    if (claudeNotes === null) {
+      if (modelStop === 'end_turn' || modelStop === 'refusal') claudeNotes = [];
+      else throw new Error(`no liner notes submitted (stop_reason: ${modelStop})`);
+    }
   } catch (e) {
     if (e instanceof Anthropic.RateLimitError) {
       res.setHeader('Retry-After', '60');
@@ -288,24 +369,11 @@ Write 2 to 3 notes for this record with honest confidence scores.`;
     return;
   }
 
-  // 6. Validate categories + clamp confidence to [0, 1] server-side
-  // (defense-in-depth — Anthropic's JSON schema doesn't accept min/max on
-  // number types, so range enforcement happens here).
-  const categorySet = new Set(CATEGORIES);
-  const validShape = claudeNotes
-    .filter(n =>
-      n && typeof n.body === 'string' && n.body.trim().length > 0 &&
-      typeof n.confidence === 'number' && categorySet.has(n.category)
-    )
-    .map(n => ({
-      ...n,
-      confidence: Math.max(0, Math.min(1, n.confidence)),
-    }));
+  // 6. Validate shape, clamp confidence, drop notes below the 0.7 floor or
+  // about the model itself, and keep only sources the search actually returned.
+  const survivors = selectNotes(claudeNotes, searchedUrls);
 
-  // 7. Apply confidence floor — drop notes below 0.7
-  const survivors = validShape.filter(n => n.confidence >= CONFIDENCE_FLOOR);
-
-  // 8. Determine outcome
+  // 7. Determine outcome
   let outcome, finalNotes;
   if (survivors.length > 0) {
     outcome = 'generated';
@@ -318,7 +386,7 @@ Write 2 to 3 notes for this record with honest confidence scores.`;
     finalNotes = [];
   }
 
-  // 9. Persist to vinyl_meta (cache + status). Best-effort — log errors but
+  // 8. Persist to vinyl_meta (cache + status). Best-effort — log errors but
   // still return notes to caller so the user sees the just-generated content
   // even if the cache write blipped.
   const generatedAt = new Date().toISOString();
@@ -334,7 +402,7 @@ Write 2 to 3 notes for this record with honest confidence scores.`;
     console.error('[liner-notes] vinyl_meta update failed', metaError.message);
   }
 
-  // 10. Audit log + rate-limit counter
+  // 9. Audit log + rate-limit counter
   const { error: auditError } = await supabase
     .from('vinyl_liner_notes_calls')
     .insert({

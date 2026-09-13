@@ -127,6 +127,8 @@ input:focus{border-color:var(--accent)}
 .liner-note:last-of-type{margin-bottom:12px}
 .liner-note-category{font-size:11px;font-weight:600;color:var(--muted);opacity:.75;margin-bottom:6px;letter-spacing:.06em;text-transform:uppercase}
 .liner-note-body{color:var(--text);font-size:14px;line-height:1.55}
+.liner-note-sources{font-size:11px;color:var(--muted);margin-top:4px}
+.liner-note-sources a{color:var(--muted);text-decoration:underline;text-underline-offset:2px}
 .liner-notes-footer{display:block;font-size:11px;color:var(--muted);opacity:.7;padding:10px 0 4px;border-top:1px solid var(--border);margin-top:8px}
 .liner-notes-placeholder{color:var(--muted);font-size:13px;font-style:italic;line-height:1.6;padding:8px 0 12px}
 .loading-inline{color:var(--muted);font-size:13px;padding:12px 0;text-align:center}
@@ -962,6 +964,22 @@ function openSheet(r){
   renderLinerNotes(r.releaseId);
 }
 
+// Web-sourced notes carry the search result URLs they relied on. Links show
+// the bare hostname; notes written from Claude's own knowledge have none.
+function linerNoteSourcesEl(note){
+  const urls=(Array.isArray(note&&note.sources)?note.sources:[]).filter(u=>/^https?:\/\//.test(u));
+  if(!urls.length)return null;
+  const el=document.createElement('div');el.className='liner-note-sources';
+  el.appendChild(document.createTextNode('Source: '));
+  urls.forEach((u,i)=>{
+    if(i)el.appendChild(document.createTextNode(' · '));
+    const a=document.createElement('a');a.href=u;a.target='_blank';a.rel='noopener';
+    try{a.textContent=new URL(u).hostname.replace(/^www\./,'');}catch{a.textContent=u;}
+    el.appendChild(a);
+  });
+  return el;
+}
+
 // Render the album-detail Liner Notes tab from cached state (Sprint 3 \u00a713).
 // Read-only on share page \u2014 no flag-as-wrong, no transparency modal.
 function renderLinerNotes(releaseId){
@@ -976,6 +994,8 @@ function renderLinerNotes(releaseId){
       const cat=document.createElement('div');cat.className='liner-note-category';cat.textContent=n.category||'';
       const body=document.createElement('div');body.className='liner-note-body';body.textContent=n.body||'';
       wrap.appendChild(cat);wrap.appendChild(body);
+      const sources=linerNoteSourcesEl(n);
+      if(sources)wrap.appendChild(sources);
       el.appendChild(wrap);
     });
     const footer=document.createElement('div');
