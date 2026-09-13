@@ -380,7 +380,7 @@ header.bar-hidden{transform:translateY(-100%)}
 
   <div id="recentView" style="display:none">
     <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px">
-      <h2 style="font-size:20px;font-weight:700">Recently spun</h2>
+      <h2 style="font-size:20px;font-weight:700">Recent plays</h2>
       <span id="recentCount" style="color:var(--muted);font-size:12px"></span>
     </div>
     <div style="margin-bottom:12px"><button class="ctrl-btn" id="recentMoodFilterBtn" style="flex:none;width:auto">Mood: All</button></div>
@@ -588,7 +588,7 @@ const wantSortModes=['date_desc','date_asc','alpha','year'];
 const wantSortLabels=['Date Added \u2193','Date Added \u2191','Artist A\u2013Z','Year \u2193'];
 let playsSortMode='plays',playsSortIdx=0;
 const playsSortModes=['plays','recent','album','artist'];
-const playsSortLabels=['Play Count','Recently Played','Album A\u2013Z','Artist A\u2013Z'];
+const playsSortLabels=['Most Played','Recently Played','Album A–Z','Artist A–Z'];
 
 // ---- Data loading ----
 
@@ -2224,7 +2224,7 @@ function closeMoodPatterns(){
 }
 $('moodPatternsBack').onclick=closeMoodPatterns;
 
-// ---- Recently Spun (read-only port of /vinyl Listening Timeline §9.7) ----
+// ---- Recent plays (read-only port of /vinyl Listening Timeline §9.7) ----
 // All events are already loaded (share page reads the full history once), so
 // no pagination — filter + bucket client-side.
 let _recentMoodFilter='all',_recentEarlierCollapsed=true;

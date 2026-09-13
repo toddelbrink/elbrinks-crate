@@ -103,6 +103,11 @@ const sortKeys = (o) => Object.fromEntries(Object.entries(o).sort(([a], [b]) => 
   same('formatLastPlayed()', /^function formatLastPlayed\(/, '}');
   same('shortCondition()', /^function shortCondition\(c\)\{/, '}');
   same('sortPlaysList()', /^function sortPlaysList\(records\)\{/, '}');
+  same('MOOD_COLOR_PALETTE', /^const MOOD_COLOR_PALETTE=\{/, '};');
+  const lineOf = (src, re) => ((src.split('\n').find(l => re.test(l)) || '').trim());
+  check('Most Played sort labels match /vinyl', lineOf(PRIV, /^const playsSortLabels=/) !== '' && lineOf(PRIV, /^const playsSortLabels=/) === lineOf(SHARE, /^const playsSortLabels=/));
+  const heading = (src) => (src.match(/<div id="recentView"[\s\S]*?<h2[^>]*>([^<]+)<\/h2>/) || [])[1];
+  check('Recent view heading matches /vinyl', !!heading(PRIV) && heading(PRIV) === heading(SHARE), `${heading(PRIV)} vs ${heading(SHARE)}`);
   check('share page applies the owner theme from public_settings',
     /loadPublicSettings\(\{userId:ownerUserId\}\)/.test(SHARE) && /applyTheme\(settings\.success/.test(SHARE));
 }
