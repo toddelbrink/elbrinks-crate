@@ -967,14 +967,17 @@ function openSheet(r){
 // Web-sourced notes carry the search result URLs they relied on. Links show
 // the bare hostname; notes written from Claude's own knowledge have none.
 function linerNoteSourcesEl(note){
-  const urls=(Array.isArray(note&&note.sources)?note.sources:[]).filter(u=>/^https?:\/\//.test(u));
-  if(!urls.length)return null;
+  // One link per site: two Wikipedia pages read as a stutter, so the first wins.
+  const bySite=new Map();
+  (Array.isArray(note&&note.sources)?note.sources:[]).forEach(u=>{
+    try{const host=new URL(u).hostname.replace(/^www\./,'');if(/^https?:$/.test(new URL(u).protocol)&&!bySite.has(host))bySite.set(host,u);}catch{}
+  });
+  if(!bySite.size)return null;
   const el=document.createElement('div');el.className='liner-note-sources';
   el.appendChild(document.createTextNode('Source: '));
-  urls.forEach((u,i)=>{
+  [...bySite].forEach(([host,u],i)=>{
     if(i)el.appendChild(document.createTextNode(' · '));
-    const a=document.createElement('a');a.href=u;a.target='_blank';a.rel='noopener';
-    try{a.textContent=new URL(u).hostname.replace(/^www\./,'');}catch{a.textContent=u;}
+    const a=document.createElement('a');a.href=u;a.target='_blank';a.rel='noopener';a.textContent=host;
     el.appendChild(a);
   });
   return el;
