@@ -868,8 +868,8 @@ function doShuffle(){
 
 function updateShuffleLabel(){
   const mood=MOODS.find(m=>m.id===activeMoodFilter);
-  const parts=[mood?mood.label:'',activeGenreFilter!=='all'?activeGenreFilter:''].filter(Boolean);
-  $('shuffleLabel').textContent=parts.length?parts.join(' · '):'Shuffle';
+  // The genre filter narrows the shuffle pool but never changes this label (Todd, 2026-10-04).
+  $('shuffleLabel').textContent=mood?mood.label:'Shuffle';
 }
 
 // ---- Collection Grid ----

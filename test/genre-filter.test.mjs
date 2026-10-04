@@ -105,6 +105,23 @@ for (const page of Object.keys(PAGES)) {
   check(`${page}: shuffle only picks from the active genre`, /^[125](,[125])*$/.test(shufflePicks(page, { genre: 'Rock' })), shufflePicks(page, { genre: 'Rock' }));
 }
 
+// Todd, 2026-10-04: the genre filter narrows shuffle but must not change the
+// shuffle button's text.
+for (const [p, src] of [['/vinyl', APP], ['share', SHARE]]) {
+  const LABEL = sliceTo(src, /^function updateShuffleLabel\(\)\{/, '}');
+  const el = { textContent: '' };
+  const sb = { $: () => el, MOODS, activeMoodFilter: 'all', activeGenreFilter: 'Rock', shuffleMode: 'all' };
+  runIn(LABEL + '\nupdateShuffleLabel();', sb);
+  const withGenre = el.textContent;
+  sb.activeGenreFilter = 'all';
+  runIn('updateShuffleLabel();', sb);
+  check(`${p}: genre filter leaves the shuffle label alone`, withGenre === el.textContent && !/rock/i.test(withGenre), `"${withGenre}"`);
+  // Negative: mood still changes it, so the check above can tell labels apart.
+  sb.activeMoodFilter = 'latenight';
+  runIn('updateShuffleLabel();', sb);
+  check(`${p}: NEGATIVE, mood still changes the label`, el.textContent !== withGenre, `"${el.textContent}"`);
+}
+
 check('genreCounts is identical on both pages', PAGES['/vinyl'].counts === PAGES.share.counts);
 const icon = (src) => (src.match(/^const SORT_ICON=.*$/m) || [''])[0];
 check('compact sort icon is identical on both pages', icon(APP) && icon(APP) === icon(SHARE));
