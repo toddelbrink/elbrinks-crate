@@ -730,7 +730,7 @@ input:focus,textarea:focus{border-color:var(--accent)}
     <div class="grid" id="wantlistGrid"></div>
     <div id="wantlistEmpty" style="display:none;text-align:center;padding:40px 20px;color:var(--muted)">
       <div style="font-size:48px;margin-bottom:12px">&#9825;</div>
-      <p>Your Discogs wantlist is empty</p>
+      <p>Your wantlist is empty</p>
     </div>
     <div id="wantlistLoading" style="display:none;text-align:center;padding:40px 20px;color:var(--muted)">Loading wantlist...</div>
   </div>
@@ -1825,7 +1825,9 @@ async function discogsGet(url,retries=3){
     if(res.status===429){const wait=Math.min(5000*(i+1),15000);console.log(`Rate limited, waiting ${wait}ms…`);await sleep(wait);continue;}
     if(res.status===401||res.status===403){
       const j = await res.json().catch(()=>({}));
-      throw new Error(j.error || `Discogs auth failed (HTTP ${res.status}) — reconnect in Settings → Discogs`);
+      // Server detail names Discogs; keep it in the console, never in the UI.
+      console.warn('[discogs auth]',res.status,j.error||'');
+      throw new Error('Connection expired. Reconnect in Settings.');
     }
     throw new Error(`HTTP ${res.status}`);
   }
@@ -2608,7 +2610,7 @@ async function seedDiscogsNotes(){
     }
   }
   if(cleaned)console.log(`Cleaned ${cleaned} old condition-grade notes`);
-  if(seeded)showToast(`Seeded ${seeded} notes from Discogs`);
+  if(seeded)showToast(`Added ${seeded} notes from your collection`);
 }
 
 // ── Artist Wikipedia URL fetch + vinyl_artists sync ──────────
@@ -3397,7 +3399,7 @@ async function openSheet(r,isShuffle=false){
     </a>
     <a href="https://www.discogs.com/release/${r.releaseId}" target="_blank" rel="noopener" class="ext-link">
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
-      Discogs
+      Pressing
     </a>`;
   // Notes
   const note=notesCache[r.releaseId]||'';
@@ -4786,7 +4788,7 @@ async function openArtistPage(artistId,artistName){
     </a>
     <a href="${artist.discogs_url||'https://www.discogs.com/search/?type=artist&q='+artistEnc}" target="_blank" rel="noopener" class="ext-link">
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
-      Discogs
+      Discography
     </a>
   </div>`;
 
