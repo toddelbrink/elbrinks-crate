@@ -104,6 +104,15 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .controls-row{display:flex;gap:8px;margin-bottom:12px}
 .ctrl-btn{flex:1;background:var(--surface2);border:none;border-radius:8px;color:var(--text);cursor:pointer;font-family:var(--font);font-size:12px;font-weight:600;padding:8px 10px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ctrl-btn.active-filter{color:var(--accent)}
+.ctrl-btn.sort-compact{flex:none;display:flex;align-items:center;gap:5px}
+.ctrl-btn.sort-compact svg{width:12px;height:12px;flex-shrink:0}
+/* v1.2 piece 2: Genre picker sheet. Sits above the bottom nav (z 220). */
+.genre-picker{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:230;display:none;flex-direction:column;justify-content:flex-end;backdrop-filter:blur(4px)}
+.genre-picker-sheet{background:var(--surface);border-radius:20px 20px 0 0;width:100%;max-width:520px;margin:0 auto;max-height:70vh;overflow-y:auto;padding-bottom:calc(12px + env(safe-area-inset-bottom))}
+.genre-picker-title{color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;padding:10px 20px 8px}
+.genre-opt{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;background:none;border:none;border-top:1px solid var(--border);color:var(--text);font-family:var(--font);font-size:14px;padding:13px 20px;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.genre-opt .genre-count{color:var(--muted);font-size:13px;white-space:nowrap}
+.genre-opt.selected,.genre-opt.selected .genre-count{color:var(--accent);font-weight:600}
 /* Grid */
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:12px}
 .record-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;cursor:pointer;transition:transform .15s,border-color .15s}
@@ -714,8 +723,9 @@ input:focus,textarea:focus{border-color:var(--accent)}
       <span class="count-badge" id="countBadge"></span>
     </div>
     <div class="controls-row">
-      <button class="ctrl-btn" id="sortBtn">Sort: Artist A–Z</button>
+      <button class="ctrl-btn sort-compact" id="sortBtn" aria-label="Sort">—</button>
       <button class="ctrl-btn" id="moodFilterBtn">Mood: All</button>
+      <button class="ctrl-btn" id="genreFilterBtn">Genre: All</button>
     </div>
     <div class="grid" id="grid"></div>
   </div>
@@ -1385,6 +1395,14 @@ input:focus,textarea:focus{border-color:var(--accent)}
 </div>
 
 <!-- Shared inputPromptModal — replaces native prompt() for in-app text entry (v1.1 §6) -->
+<!-- v1.2 piece 2: Genre picker. Lists only genres in this collection, with counts. -->
+<div id="genrePicker" class="genre-picker" role="dialog" aria-modal="true" aria-label="Genre">
+  <div class="genre-picker-sheet">
+    <div class="sheet-handle"></div>
+    <div class="genre-picker-title">Genre</div>
+    <div id="genrePickerList"></div>
+  </div>
+</div>
 <div id="inputPromptModal" class="reset-modal" style="display:none">
   <div class="reset-card" style="text-align:left;max-width:400px">
     <h2 id="inputPromptTitle" style="text-align:center;margin-bottom:12px"></h2>
@@ -1514,6 +1532,8 @@ function anyUpdateBlockerActive(){
   if(document.getElementById('moodEditModal')?.style.display==='flex')return true;
   // Shared inputPromptModal (crate-name edit, Discogs PAT paste, future text-entry surfaces).
   if(document.getElementById('inputPromptModal')?.style.display==='flex')return true;
+  // Genre picker sheet (v1.2 piece 2).
+  if(document.getElementById('genrePicker')?.style.display==='flex')return true;
   // Liner Notes provenance modal (Sprint 3 §13.14).
   if(document.getElementById('linerNotesProvenanceModal')?.style.display==='flex')return true;
   // Liner Notes flag-as-wrong modal (Sprint 3 §13 Step 5).
@@ -1745,7 +1765,7 @@ let linerNotesEnabled=null;
 let linerNotesRunning=false,linerNotesDone=0,linerNotesTotal=0,linerNotesLastSummary=null;
 let autoSuggestRunning=false,autoSuggestDone=0,autoSuggestTotal=0,autoSuggestLastSummary=null;
 let sortMode='alpha',sortIdx=2,artFetching=false,genreFetching=false;
-let shuffleMode='unplayed',activeMoodFilter='all',currentRecord=null,fromShuffle=false;
+let shuffleMode='unplayed',activeMoodFilter='all',activeGenreFilter='all',currentRecord=null,fromShuffle=false;
 let activeView='crate'; // 'crate','want','stats'
 
 const sortModes=['date_desc','date_asc','alpha','rating','year','plays','plays_asc'];
@@ -1779,6 +1799,7 @@ function closeAllOverlays(){
   if($('moodPatternsOverlay')){$('moodPatternsOverlay').classList.remove('open');$('moodPatternsOverlay').setAttribute('aria-hidden','true');}
   $('settingsOverlay').classList.remove('open');
   $('artistOverlay').classList.remove('open');
+  if($('genrePicker'))$('genrePicker').style.display='none';
   if(wasOpen&&history.state?.modal)history.back();
 }
 function switchView(view){
@@ -3243,8 +3264,9 @@ function showCollection(){
 
 function updateShuffleLabel(){
   const mood=activeMoodFilter!=='all'?` · ${MOODS.find(m=>m.id===activeMoodFilter)?.label||''}` :'';
+  const genre=activeGenreFilter!=='all'?` · ${activeGenreFilter}`:'';
   const mode=shuffleMode==='unplayed'?'Unplayed':'All';
-  $('shuffleLabel').textContent=mode+mood;
+  $('shuffleLabel').textContent=mode+mood+genre;
 }
 
 function updateCrateProgress(){
@@ -3277,10 +3299,12 @@ function applyFilters(){
   const q=($('searchBarTop')||{value:''}).value.toLowerCase();
   filtered=collection.filter(r=>{
     if(activeMoodFilter!=='all'&&(moodCache[r.releaseId]||[]).indexOf(activeMoodFilter)===-1)return false;
+    if(activeGenreFilter!=='all'&&(genreCache[r.releaseId]||[]).indexOf(activeGenreFilter)===-1)return false;
     if(!q)return true;
     const genres=(genreCache[r.releaseId]||[]).join(' ').toLowerCase();
+    const styles=(stylesCache[r.releaseId]||[]).join(' ').toLowerCase();
     const mood=(moodCache[r.releaseId]||[]).map(m=>MOODS.find(x=>x.id===m)?.label||'').join(' ').toLowerCase();
-    return r.artist.toLowerCase().includes(q)||r.title.toLowerCase().includes(q)||r.label.toLowerCase().includes(q)||genres.includes(q)||mood.includes(q)||recordNoteText(r).includes(q);
+    return r.artist.toLowerCase().includes(q)||r.title.toLowerCase().includes(q)||r.label.toLowerCase().includes(q)||genres.includes(q)||styles.includes(q)||mood.includes(q)||recordNoteText(r).includes(q);
   });
   sortFiltered();renderGrid();
   $('countBadge').textContent=`${filtered.length} of ${collection.length} records`;
@@ -5051,8 +5075,9 @@ function renderAggList(items,isPlayCount,artistIdMap){
 function doShuffle(){
   let pool=shuffleMode==='unplayed'?collection.filter(r=>!cycleLog[r.releaseId]):collection;
   if(activeMoodFilter!=='all')pool=pool.filter(r=>(moodCache[r.releaseId]||[]).includes(activeMoodFilter));
+  if(activeGenreFilter!=='all')pool=pool.filter(r=>(genreCache[r.releaseId]||[]).includes(activeGenreFilter));
   if(shuffleMode==='unplayed'&&!pool.length){showToast('All records played — reset cycle in Settings');return;}
-  if(!pool.length){showToast('No records match current mood filter');return;}
+  if(!pool.length){showToast('No records match the current filters');return;}
   openSheet(pool[Math.floor(Math.random()*pool.length)],true);
 }
 
@@ -5066,6 +5091,53 @@ $('moodFilterBtn').onclick=()=>{
   $('moodFilterBtn').className='ctrl-btn'+(activeMoodFilter!=='all'?' active-filter':'');
   applyFilters();updateShuffleLabel();
 };
+
+// ── Genre filter (v1.2 piece 2) ───────────────────────────────
+// Genres come from the stored Discogs genres, so nothing is custom. A record
+// with several genres shows under each. Records with no genre show under All
+// only. Styles are searchable (applyFilters) but not browsable here.
+// genreCounts is a verbatim copy in share/index.html, guarded by
+// test/genre-filter.test.mjs.
+function genreCounts(records){
+  const ct={};
+  records.forEach(r=>{new Set(genreCache[r.releaseId]||[]).forEach(g=>{ct[g]=(ct[g]||0)+1;});});
+  return Object.entries(ct).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]));
+}
+function renderGenreBtn(){
+  const b=$('genreFilterBtn');if(!b)return;
+  // Active state shows the bare genre name: the accent color already marks it,
+  // and "Genre: Electronic" would be cut off at phone width.
+  b.textContent=activeGenreFilter==='all'?'Genre: All':activeGenreFilter;
+  b.className='ctrl-btn'+(activeGenreFilter!=='all'?' active-filter':'');
+}
+function setGenreFilter(g){
+  activeGenreFilter=g||'all';
+  renderGenreBtn();applyFilters();updateShuffleLabel();
+}
+function openGenrePicker(){
+  const list=$('genrePickerList');list.innerHTML='';
+  const rows=[['all','All genres',collection.length],...genreCounts(collection).map(([g,n])=>[g,g,n])];
+  rows.forEach(([value,label,n])=>{
+    const btn=document.createElement('button');
+    const on=value===activeGenreFilter;
+    btn.className='genre-opt'+(on?' selected':'');
+    btn.dataset.genre=value;
+    const name=document.createElement('span');name.textContent=label;
+    const count=document.createElement('span');count.className='genre-count';count.textContent=(on?'✓ ':'')+n;
+    btn.append(name,count);list.appendChild(btn);
+  });
+  $('genrePicker').style.display='flex';
+}
+function closeGenrePicker(){
+  $('genrePicker').style.display='none';
+  if(typeof maybeShowUpdateCard==='function')setTimeout(maybeShowUpdateCard,260);
+}
+$('genreFilterBtn').onclick=openGenrePicker;
+$('genrePickerList').onclick=e=>{
+  const b=e.target.closest('.genre-opt');if(!b)return;
+  setGenreFilter(b.dataset.genre);closeGenrePicker();
+};
+$('genrePicker').onclick=e=>{if(e.target===$('genrePicker'))closeGenrePicker();};
 
 // §9.7 — Recent Plays mood filter chip. Same cycle-on-tap pattern as the
 // Crate view, scoped to the Recent view list.
@@ -5203,12 +5275,12 @@ $('setupConnectBtn').onclick=async()=>{
 
 // Nav buttons
 function setActiveNav(id){document.querySelectorAll('#bottomNav .nav-btn').forEach(b=>b.classList.remove('active'));if(id)$(id).classList.add('active');}
-$('navCrate').onclick=()=>{closeAllOverlays();setActiveNav('navCrate');clearMoodFilter();switchView('crate');};
+$('navCrate').onclick=()=>{closeAllOverlays();setActiveNav('navCrate');clearCrateFilters();switchView('crate');};
 $('navShuffle').onclick=()=>{closeAllOverlays();setActiveNav('navShuffle');doShuffle();};
-$('navStats').onclick=()=>{closeAllOverlays();setActiveNav('navStats');clearMoodFilter();openStats();};
+$('navStats').onclick=()=>{closeAllOverlays();setActiveNav('navStats');clearCrateFilters();openStats();};
 $('shareStatsBtn').onclick=()=>shareStats();
-$('navWantlist').onclick=()=>{closeAllOverlays();setActiveNav('navWantlist');clearMoodFilter();openWantlist();};
-$('navRecent').onclick=()=>{closeAllOverlays();setActiveNav('navRecent');clearMoodFilter();openRecent();};
+$('navWantlist').onclick=()=>{closeAllOverlays();setActiveNav('navWantlist');clearCrateFilters();openWantlist();};
+$('navRecent').onclick=()=>{closeAllOverlays();setActiveNav('navRecent');clearCrateFilters();openRecent();};
 $('recentLoadMoreBtn').onclick=()=>loadMoreRecent();
 $('navMoods').onclick=()=>{
   closeAllOverlays();setActiveNav('navMoods');switchView('crate');
@@ -5682,9 +5754,14 @@ function truncText(ctx,text,maxW){
   return text+'...';
 }
 
+// Compact sort button (v1.2 piece 2): an up-down arrow plus the label, so
+// Mood and Genre fit on the same row. Written from JS, never static HTML.
+const SORT_ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16M3 8l4-4 4 4M17 20V4M13 16l4 4 4-4"/></svg>';
+function renderSortBtn(){$('sortBtn').innerHTML=SORT_ICON+'<span>'+sortLabels[sortIdx]+'</span>';}
+renderSortBtn();
 $('sortBtn').onclick=()=>{
   sortIdx=(sortIdx+1)%sortModes.length;sortMode=sortModes[sortIdx];
-  $('sortBtn').textContent=`Sort: ${sortLabels[sortIdx]}`;applyFilters();
+  renderSortBtn();applyFilters();
 };
 $('wantSortBtn').onclick=()=>{
   wantSortIdx=(wantSortIdx+1)%wantSortModes.length;wantSortMode=wantSortModes[wantSortIdx];
@@ -6448,15 +6525,17 @@ function renderRecentList(){
   });
 }
 
-// Clear the active mood filter. Called by Wantlist / Stats / Recent nav
-// buttons (per PRD §10.2 — session mood doesn't survive cross-view nav).
+// Clear the active mood and genre filters. Called by the Crate / Wantlist /
+// Stats / Recent nav buttons (per PRD §10.2 — session mood doesn't survive
+// cross-view nav; the v1.2 genre filter follows the same rule).
 // No-op visual indicator pill in v1.0; the existing "Mood: <X>" chip on
 // the Crate view is the canonical surface. Revisit pill in v1.1+ when
 // session mood persists across views.
-function clearMoodFilter(){
-  activeMoodFilter='all';
+function clearCrateFilters(){
+  activeMoodFilter='all';activeGenreFilter='all';
   const mFb=document.getElementById('moodFilterBtn');
   if(mFb){mFb.textContent='Mood: All';mFb.className='ctrl-btn';}
+  if(typeof renderGenreBtn==='function')renderGenreBtn();
   if(typeof applyFilters==='function')applyFilters();
   if(typeof updateShuffleLabel==='function')updateShuffleLabel();
 }

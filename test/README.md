@@ -13,6 +13,7 @@ Run them:
     node test/liner-notes.test.mjs
     node test/notes-search.test.mjs
     node test/no-discogs-labels.test.mjs
+    node test/genre-filter.test.mjs
 
 No dependencies, no install. Exit code 0 means pass.
 

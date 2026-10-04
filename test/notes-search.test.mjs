@@ -41,7 +41,8 @@ function sandbox(q, { notes = NOTES, collection = COLLECTION, mood = 'all' } = {
   return {
     $: (id) => els[id],
     collection, filtered: [], activeMoodFilter: mood, activeView: 'crate',
-    moodCache: MOOD_TAGS, genreCache: {}, notesCache: notes, linerNotesCache: LINER, MOODS,
+    moodCache: MOOD_TAGS, genreCache: {}, stylesCache: {}, activeGenreFilter: 'all',
+    notesCache: notes, linerNotesCache: LINER, MOODS,
     sortFiltered() {}, applySort() {}, renderGrid() {}, updateAlphaScrubber() {}, updateScrubber() {},
     console,
   };

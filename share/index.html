@@ -45,6 +45,16 @@ header{padding:14px 16px 10px;border-bottom:1px solid var(--border);display:flex
 .controls-row{display:flex;gap:8px;margin-bottom:12px}
 .ctrl-btn{flex:1;background:var(--surface2);border:none;border-radius:8px;color:var(--text);cursor:pointer;font-family:var(--font);font-size:12px;font-weight:600;padding:8px 10px;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 .ctrl-btn.active-filter{color:var(--accent)}
+.ctrl-btn.sort-compact{flex:none;display:flex;align-items:center;gap:5px}
+.ctrl-btn.sort-compact svg{width:12px;height:12px;flex-shrink:0}
+/* v1.2 piece 2: Genre picker sheet (same look as /vinyl). Above the bottom nav. */
+.genre-picker{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:230;display:none;flex-direction:column;justify-content:flex-end;backdrop-filter:blur(4px)}
+.genre-picker-sheet{background:var(--surface);border-radius:20px 20px 0 0;width:100%;max-width:520px;margin:0 auto;max-height:70vh;overflow-y:auto;padding-bottom:calc(12px + env(safe-area-inset-bottom))}
+.genre-picker-sheet .sheet-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:12px auto 0}
+.genre-picker-title{color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;padding:10px 20px 8px}
+.genre-opt{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;background:none;border:none;border-top:1px solid var(--border);color:var(--text);font-family:var(--font);font-size:14px;padding:13px 20px;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.genre-opt .genre-count{color:var(--muted);font-size:13px;white-space:nowrap}
+.genre-opt.selected,.genre-opt.selected .genre-count{color:var(--accent);font-weight:600}
 input[type=text]{background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font);font-size:14px;padding:10px 12px;width:100%;outline:none}
 input:focus{border-color:var(--accent)}
 .search-bar{background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font);font-size:14px;padding:10px 14px;width:100%;outline:none}
@@ -355,8 +365,9 @@ header.bar-hidden{transform:translateY(-100%)}
       </button>
     </div>
     <div class="controls-row">
-      <button class="ctrl-btn" id="sortBtn">Sort: Artist A–Z</button>
+      <button class="ctrl-btn sort-compact" id="sortBtn" aria-label="Sort">—</button>
       <button class="ctrl-btn" id="moodFilterBtn">Mood: All</button>
+      <button class="ctrl-btn" id="genreFilterBtn">Genre: All</button>
     </div>
     <div class="grid" id="grid"></div>
   </div>
@@ -392,6 +403,14 @@ header.bar-hidden{transform:translateY(-100%)}
 </div>
 
 <!-- Album Detail Overlay -->
+<!-- v1.2 piece 2: Genre picker. Lists only genres in this collection, with counts. -->
+<div id="genrePicker" class="genre-picker" role="dialog" aria-modal="true" aria-label="Genre">
+  <div class="genre-picker-sheet">
+    <div class="sheet-handle"></div>
+    <div class="genre-picker-title">Genre</div>
+    <div id="genrePickerList"></div>
+  </div>
+</div>
 <div class="fullpage-overlay" id="sheetOverlay">
   <div class="sheet-drag-handle"><div class="drag-pill"></div></div>
   <div class="sheet-layout">
@@ -558,7 +577,7 @@ function buildMoods(rows){
   });
 }
 
-let collection=[],filtered=[],artCache={},genreCache={},moodCache={},notesCache={},wikiCache={},artistsDB={};
+let collection=[],filtered=[],artCache={},genreCache={},stylesCache={},moodCache={},notesCache={},wikiCache={},artistsDB={};
 // Liner notes caches (Sprint 3 §13) — read-only on share page, populated
 // from vinyl_meta via the owner's RLS-gated anon read.
 let linerNotesCache={},linerNotesStatusCache={};
@@ -567,7 +586,7 @@ let playCounts={},cycleLog={},lastPlayed={},currentCycle=1;
 // Patterns, the Recent timeline, and "This cycle N" on album detail.
 let playEvents=[],cycleCounts={},cycleStartedAt=null;
 let moodMixAllTime={counts:{},totalPlays:0};
-let sortMode='alpha',sortIdx=2,activeMoodFilter='all';
+let sortMode='alpha',sortIdx=2,activeMoodFilter='all',activeGenreFilter='all';
 let activeView='crate',currentRecord=null;
 
 // v1.1 / Sprint 1 item 2 — share page is now multi-tenant. Resolve a slug
@@ -666,6 +685,7 @@ async function loadAllData(){
       Object.entries(metaRes.data).forEach(([id,m])=>{
         if(m.art_url)artCache[id]=m.art_url;
         if(m.genres&&m.genres.length)genreCache[id]=m.genres;
+        if(m.styles&&m.styles.length)stylesCache[id]=m.styles;
         if(m.moods&&m.moods.length)moodCache[id]=m.moods;
         if(m.notes)notesCache[id]=m.notes;
         if(m.artist_wiki_url)wikiCache[id]=m.artist_wiki_url;
@@ -816,6 +836,7 @@ function closeAllOverlays(){
   $('statDrillOverlay').classList.remove('open');
   $('artistOverlay').classList.remove('open');
   closeMoodPatterns();
+  $('genrePicker').style.display='none';
 }
 
 // Nav handlers
@@ -840,13 +861,15 @@ function updateCrateProgress(){
 function doShuffle(){
   let pool=collection;
   if(activeMoodFilter!=='all')pool=pool.filter(r=>(moodCache[r.releaseId]||[]).includes(activeMoodFilter));
+  if(activeGenreFilter!=='all')pool=pool.filter(r=>(genreCache[r.releaseId]||[]).includes(activeGenreFilter));
   if(!pool.length)return;
   openSheet(pool[Math.floor(Math.random()*pool.length)]);
 }
 
 function updateShuffleLabel(){
   const mood=MOODS.find(m=>m.id===activeMoodFilter);
-  $('shuffleLabel').textContent=mood?mood.label:'Shuffle';
+  const parts=[mood?mood.label:'',activeGenreFilter!=='all'?activeGenreFilter:''].filter(Boolean);
+  $('shuffleLabel').textContent=parts.length?parts.join(' · '):'Shuffle';
 }
 
 // ---- Collection Grid ----
@@ -897,9 +920,13 @@ function applySort(){
   else if(mode==='plays_asc')filtered.sort((a,b)=>(playCounts[a.releaseId]||0)-(playCounts[b.releaseId]||0));
 }
 
+// Compact sort button (v1.2 piece 2), same as /vinyl. Written from JS.
+const SORT_ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16M3 8l4-4 4 4M17 20V4M13 16l4 4 4-4"/></svg>';
+function renderSortBtn(){$('sortBtn').innerHTML=SORT_ICON+'<span>'+sortLabels[sortIdx]+'</span>';}
+renderSortBtn();
 $('sortBtn').onclick=()=>{
   sortIdx=(sortIdx+1)%sortModes.length;
-  $('sortBtn').textContent='Sort: '+sortLabels[sortIdx];
+  renderSortBtn();
   applyFilters();
 };
 
@@ -913,13 +940,15 @@ function recordNoteText(r){
 function applyFilters(){
   filtered=[...collection];
   if(activeMoodFilter!=='all')filtered=filtered.filter(r=>(moodCache[r.releaseId]||[]).includes(activeMoodFilter));
+  if(activeGenreFilter!=='all')filtered=filtered.filter(r=>(genreCache[r.releaseId]||[]).includes(activeGenreFilter));
   // Search
   const q=($('searchBarTop').value||'').toLowerCase().trim();
   if(q){
     filtered=filtered.filter(r=>{
       const genres=(genreCache[r.releaseId]||[]).join(' ').toLowerCase();
+      const styles=(stylesCache[r.releaseId]||[]).join(' ').toLowerCase();
       const moods=(moodCache[r.releaseId]||[]).map(slug=>{const m=MOODS.find(x=>x.id===slug);return m?slug+' '+m.label:'';}).join(' ').toLowerCase();
-      return(r.artist||'').toLowerCase().includes(q)||(r.title||'').toLowerCase().includes(q)||(r.label||'').toLowerCase().includes(q)||genres.includes(q)||moods.includes(q)||recordNoteText(r).includes(q);
+      return(r.artist||'').toLowerCase().includes(q)||(r.title||'').toLowerCase().includes(q)||(r.label||'').toLowerCase().includes(q)||genres.includes(q)||styles.includes(q)||moods.includes(q)||recordNoteText(r).includes(q);
     });
   }
   applySort();
@@ -936,6 +965,44 @@ $('moodFilterBtn').onclick=()=>{
   $('moodFilterBtn').className='ctrl-btn'+(activeMoodFilter!=='all'?' active-filter':'');
   applyFilters();updateShuffleLabel();
 };
+
+// ---- Genre filter (v1.2 piece 2) ----
+// Same behavior as /vinyl. genreCounts is a verbatim copy of the owner app's
+// helper, guarded by test/genre-filter.test.mjs.
+function genreCounts(records){
+  const ct={};
+  records.forEach(r=>{new Set(genreCache[r.releaseId]||[]).forEach(g=>{ct[g]=(ct[g]||0)+1;});});
+  return Object.entries(ct).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]));
+}
+function renderGenreBtn(){
+  const b=$('genreFilterBtn');
+  // Active state shows the bare genre name: the accent color already marks it,
+  // and "Genre: Electronic" would be cut off at phone width.
+  b.textContent=activeGenreFilter==='all'?'Genre: All':activeGenreFilter;
+  b.className='ctrl-btn'+(activeGenreFilter!=='all'?' active-filter':'');
+}
+function openGenrePicker(){
+  const list=$('genrePickerList');list.innerHTML='';
+  const rows=[['all','All genres',collection.length],...genreCounts(collection).map(([g,n])=>[g,g,n])];
+  rows.forEach(([value,label,n])=>{
+    const btn=document.createElement('button');
+    const on=value===activeGenreFilter;
+    btn.className='genre-opt'+(on?' selected':'');
+    btn.dataset.genre=value;
+    const name=document.createElement('span');name.textContent=label;
+    const count=document.createElement('span');count.className='genre-count';count.textContent=(on?'✓ ':'')+n;
+    btn.append(name,count);list.appendChild(btn);
+  });
+  $('genrePicker').style.display='flex';
+}
+$('genreFilterBtn').onclick=openGenrePicker;
+$('genrePickerList').onclick=e=>{
+  const b=e.target.closest('.genre-opt');if(!b)return;
+  activeGenreFilter=b.dataset.genre||'all';
+  $('genrePicker').style.display='none';
+  renderGenreBtn();applyFilters();updateShuffleLabel();
+};
+$('genrePicker').onclick=e=>{if(e.target===$('genrePicker'))$('genrePicker').style.display='none';};
 
 // Search
 $('searchBtn').onclick=()=>{$('searchOverlay').classList.add('open');$('searchBarTop').focus();};
