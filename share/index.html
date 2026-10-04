@@ -903,6 +903,13 @@ $('sortBtn').onclick=()=>{
   applyFilters();
 };
 
+// Searchable note text for a record: the in-app note plus the Discogs note.
+// Liner notes are deliberately excluded (v1.2 §1.2). Verbatim copy of the
+// owner app's helper, guarded by test/notes-search.test.mjs.
+function recordNoteText(r){
+  return((notesCache[r.releaseId]||'')+' '+(r.discogsNotes||'')).toLowerCase();
+}
+
 function applyFilters(){
   filtered=[...collection];
   if(activeMoodFilter!=='all')filtered=filtered.filter(r=>(moodCache[r.releaseId]||[]).includes(activeMoodFilter));
@@ -912,7 +919,7 @@ function applyFilters(){
     filtered=filtered.filter(r=>{
       const genres=(genreCache[r.releaseId]||[]).join(' ').toLowerCase();
       const moods=(moodCache[r.releaseId]||[]).map(slug=>{const m=MOODS.find(x=>x.id===slug);return m?slug+' '+m.label:'';}).join(' ').toLowerCase();
-      return(r.artist||'').toLowerCase().includes(q)||(r.title||'').toLowerCase().includes(q)||(r.label||'').toLowerCase().includes(q)||genres.includes(q)||moods.includes(q);
+      return(r.artist||'').toLowerCase().includes(q)||(r.title||'').toLowerCase().includes(q)||(r.label||'').toLowerCase().includes(q)||genres.includes(q)||moods.includes(q)||recordNoteText(r).includes(q);
     });
   }
   applySort();

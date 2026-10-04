@@ -11,6 +11,7 @@ Run them:
     node test/share-parity.test.mjs
     node test/collection-prune.test.mjs
     node test/liner-notes.test.mjs
+    node test/notes-search.test.mjs
 
 No dependencies, no install. Exit code 0 means pass.
 

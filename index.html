@@ -3264,6 +3264,13 @@ function updateCrateProgress(){
   updateSettingsPanel();
 }
 
+// Searchable note text for a record: the in-app note plus the Discogs note.
+// Liner notes are deliberately excluded (v1.2 §1.2). Verbatim copy in
+// share/index.html, guarded by test/notes-search.test.mjs.
+function recordNoteText(r){
+  return((notesCache[r.releaseId]||'')+' '+(r.discogsNotes||'')).toLowerCase();
+}
+
 function applyFilters(){
   const q=($('searchBarTop')||{value:''}).value.toLowerCase();
   filtered=collection.filter(r=>{
@@ -3271,7 +3278,7 @@ function applyFilters(){
     if(!q)return true;
     const genres=(genreCache[r.releaseId]||[]).join(' ').toLowerCase();
     const mood=(moodCache[r.releaseId]||[]).map(m=>MOODS.find(x=>x.id===m)?.label||'').join(' ').toLowerCase();
-    return r.artist.toLowerCase().includes(q)||r.title.toLowerCase().includes(q)||r.label.toLowerCase().includes(q)||genres.includes(q)||mood.includes(q);
+    return r.artist.toLowerCase().includes(q)||r.title.toLowerCase().includes(q)||r.label.toLowerCase().includes(q)||genres.includes(q)||mood.includes(q)||recordNoteText(r).includes(q);
   });
   sortFiltered();renderGrid();
   $('countBadge').textContent=`${filtered.length} of ${collection.length} records`;
