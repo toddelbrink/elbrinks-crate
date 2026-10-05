@@ -1,4 +1,7 @@
-// Genre and Mood filters — v1.2 piece 2.
+// Filter and sort sheets — v1.2 piece 2 and follow-ups.
+//
+// Every Crate, Wantlist, drill-down and Recent sort/filter button opens one
+// shared picker sheet instead of cycling on tap.
 //
 // Crate view, both /vinyl and the share page: a compact sort button, then Mood
 // and Genre. Both open one shared picker sheet (rows with counts, mood rows with
@@ -165,6 +168,47 @@ for (const page of Object.keys(PAGES)) {
     runIn('updateShuffleLabel();', sb);
     check(`${page}: NEGATIVE, mood still changes the label`, el.textContent !== withGenre, `"${el.textContent}"`);
   }
+}
+
+// ── Sort sheets and the Recent mood chip ──────────────────────
+// A tiny fake DOM so the shared picker can actually build its rows.
+function fakeDom() {
+  const mk = (tag) => ({ tag, className: '', dataset: {}, style: {}, textContent: '', children: [],
+    append(...c) { this.children.push(...c); }, appendChild(c) { this.children.push(c); }, setAttribute() {} });
+  const els = { filterPicker: mk('div'), filterPickerTitle: mk('div'), filterPickerList: Object.defineProperty(mk('div'), 'innerHTML', { set() { this.children = []; }, get() { return ''; } }),
+    genreFilterBtn: mk('button'), moodFilterBtn: mk('button') };
+  return { els, document: { createElement: mk, createTextNode: (t) => ({ textContent: t }) } };
+}
+const rowText = (btn) => btn.children.map((c) => (c.children?.length ? c.children.map((x) => x.textContent).join('') : c.textContent));
+
+for (const [page, src] of [['/vinyl', APP], ['share', SHARE]]) {
+  const s = PAGES[page];
+  const { els, document } = fakeDom();
+  const sb = { ...sandbox(), $: (id) => els[id], document, setTimeout() {} };
+  runIn([s.genres, s.counts, s.picker].join('\n'), sb);
+
+  // Rows without a count render no number, and only a check on the active one.
+  sb.openFilterPicker('Sort by', sb.sortRows(['date_desc', 'alpha'], ['Date Added ↓', 'Artist A–Z']), 'alpha', () => {});
+  const rows = els.filterPickerList.children;
+  check(`${page}: sort sheet spells out the arrow labels`, rowText(rows[0])[0] === 'Date added, newest first' && rowText(rows[1])[0] === 'Artist A–Z', rowText(rows[0])[0]);
+  check(`${page}: rows without counts show no number, active shows only ✓`, rowText(rows[0])[1] === '' && rowText(rows[1])[1] === '✓', JSON.stringify(rows.map((r) => rowText(r)[1])));
+  check(`${page}: the sheet title says Sort by`, els.filterPickerTitle.textContent === 'Sort by');
+
+  // Mood rows: counts on the Crate view, none for Recent.
+  const withCounts = sb.moodRows(true), without = sb.moodRows(false);
+  check(`${page}: Recent mood rows carry no counts`, without.every((r) => r.count == null) && without.length === MOODS.length + 1);
+  check(`${page}: Crate mood rows keep their counts`, withCounts.every((r) => typeof r.count === 'number'));
+  sb.openFilterPicker('Mood', withCounts, 'latenight', () => {});
+  const moodRowsBuilt = els.filterPickerList.children;
+  check(`${page}: counted rows still show "✓ n" on the active one`, rowText(moodRowsBuilt[1])[1] === '✓ 3', rowText(moodRowsBuilt[1])[1]);
+
+  // Wiring: each button opens the sheet, and no cycle-on-tap code survives.
+  mustContain(src, /\$\('sortBtn'\)\.onclick=\(\)=>openFilterPicker\('Sort by'/, `${page} Crate sort sheet`);
+  mustContain(src, /\$\('wantSortBtn'\)\.onclick=\(\)=>openFilterPicker\('Sort by'/, `${page} Wantlist sort sheet`);
+  mustContain(src, /psb\.onclick=\(\)=>openFilterPicker\('Sort by'/, `${page} drill-down sort sheet`);
+  mustContain(src, /\$\('recentMoodFilterBtn'\)\.onclick=\(\)=>openFilterPicker\('Mood',moodRows\(false\)/, `${page} Recent mood sheet`);
+  const cycles = src.match(/\((?:sortIdx|wantSortIdx|playsSortIdx)\+1\)%|opts\.indexOf\((?:_recentMoodFilter|activeMoodFilter)\)/g) || [];
+  check(`${page}: NEGATIVE guard, no cycle-on-tap handlers remain`, cycles.length === 0, cycles.join(' ') || 'none');
 }
 
 // Parity: the shared pieces are verbatim on both pages.

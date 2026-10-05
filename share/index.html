@@ -926,11 +926,11 @@ function applySort(){
 const SORT_ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16M3 8l4-4 4 4M17 20V4M13 16l4 4 4-4"/></svg>';
 function renderSortBtn(){$('sortBtn').innerHTML=SORT_ICON+'<span>'+sortLabels[sortIdx]+'</span>';}
 renderSortBtn();
-$('sortBtn').onclick=()=>{
-  sortIdx=(sortIdx+1)%sortModes.length;
+$('sortBtn').onclick=()=>openFilterPicker('Sort by',sortRows(sortModes,sortLabels),sortModes[sortIdx],m=>{
+  sortIdx=sortModes.indexOf(m);
   renderSortBtn();
   applyFilters();
-};
+});
 
 // Genres as Crate shows them: the stored Discogs genres, plus Stage & Screen
 // when the title reads like a soundtrack and Discogs left it off (F1 The Album
@@ -982,7 +982,8 @@ function genreCounts(records){
 }
 // ── Filter picker sheet (v1.2) ───────────────────────────────
 // One bottom sheet shared by the Genre and Mood buttons. Rows are
-// {value,label,count,color?}. This block, genreCounts and moodCounts are
+// {value,label,count?,color?}. Sort and Recent rows omit the count. This
+// block, genreCounts and moodCounts are
 // verbatim copies on both pages, guarded by test/genre-filter.test.mjs.
 let _filterPickHandler=null;
 function openFilterPicker(title,rows,active,onPick){
@@ -997,7 +998,8 @@ function openFilterPicker(title,rows,active,onPick){
     const name=document.createElement('span');name.className='filter-name';
     if(row.color){const dot=document.createElement('span');dot.className='filter-dot';dot.style.background=row.color;name.appendChild(dot);}
     name.appendChild(document.createTextNode(row.label));
-    const count=document.createElement('span');count.className='filter-count';count.textContent=(on?'✓ ':'')+row.count;
+    const count=document.createElement('span');count.className='filter-count';
+    count.textContent=row.count==null?(on?'✓':''):(on?'✓ ':'')+row.count;
     btn.append(name,count);list.appendChild(btn);
   });
   _filterPickHandler=onPick;
@@ -1041,9 +1043,14 @@ function openGenrePicker(){
   openFilterPicker('Genre',rows,activeGenreFilter,setGenreFilter);
 }
 function openMoodPicker(){
-  const ct=moodCounts(collection);
-  const rows=[{value:'all',label:'All moods',count:collection.length},...MOODS.map(m=>({value:m.id,label:m.label,count:ct[m.id]||0,color:m.color}))];
-  openFilterPicker('Mood',rows,activeMoodFilter,setMoodFilter);
+  openFilterPicker('Mood',moodRows(true),activeMoodFilter,setMoodFilter);
+}
+// Sort sheets spell out the arrows the buttons use ("Date Added ↓").
+const SORT_SHEET_LABELS={date_desc:'Date added, newest first',date_asc:'Date added, oldest first',alpha:'Artist A–Z',rating:'Rating, highest first',year:'Year, newest first',plays:'Play count, most first',plays_asc:'Play count, fewest first'};
+function sortRows(modes,labels){return modes.map((m,i)=>({value:m,label:SORT_SHEET_LABELS[m]||labels[i]}));}
+function moodRows(withCounts){
+  const ct=withCounts?moodCounts(collection):null;
+  return [{value:'all',label:'All moods',count:ct?collection.length:null},...MOODS.map(m=>({value:m.id,label:m.label,count:ct?(ct[m.id]||0):null,color:m.color}))];
 }
 $('genreFilterBtn').onclick=openGenrePicker;
 $('moodFilterBtn').onclick=openMoodPicker;
@@ -1420,12 +1427,12 @@ function sortPlaysList(records){
 function wireDrillTaps(playedRecords){
   const psb=$('playsSortBtn');
   if(psb&&playedRecords){
-    psb.onclick=()=>{
-      playsSortIdx=(playsSortIdx+1)%playsSortModes.length;
-      playsSortMode=playsSortModes[playsSortIdx];
+    psb.onclick=()=>openFilterPicker('Sort by',playsSortModes.map((m,i)=>({value:m,label:playsSortLabels[i]})),playsSortMode,m=>{
+      playsSortIdx=playsSortModes.indexOf(m);
+      playsSortMode=m;
       $('drillContent').innerHTML=`<div class="controls-row"><button class="ctrl-btn" id="playsSortBtn">Sort: ${playsSortLabels[playsSortIdx]}</button></div>`+renderRecordList(sortPlaysList(playedRecords));
       wireDrillTaps(playedRecords);
-    };
+    });
   }
   // Wire up record taps
   $('drillContent').querySelectorAll('.stat-record-item').forEach(item=>{
@@ -2388,12 +2395,12 @@ function paintRecentMoodFilterBtn(){
   btn.style.color=mood?'#fff':'';
 }
 
-$('recentMoodFilterBtn').onclick=()=>{
-  const opts=['all',...MOODS.map(m=>m.id)];
-  _recentMoodFilter=opts[(opts.indexOf(_recentMoodFilter)+1)%opts.length];
+// Opens the mood sheet (v1.2). No counts, matching /vinyl's Recent view.
+$('recentMoodFilterBtn').onclick=()=>openFilterPicker('Mood',moodRows(false),_recentMoodFilter,m=>{
+  _recentMoodFilter=m||'all';
   paintRecentMoodFilterBtn();
   renderRecentList();
-};
+});
 
 function renderRecentList(){
   const list=$('recentList'),empty=$('recentEmpty'),count=$('recentCount');
@@ -2641,11 +2648,11 @@ function renderWantlistGrid(){
   });
 }
 
-$('wantSortBtn').onclick=()=>{
-  wantSortIdx=(wantSortIdx+1)%wantSortModes.length;
+$('wantSortBtn').onclick=()=>openFilterPicker('Sort by',sortRows(wantSortModes,wantSortLabels),wantSortModes[wantSortIdx],m=>{
+  wantSortIdx=wantSortModes.indexOf(m);
   $('wantSortBtn').textContent='Sort: '+wantSortLabels[wantSortIdx];
   if(wantlistLoaded)applyWantlistFilters();
-};
+});
 
 // ---- Helpers ----
 function proxyArt(url){

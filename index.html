@@ -3840,15 +3840,15 @@ function wireDrillTaps(playedRecords){
   $('drillContent').querySelectorAll('.tappable-artist').forEach(el=>{
     el.onclick=(e)=>{e.stopPropagation();openArtistPage(el.dataset.artistId,el.dataset.artistName);};
   });
-  // Wire up Most Played sort cycle
+  // Most Played sort: opens the sort sheet (v1.2)
   const psb=$('playsSortBtn');
   if(psb&&playedRecords){
-    psb.onclick=()=>{
-      playsSortIdx=(playsSortIdx+1)%playsSortModes.length;
-      playsSortMode=playsSortModes[playsSortIdx];
+    psb.onclick=()=>openFilterPicker('Sort by',playsSortModes.map((m,i)=>({value:m,label:playsSortLabels[i]})),playsSortMode,m=>{
+      playsSortIdx=playsSortModes.indexOf(m);
+      playsSortMode=m;
       $('drillContent').innerHTML=`<div class="controls-row"><button class="ctrl-btn" id="playsSortBtn">Sort: ${playsSortLabels[playsSortIdx]}</button></div>`+renderRecordList(sortPlaysList(playedRecords));
       wireDrillTaps(playedRecords);
-    };
+    });
   }
 }
 
@@ -5111,7 +5111,8 @@ function genreCounts(records){
 }
 // ── Filter picker sheet (v1.2) ───────────────────────────────
 // One bottom sheet shared by the Genre and Mood buttons. Rows are
-// {value,label,count,color?}. This block, genreCounts and moodCounts are
+// {value,label,count?,color?}. Sort and Recent rows omit the count. This
+// block, genreCounts and moodCounts are
 // verbatim copies on both pages, guarded by test/genre-filter.test.mjs.
 let _filterPickHandler=null;
 function openFilterPicker(title,rows,active,onPick){
@@ -5126,7 +5127,8 @@ function openFilterPicker(title,rows,active,onPick){
     const name=document.createElement('span');name.className='filter-name';
     if(row.color){const dot=document.createElement('span');dot.className='filter-dot';dot.style.background=row.color;name.appendChild(dot);}
     name.appendChild(document.createTextNode(row.label));
-    const count=document.createElement('span');count.className='filter-count';count.textContent=(on?'✓ ':'')+row.count;
+    const count=document.createElement('span');count.className='filter-count';
+    count.textContent=row.count==null?(on?'✓':''):(on?'✓ ':'')+row.count;
     btn.append(name,count);list.appendChild(btn);
   });
   _filterPickHandler=onPick;
@@ -5170,19 +5172,22 @@ function openGenrePicker(){
   openFilterPicker('Genre',rows,activeGenreFilter,setGenreFilter);
 }
 function openMoodPicker(){
-  const ct=moodCounts(collection);
-  const rows=[{value:'all',label:'All moods',count:collection.length},...MOODS.map(m=>({value:m.id,label:m.label,count:ct[m.id]||0,color:m.color}))];
-  openFilterPicker('Mood',rows,activeMoodFilter,setMoodFilter);
+  openFilterPicker('Mood',moodRows(true),activeMoodFilter,setMoodFilter);
+}
+// Sort sheets spell out the arrows the buttons use ("Date Added ↓").
+const SORT_SHEET_LABELS={date_desc:'Date added, newest first',date_asc:'Date added, oldest first',alpha:'Artist A–Z',rating:'Rating, highest first',year:'Year, newest first',plays:'Play count, most first',plays_asc:'Play count, fewest first'};
+function sortRows(modes,labels){return modes.map((m,i)=>({value:m,label:SORT_SHEET_LABELS[m]||labels[i]}));}
+function moodRows(withCounts){
+  const ct=withCounts?moodCounts(collection):null;
+  return [{value:'all',label:'All moods',count:ct?collection.length:null},...MOODS.map(m=>({value:m.id,label:m.label,count:ct?(ct[m.id]||0):null,color:m.color}))];
 }
 $('genreFilterBtn').onclick=openGenrePicker;
 $('moodFilterBtn').onclick=openMoodPicker;
 
-// §9.7 — Recent Plays mood filter chip. Same cycle-on-tap pattern as the
-// Crate view, scoped to the Recent view list.
-$('recentMoodFilterBtn').onclick=()=>{
-  const opts=['all',...MOODS.map(m=>m.id)];
-  const idx=opts.indexOf(_recentMoodFilter);
-  _recentMoodFilter=opts[(idx+1)%opts.length];
+// §9.7 — Recent Plays mood filter chip, scoped to the Recent view list. Opens
+// the mood sheet (v1.2). No counts: Recent loads plays a page at a time, so a
+// count would only reflect what happens to be loaded.
+function paintRecentMoodFilterBtn(){
   const mood=MOODS.find(m=>m.id===_recentMoodFilter);
   const btn=$('recentMoodFilterBtn');
   btn.textContent=mood?`Mood: ${mood.label}`:'Mood: All';
@@ -5190,14 +5195,15 @@ $('recentMoodFilterBtn').onclick=()=>{
   if(_recentMoodFilter!=='all'&&mood){
     // Tint the chip with the active mood's accent so the filter state reads
     // at a glance — matches the visual language of mood pills on rows.
-    btn.style.background=mood.color;
-    btn.style.color='#fff';
-    btn.style.borderColor=mood.color;
+    btn.style.background=mood.color;btn.style.color='#fff';btn.style.borderColor=mood.color;
   }else{
     btn.style.background='';btn.style.color='';btn.style.borderColor='';
   }
-  renderRecentList();
-};
+}
+$('recentMoodFilterBtn').onclick=()=>openFilterPicker('Mood',moodRows(false),_recentMoodFilter,m=>{
+  _recentMoodFilter=m||'all';
+  paintRecentMoodFilterBtn();renderRecentList();
+});
 
 // ── Settings ──────────────────────────────────────────────────
 async function updateSettingsPanel(){
@@ -5789,184 +5795,14 @@ function truncText(ctx,text,maxW){
 const SORT_ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16M3 8l4-4 4 4M17 20V4M13 16l4 4 4-4"/></svg>';
 function renderSortBtn(){$('sortBtn').innerHTML=SORT_ICON+'<span>'+sortLabels[sortIdx]+'</span>';}
 renderSortBtn();
-$('sortBtn').onclick=()=>{
-  sortIdx=(sortIdx+1)%sortModes.length;sortMode=sortModes[sortIdx];
+$('sortBtn').onclick=()=>openFilterPicker('Sort by',sortRows(sortModes,sortLabels),sortModes[sortIdx],m=>{
+  sortIdx=sortModes.indexOf(m);sortMode=m;
   renderSortBtn();applyFilters();
-};
-$('wantSortBtn').onclick=()=>{
-  wantSortIdx=(wantSortIdx+1)%wantSortModes.length;wantSortMode=wantSortModes[wantSortIdx];
+});
+$('wantSortBtn').onclick=()=>openFilterPicker('Sort by',sortRows(wantSortModes,wantSortLabels),wantSortMode,m=>{
+  wantSortIdx=wantSortModes.indexOf(m);wantSortMode=m;
   $('wantSortBtn').textContent=`Sort: ${wantSortLabels[wantSortIdx]}`;applyWantlistFilters();
-};
-
-// ── Index scrubber (alpha + year) ────────────────────────────
-let scrubberEnabled=false,scrubberFadeTimer=null;
-
-function updateAlphaScrubber(){
-  const scrubber=$('alphaScrubber');
-  const isCrate=activeView==='crate';
-  const isWant=activeView==='want';
-  // Determine which scrubber mode to show
-  const showAlpha=(isCrate&&sortMode==='alpha')||(isWant&&wantSortMode==='alpha');
-  const showYear=(isCrate&&sortMode==='year')||(isWant&&wantSortMode==='year');
-  if(!showAlpha&&!showYear){scrubber.classList.remove('visible');scrubberEnabled=false;return;}
-  const items=isCrate?filtered:wantFiltered;
-  const gridId=isCrate?'grid':'wantlistGrid';
-  if(items.length<10){scrubber.classList.remove('visible');scrubberEnabled=false;return;}
-
-  let markers=[];
-  if(showAlpha){
-    markers=[...new Set(items.map(r=>{
-      const ch=r.artist.charAt(0).toUpperCase();
-      return /[A-Z]/.test(ch)?ch:'#';
-    }))].sort((a,b)=>a==='#'?1:b==='#'?-1:a.localeCompare(b));
-  }else if(showYear){
-    const decades=[...new Set(items.map(r=>{
-      const y=r.year||0;
-      if(y<1950)return 0;
-      return Math.floor(y/10)*10;
-    }).filter(d=>d>0))].sort((a,b)=>b-a);
-    markers=decades.map(d=>({val:String(d),label:String(d)+'s'}));
-  }
-
-  // Normalize markers to {val, label} objects
-  markers=markers.map(m=>typeof m==='string'?{val:m,label:m}:m);
-  if(markers.length<3){scrubber.classList.remove('visible');scrubberEnabled=false;return;}
-  // Thin out if too many markers to fit comfortably (max ~14)
-  const maxMarkers=14;
-  if(markers.length>maxMarkers){
-    const step=Math.ceil(markers.length/maxMarkers);
-    markers=markers.filter((_,i)=>i%step===0||i===markers.length-1);
-  }
-  scrubber.innerHTML=markers.map(m=>`<span data-marker="${m.val}">${m.label}</span>`).join('');
-  scrubberEnabled=true;
-  // Start hidden, show on scroll
-  scrubber.classList.add('visible');
-  scrubber.classList.add('scroll-fade');
-
-  let lastJump='';
-  function jumpTo(marker){
-    if(marker===lastJump)return;lastJump=marker;
-    let idx=-1;
-    if(showAlpha){
-      idx=items.findIndex(r=>{
-        const ch=r.artist.charAt(0).toUpperCase();
-        return (/[A-Z]/.test(ch)?ch:'#')===marker;
-      });
-    }else if(showYear){
-      const decade=parseInt(marker);
-      idx=items.findIndex(r=>(r.year||0)>=decade&&(r.year||0)<decade+10);
-    }
-    if(idx<0)return;
-    const cards=$(gridId).querySelectorAll('.record-card');
-    if(cards[idx]){
-      // Manual scroll: get card position, subtract header height + padding
-      const headerH=$('topBar').offsetHeight||56;
-      const rect=cards[idx].getBoundingClientRect();
-      const scrollTarget=window.scrollY+rect.top-headerH-12;
-      window.scrollTo({top:Math.max(0,scrollTarget),behavior:'instant'});
-    }
-    // Show toast — show full decade label for year mode
-    const toast=$('alphaJumpToast');
-    const toastLabel=showYear?parseInt(marker)+'s':marker;
-    toast.textContent=toastLabel;toast.classList.add('show');
-    clearTimeout(toast._t);toast._t=setTimeout(()=>toast.classList.remove('show'),800);
-    // Keep scrubber visible while using it
-    scrubber.classList.remove('scroll-fade');
-    clearTimeout(scrubberFadeTimer);
-    scrubberFadeTimer=setTimeout(()=>{scrubber.classList.add('scroll-fade');},2000);
-  }
-
-  // Touch: tap + slide. No onclick (300ms delay on mobile Safari).
-  let touching=false,moved=false,tapTarget=null;
-  scrubber.ontouchstart=e=>{
-    touching=true;moved=false;lastJump='';e.preventDefault();
-    scrubber.classList.remove('scroll-fade');
-    // Capture which marker the finger landed on
-    const touch=e.touches[0];
-    const el=document.elementFromPoint(touch.clientX,touch.clientY);
-    tapTarget=(el&&el.dataset&&el.dataset.marker)?el.dataset.marker:null;
-  };
-  scrubber.ontouchmove=e=>{
-    if(!touching)return;moved=true;e.preventDefault();
-    const touch=e.touches[0];
-    const el=document.elementFromPoint(touch.clientX,touch.clientY);
-    if(el&&el.dataset&&el.dataset.marker)jumpTo(el.dataset.marker);
-  };
-  scrubber.ontouchend=()=>{
-    // If no move happened, it's a tap — jump to the letter
-    if(!moved&&tapTarget){lastJump='';jumpTo(tapTarget);}
-    touching=false;tapTarget=null;lastJump='';
-    clearTimeout(scrubberFadeTimer);
-    scrubberFadeTimer=setTimeout(()=>{scrubber.classList.add('scroll-fade');},2000);
-  };
-}
-
-function showScrubberOnScroll(){
-  if(!scrubberEnabled)return;
-  const scrubber=$('alphaScrubber');
-  scrubber.classList.remove('scroll-fade');
-  clearTimeout(scrubberFadeTimer);
-  scrubberFadeTimer=setTimeout(()=>{scrubber.classList.add('scroll-fade');},1500);
-}
-
-// ── Scroll-hide top & bottom bars ────────────────────────────
-let lastScrollY=0,scrollTicking=false;
-function onScroll(){
-  const y=window.scrollY;const delta=y-lastScrollY;
-  if(Math.abs(delta)<5){scrollTicking=false;return;}
-  if(delta>0&&y>60){
-    $('topBar').classList.add('bar-hidden');
-    $('bottomNav').classList.add('bar-hidden');
-  }else{
-    $('topBar').classList.remove('bar-hidden');
-    $('bottomNav').classList.remove('bar-hidden');
-  }
-  lastScrollY=y;scrollTicking=false;
-}
-window.addEventListener('scroll',()=>{
-  if(!scrollTicking){scrollTicking=true;requestAnimationFrame(onScroll);}
-  showScrubberOnScroll();
-},{ passive:true });
-
-$('fullSyncBtn').onclick=fullSync;
-$('resetCycleBtn').onclick=async()=>{await resetCycle();closeSettings();};
-$('resetConfirmBtn').onclick=async()=>{await resetCycle();$('resetModal').style.display='none';};
-
-// Review modal wiring (v1.1 Sprint 1)
-$('reviewCloseBtn').onclick=closeReviewModal;
-$('reviewCancelBtn').onclick=closeReviewModal;
-$('reviewApplyBtn').onclick=applyReviewChanges;
-// Global toggle flip resets all per-row overrides (§2.A). Rationale: global
-// is the source of truth, overrides are exceptions to the current global.
-// Preserving overrides through a global flip creates hidden state the user
-// has to remember. Brief toast tells them how many rows got reset.
-function flipGlobalToggle(nextMode){
-  if(!_reviewState)return;
-  if(_reviewState.toggle===nextMode)return; // no-op
-  const overrideCount=_reviewState.overrides.size;
-  _reviewState.toggle=nextMode;
-  _reviewState.overrides.clear();
-  $('reviewToggleOverwrite').classList.toggle('active',nextMode==='overwrite');
-  $('reviewToggleMerge').classList.toggle('active',nextMode==='merge');
-  $('reviewToggleHelp').textContent=nextMode==='overwrite'
-    ? 'Overwrite replaces existing moods with proposed.'
-    : 'Merge adds proposed moods to existing, deduped.';
-  if(overrideCount>0){
-    renderReviewList(); // hide stale badges
-    showToast(`Reset ${overrideCount} row override${overrideCount===1?'':'s'}`);
-  }
-}
-$('reviewToggleOverwrite').onclick=()=>flipGlobalToggle('overwrite');
-$('reviewToggleMerge').onclick=()=>flipGlobalToggle('merge');
-$('moodPickCancelBtn').onclick=closeMoodPickModal;
-$('moodPickSaveBtn').onclick=saveMoodPickModal;
-$('clearPlaysBtn').onclick=clearPlayHistory;
-$('clearNotesBtn').onclick=async()=>{
-  if(!confirm('Clear all notes and moods? This cannot be undone.'))return;
-  await dbClear('moods');await dbClear('notes');
-  moodCache={};notesCache={};
-  renderGrid();closeSettings();showToast('Notes and moods cleared');
-};
+});
 // ── Shared inputPromptModal helper (v1.1 §6) ──
 // Promise-based replacement for native prompt(). Lives in #inputPromptModal
 // (HTML at top of body). Single modal reused across all text-entry surfaces.
