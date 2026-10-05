@@ -1,55 +1,69 @@
-// Genre filter — v1.2 piece 2.
+// Genre and Mood filters — v1.2 piece 2.
 //
-// One Genre button on the Crate view, beside Mood, on both /vinyl and the share
-// page. Genres come from the stored Discogs genres. A record with several
-// genres shows under each. Records with no genre show under All only. Genre and
-// mood combine. Styles are searchable, not browsable. Shuffle honors the filter.
+// Crate view, both /vinyl and the share page: a compact sort button, then Mood
+// and Genre. Both open one shared picker sheet (rows with counts, mood rows with
+// a color dot). Genres come from stored Discogs genres, plus Stage & Screen when
+// a title reads like a soundtrack and Discogs left it off (F1 The Album).
+// Multi-genre records show under each genre, no-genre records under All only.
+// Filters combine with each other and with search. Styles are searchable, not
+// browsable. Shuffle honors the genre filter but its label never names it.
 //
-// Runs the shipped applyFilters / genreCounts / doShuffle against fixtures.
+// Runs the shipped functions out of both pages against fixtures.
 
-import { read, sliceTo, mustContain, runIn, check, report } from './lib/slice.mjs';
+import { read, sliceTo, sliceBetween, mustContain, runIn, check, report } from './lib/slice.mjs';
 
 const APP = read('index.html');
 const SHARE = read('share/index.html');
 
-const PAGES = {
-  '/vinyl': {
-    counts: sliceTo(APP, /^function genreCounts\(records\)\{/, '}'),
-    note: sliceTo(APP, /^function recordNoteText\(r\)\{/, '}'),
-    filter: sliceTo(APP, /^function applyFilters\(\)\{/, '}'),
-    shuffle: sliceTo(APP, /^function doShuffle\(\)\{/, '}'),
-  },
-  share: {
-    counts: sliceTo(SHARE, /^function genreCounts\(records\)\{/, '}'),
-    note: sliceTo(SHARE, /^function recordNoteText\(r\)\{/, '}'),
-    filter: sliceTo(SHARE, /^function applyFilters\(\)\{/, '}'),
-    shuffle: sliceTo(SHARE, /^function doShuffle\(\)\{/, '}'),
-  },
-};
+function parts(src) {
+  return {
+    genres: sliceBetween(src, /^const SOUNDTRACK_RE=/, /^\/\/ Searchable note text for a record/),
+    counts: sliceTo(src, /^function genreCounts\(records\)\{/, '}'),
+    note: sliceTo(src, /^function recordNoteText\(r\)\{/, '}'),
+    filter: sliceTo(src, /^function applyFilters\(\)\{/, '}'),
+    shuffle: sliceTo(src, /^function doShuffle\(\)\{/, '}'),
+    label: sliceTo(src, /^function updateShuffleLabel\(\)\{/, '}'),
+    picker: sliceBetween(src, /^let _filterPickHandler=null;$/, /^\$\('genreFilterBtn'\)\.onclick=openGenrePicker;$/),
+    pickerMarkup: sliceTo(src, /^<div id="filterPicker"/, '</div>'),
+  };
+}
+const PAGES = { '/vinyl': parts(APP), share: parts(SHARE) };
 for (const [p, s] of Object.entries(PAGES)) {
-  mustContain(s.filter, /activeGenreFilter!=='all'/, `the genre condition in ${p} applyFilters`);
+  mustContain(s.filter, /activeGenreFilter!=='all'&&!?\(?recordGenres\(r\)|recordGenres\(r\)\.(indexOf|includes)\(activeGenreFilter\)/, `the genre condition in ${p} applyFilters`);
   mustContain(s.filter, /styles\.includes\(q\)/, `style search in ${p}`);
   mustContain(s.shuffle, /activeGenreFilter/, `the genre narrowing in ${p} shuffle`);
+  mustContain(s.picker, /function openMoodPicker\(\)\{/, `the mood picker in ${p}`);
+  mustContain(s.counts, /recordGenres\(r\)/, `soundtrack-aware counts in ${p}`);
 }
+for (const src of [APP, SHARE]) {
+  mustContain(src, /^\$\('moodFilterBtn'\)\.onclick=openMoodPicker;$/m, 'the Mood button opening the sheet');
+}
+mustContain(APP, /\$\('navMoods'\)\.onclick=\(\)=>\{\n[^\n]*\n\s*closeAllOverlays\(\);setActiveNav\('navMoods'\);switchView\('crate'\);openMoodPicker\(\);/, 'the Moods tab opening the sheet');
 
 // ── fixtures ──────────────────────────────────────────────────
 const rec = (id, artist, title) => ({ releaseId: id, artist, title, label: 'Label', discogsNotes: '' });
 const COLLECTION = [
-  rec('1', 'Old Crow Medicine Show', 'Big Iron World'), // Folk + Rock, style Bluegrass
-  rec('2', 'Pink Floyd', 'Animals'),                    // Rock
-  rec('3', 'Bonobo', 'Migration'),                      // Electronic
-  rec('4', 'Unknown', 'White Label'),                   // no genre data
-  rec('5', 'Khruangbin', 'Mordechai'),                  // Rock + Funk / Soul, genre listed twice
+  rec('1', 'Old Crow Medicine Show', 'Big Iron World'),                  // Folk + Rock, style Bluegrass
+  rec('2', 'Pink Floyd', 'Animals'),                                     // Rock
+  rec('3', 'Bonobo', 'Migration'),                                       // Electronic
+  rec('4', 'Unknown', 'White Label'),                                    // no genre data
+  rec('5', 'Khruangbin', 'Mordechai'),                                   // Rock + Funk / Soul, Rock listed twice
+  rec('6', 'Various', 'F1 The Album (Music From F1 The Movie)'),         // Hip Hop + Pop at the source
+  rec('7', 'The Band', 'Music From Big Pink'),                           // Rock, NOT a soundtrack
+  rec('8', 'Various', 'Pump Up The Volume (Original Motion Picture Soundtrack)'), // already Stage & Screen
 ];
 const GENRES = {
   '1': ['Folk, World, & Country', 'Rock'],
   '2': ['Rock'],
   '3': ['Electronic'],
   '5': ['Rock', 'Funk / Soul', 'Rock'],
+  '6': ['Hip Hop', 'Pop'],
+  '7': ['Rock'],
+  '8': ['Stage & Screen'],
 };
 const STYLES = { '1': ['Bluegrass', 'Americana'], '2': ['Prog Rock'] };
-const MOOD_TAGS = { '1': ['latenight'], '2': ['core'], '5': ['latenight'] };
-const MOODS = [{ id: 'latenight', label: 'Late' }, { id: 'core', label: 'Core' }];
+const MOOD_TAGS = { '1': ['latenight'], '2': ['core'], '5': ['latenight'], '6': ['latenight', 'latenight'] };
+const MOODS = [{ id: 'latenight', label: 'Late', color: '#a78bfa' }, { id: 'core', label: 'Core', color: '#f87171' }, { id: 'sunday', label: 'Sunday', color: '#34d399' }];
 
 function sandbox({ q = '', genre = 'all', mood = 'all' } = {}) {
   const els = { searchBarTop: { value: q }, countBadge: { textContent: '' } };
@@ -62,77 +76,109 @@ function sandbox({ q = '', genre = 'all', mood = 'all' } = {}) {
     console,
   };
 }
-const ids = (rows) => rows.map((r) => r.releaseId).sort().join(',');
+const ids = (rows) => rows.map((r) => r.releaseId).sort((a, b) => a - b).join(',');
 
 function run(page, opts) {
   const sb = sandbox(opts);
   const s = PAGES[page];
-  runIn([s.note, s.filter, 'applyFilters();'].join('\n'), sb);
+  runIn([s.genres, s.note, s.filter, 'applyFilters();'].join('\n'), sb);
   return ids(sb.filtered);
 }
-function counts(page) {
+function counts(page, records = COLLECTION) {
   const sb = { genreCache: GENRES };
-  runIn(PAGES[page].counts, sb);
-  return { all: sb.genreCounts(COLLECTION), empty: sb.genreCounts([]) };
+  runIn([PAGES[page].genres, PAGES[page].counts].join('\n'), sb);
+  return Object.fromEntries(sb.genreCounts(records));
 }
-function shufflePicks(page, opts, n = 60) {
+function shufflePicks(page, opts, n = 80) {
   const picks = new Set();
   const sb = { ...sandbox(opts), Math, showToast() {}, openSheet: (r) => picks.add(r.releaseId) };
-  runIn(PAGES[page].shuffle, sb);
+  runIn([PAGES[page].genres, PAGES[page].shuffle].join('\n'), sb);
   for (let i = 0; i < n; i++) sb.doShuffle();
-  return [...picks].sort().join(',');
+  return [...picks].sort((a, b) => a - b).join(',');
+}
+// Run the shared picker block with a stub sheet so we can read the rows it builds.
+function pickerSandbox(page, opts) {
+  const sheet = { title: '', rows: null, active: null, onPick: null };
+  const els = { moodFilterBtn: { textContent: '', className: '' }, genreFilterBtn: { textContent: '', className: '' } };
+  const sb = {
+    ...sandbox(opts), $: (id) => els[id] || { onclick: null, style: {}, setAttribute() {} },
+    document: { createElement: () => ({}) }, setTimeout() {}, applied: 0,
+  };
+  runIn([PAGES[page].genres, PAGES[page].counts, PAGES[page].picker].join('\n'), sb);
+  sb.openFilterPicker = (title, rows, active, onPick) => Object.assign(sheet, { title, rows, active, onPick });
+  sb.applyFilters = () => { sb.applied++; };
+  sb.updateShuffleLabel = () => {};
+  return { sb, sheet, els };
 }
 
 for (const page of Object.keys(PAGES)) {
-  check(`${page}: no filter shows every record`, run(page) === '1,2,3,4,5', run(page));
-  check(`${page}: Rock shows every Rock record, multi-genre included (A2)`, run(page, { genre: 'Rock' }) === '1,2,5', run(page, { genre: 'Rock' }));
+  check(`${page}: no filter shows every record`, run(page) === '1,2,3,4,5,6,7,8', run(page));
+  check(`${page}: Rock shows every Rock record, multi-genre included (A2)`, run(page, { genre: 'Rock' }) === '1,2,5,7', run(page, { genre: 'Rock' }));
   check(`${page}: the Folk + Rock record also shows under Folk (A2)`, run(page, { genre: 'Folk, World, & Country' }) === '1', run(page, { genre: 'Folk, World, & Country' }));
   check(`${page}: the no-genre record shows under All and nowhere else (A3)`,
-    run(page).includes('4') && !['Rock', 'Electronic', 'Funk / Soul'].some((g) => run(page, { genre: g }).includes('4')));
+    run(page).includes('4') && !['Rock', 'Electronic', 'Funk / Soul', 'Stage & Screen'].some((g) => run(page, { genre: g }).split(',').includes('4')));
   check(`${page}: genre and mood combine (Rock + Late)`, run(page, { genre: 'Rock', mood: 'latenight' }) === '1,5', run(page, { genre: 'Rock', mood: 'latenight' }));
   check(`${page}: a style name finds its record (A4)`, run(page, { q: 'bluegrass' }) === '1', run(page, { q: 'bluegrass' }) || '(none)');
   check(`${page}: search and genre combine`, run(page, { q: 'prog', genre: 'Rock' }) === '2', run(page, { q: 'prog', genre: 'Rock' }) || '(none)');
-  // Negative: a genre nobody owns returns nothing, so the filter isn't a pass-through.
   check(`${page}: NEGATIVE, an unowned genre returns nothing`, run(page, { genre: 'Classical' }) === '', run(page, { genre: 'Classical' }) || '(none)');
 
+  // Soundtrack rule
+  check(`${page}: F1 (Hip Hop + Pop at the source) shows under Stage & Screen`, run(page, { genre: 'Stage & Screen' }) === '6,8', run(page, { genre: 'Stage & Screen' }));
+  check(`${page}: F1 keeps its Discogs genres too`, run(page, { genre: 'Hip Hop' }) === '6', run(page, { genre: 'Hip Hop' }));
+  check(`${page}: NEGATIVE, "Music From Big Pink" is not a soundtrack`, !run(page, { genre: 'Stage & Screen' }).split(',').includes('7'));
+  check(`${page}: typing "stage" finds the derived genre`, run(page, { q: 'stage & screen' }) === '6,8', run(page, { q: 'stage & screen' }));
+
   const c = counts(page);
-  const asObj = Object.fromEntries(c.all);
-  check(`${page}: counts list only owned genres (A1)`, Object.keys(asObj).sort().join('|') === ['Electronic', 'Folk, World, & Country', 'Funk / Soul', 'Rock'].join('|'), Object.keys(asObj).join('|'));
-  check(`${page}: Rock counted once per record even if listed twice`, asObj['Rock'] === 3, `Rock=${asObj['Rock']}`);
-  check(`${page}: counts sort by size, then name`, c.all[0][0] === 'Rock' && c.all[1][0] === 'Electronic', c.all.map((x) => x.join(':')).join(' '));
-  check(`${page}: empty collection gives no genres`, c.empty.length === 0);
+  check(`${page}: counts list only owned genres (A1)`, Object.keys(c).sort().join('|') === ['Electronic', 'Folk, World, & Country', 'Funk / Soul', 'Hip Hop', 'Pop', 'Rock', 'Stage & Screen'].join('|'), Object.keys(c).join('|'));
+  check(`${page}: Rock counted once per record even if listed twice`, c['Rock'] === 4, `Rock=${c['Rock']}`);
+  check(`${page}: Stage & Screen counts the soundtrack once, no double add`, c['Stage & Screen'] === 2, `S&S=${c['Stage & Screen']}`);
+  check(`${page}: empty collection gives no genres`, Object.keys(counts(page, [])).length === 0);
 
-  check(`${page}: shuffle only picks from the active genre`, /^[125](,[125])*$/.test(shufflePicks(page, { genre: 'Rock' })), shufflePicks(page, { genre: 'Rock' }));
+  check(`${page}: shuffle only picks from the active genre`, /^[1257](,[1257])*$/.test(shufflePicks(page, { genre: 'Rock' })), shufflePicks(page, { genre: 'Rock' }));
+
+  // Shared picker: mood rows
+  {
+    const { sb, sheet, els } = pickerSandbox(page);
+    sb.openMoodPicker();
+    const rows = sheet.rows || [];
+    check(`${page}: mood sheet lists All plus every mood in order`, sheet.title === 'Mood' && rows.map((r) => r.value).join(',') === 'all,latenight,core,sunday', rows.map((r) => r.value).join(','));
+    check(`${page}: mood counts are records, a doubled tag counts once`, rows[1]?.count === 3 && rows[2]?.count === 1 && rows[3]?.count === 0, rows.map((r) => r.count).join(','));
+    check(`${page}: mood rows carry their color, All does not`, rows[1]?.color === '#a78bfa' && !rows[0]?.color);
+    sheet.onPick('core');
+    check(`${page}: picking a mood sets the filter, label and active state`, sb.activeMoodFilter === 'core' && els.moodFilterBtn.textContent === 'Mood: Core' && /active-filter/.test(els.moodFilterBtn.className) && sb.applied === 1, els.moodFilterBtn.textContent);
+    sb.openGenrePicker();
+    check(`${page}: genre sheet uses the same picker, F1 counted under Stage & Screen`, sheet.title === 'Genre' && sheet.rows.find((r) => r.value === 'Stage & Screen')?.count === 2);
+    sheet.onPick('Rock');
+    check(`${page}: picking a genre shows the bare name`, sb.activeGenreFilter === 'Rock' && els.genreFilterBtn.textContent === 'Rock', els.genreFilterBtn.textContent);
+  }
+
+  // Todd, 2026-10-04: the genre filter narrows shuffle but never changes the label.
+  {
+    const el = { textContent: '' };
+    const sb = { $: () => el, MOODS, activeMoodFilter: 'all', activeGenreFilter: 'Rock', shuffleMode: 'all' };
+    runIn(PAGES[page].label + '\nupdateShuffleLabel();', sb);
+    const withGenre = el.textContent;
+    sb.activeGenreFilter = 'all';
+    runIn('updateShuffleLabel();', sb);
+    check(`${page}: genre filter leaves the shuffle label alone`, withGenre === el.textContent && !/rock/i.test(withGenre), `"${withGenre}"`);
+    sb.activeMoodFilter = 'latenight';
+    runIn('updateShuffleLabel();', sb);
+    check(`${page}: NEGATIVE, mood still changes the label`, el.textContent !== withGenre, `"${el.textContent}"`);
+  }
 }
 
-// Todd, 2026-10-04: the genre filter narrows shuffle but must not change the
-// shuffle button's text.
-for (const [p, src] of [['/vinyl', APP], ['share', SHARE]]) {
-  const LABEL = sliceTo(src, /^function updateShuffleLabel\(\)\{/, '}');
-  const el = { textContent: '' };
-  const sb = { $: () => el, MOODS, activeMoodFilter: 'all', activeGenreFilter: 'Rock', shuffleMode: 'all' };
-  runIn(LABEL + '\nupdateShuffleLabel();', sb);
-  const withGenre = el.textContent;
-  sb.activeGenreFilter = 'all';
-  runIn('updateShuffleLabel();', sb);
-  check(`${p}: genre filter leaves the shuffle label alone`, withGenre === el.textContent && !/rock/i.test(withGenre), `"${withGenre}"`);
-  // Negative: mood still changes it, so the check above can tell labels apart.
-  sb.activeMoodFilter = 'latenight';
-  runIn('updateShuffleLabel();', sb);
-  check(`${p}: NEGATIVE, mood still changes the label`, el.textContent !== withGenre, `"${el.textContent}"`);
-}
-
+// Parity: the shared pieces are verbatim on both pages.
+check('recordGenres and SOUNDTRACK_RE are identical on both pages', PAGES['/vinyl'].genres.replace(/\/\/.*$/gm, '') === PAGES.share.genres.replace(/\/\/.*$/gm, ''));
 check('genreCounts is identical on both pages', PAGES['/vinyl'].counts === PAGES.share.counts);
+check('the picker block is identical on both pages', PAGES['/vinyl'].picker === PAGES.share.picker);
 const icon = (src) => (src.match(/^const SORT_ICON=.*$/m) || [''])[0];
 check('compact sort icon is identical on both pages', icon(APP) && icon(APP) === icon(SHARE));
 
-// Naming rule (A6): nothing this piece shows says "Discogs".
-for (const [p, src] of [['/vinyl', APP], ['share', SHARE]]) {
-  const picker = sliceTo(src, /<div id="genrePicker"/, '</div>');
-  const btn = (src.match(/<button class="ctrl-btn" id="genreFilterBtn">[^<]*<\/button>/) || [''])[0];
-  const render = sliceTo(src, /^function renderGenreBtn\(\)\{/, '}');
-  const visible = [picker, btn, render.replace(/\/\/.*$/gm, '')].join('\n');
-  check(`${p}: Genre button and picker never say Discogs (A6)`, btn && !/discogs/i.test(visible), btn);
+// Naming rule (A6): nothing these filters show says "Discogs".
+for (const [p, s] of Object.entries(PAGES)) {
+  const visible = [s.pickerMarkup, s.picker.replace(/\/\/.*$/gm, '')].join('\n').replace(/'[^']*'/g, (m) => m);
+  const strings = [...visible.matchAll(/'([^']*)'|`([^`]*)`/g)].map((m) => m[1] ?? m[2]).join(' | ');
+  check(`${p}: filter sheet and buttons never say Discogs (A6)`, strings.length > 0 && !/discogs/i.test(strings + s.pickerMarkup));
 }
 
 process.exit(report() ? 1 : 0);

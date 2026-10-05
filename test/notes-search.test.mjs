@@ -8,7 +8,7 @@
 //
 // Runs the shipped applyFilters from BOTH pages against the same fixtures.
 
-import { read, sliceTo, mustContain, runIn, check, report } from './lib/slice.mjs';
+import { read, sliceTo, sliceBetween, mustContain, runIn, check, report } from './lib/slice.mjs';
 
 const APP = read('index.html');
 const SHARE = read('share/index.html');
@@ -16,6 +16,9 @@ const SHARE = read('share/index.html');
 const APP_NOTE = sliceTo(APP, /^function recordNoteText\(r\)\{/, '}');
 const SHARE_NOTE = sliceTo(SHARE, /^function recordNoteText\(r\)\{/, '}');
 const APP_FILTER = sliceTo(APP, /^function applyFilters\(\)\{/, '}');
+// applyFilters reads genres through recordGenres (v1.2 piece 2).
+const APP_GENRES = sliceBetween(APP, /^const SOUNDTRACK_RE=/, /^\/\/ Searchable note text for a record/);
+const SHARE_GENRES = sliceBetween(SHARE, /^const SOUNDTRACK_RE=/, /^\/\/ Searchable note text for a record/);
 const SHARE_FILTER = sliceTo(SHARE, /^function applyFilters\(\)\{/, '}');
 mustContain(APP_FILTER, /recordNoteText\(r\)\.includes\(q\)/, 'the notes match in /vinyl search');
 mustContain(SHARE_FILTER, /recordNoteText\(r\)\.includes\(q\)/, 'the notes match in share page search');
@@ -50,7 +53,7 @@ function sandbox(q, { notes = NOTES, collection = COLLECTION, mood = 'all' } = {
 
 function search(page, q, opts) {
   const sb = sandbox(q, opts);
-  const src = page === 'app' ? [APP_NOTE, APP_FILTER] : [SHARE_NOTE, SHARE_FILTER];
+  const src = page === 'app' ? [APP_GENRES, APP_NOTE, APP_FILTER] : [SHARE_GENRES, SHARE_NOTE, SHARE_FILTER];
   runIn(src.join('\n') + '\napplyFilters();', sb);
   return sb.filtered.map((r) => r.releaseId).sort().join(',');
 }

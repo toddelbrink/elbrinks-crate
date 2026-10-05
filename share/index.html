@@ -47,14 +47,16 @@ header{padding:14px 16px 10px;border-bottom:1px solid var(--border);display:flex
 .ctrl-btn.active-filter{color:var(--accent)}
 .ctrl-btn.sort-compact{flex:none;display:flex;align-items:center;gap:5px}
 .ctrl-btn.sort-compact svg{width:12px;height:12px;flex-shrink:0}
-/* v1.2 piece 2: Genre picker sheet (same look as /vinyl). Above the bottom nav. */
-.genre-picker{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:230;display:none;flex-direction:column;justify-content:flex-end;backdrop-filter:blur(4px)}
-.genre-picker-sheet{background:var(--surface);border-radius:20px 20px 0 0;width:100%;max-width:520px;margin:0 auto;max-height:70vh;overflow-y:auto;padding-bottom:calc(12px + env(safe-area-inset-bottom))}
-.genre-picker-sheet .sheet-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:12px auto 0}
-.genre-picker-title{color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;padding:10px 20px 8px}
-.genre-opt{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;background:none;border:none;border-top:1px solid var(--border);color:var(--text);font-family:var(--font);font-size:14px;padding:13px 20px;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
-.genre-opt .genre-count{color:var(--muted);font-size:13px;white-space:nowrap}
-.genre-opt.selected,.genre-opt.selected .genre-count{color:var(--accent);font-weight:600}
+/* v1.2: filter picker sheet shared by Genre and Mood. Sits above the bottom nav (z 220). */
+.filter-picker{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:230;display:none;flex-direction:column;justify-content:flex-end;backdrop-filter:blur(4px)}
+.filter-picker-sheet{background:var(--surface);border-radius:20px 20px 0 0;width:100%;max-width:520px;margin:0 auto;max-height:70vh;overflow-y:auto;padding-bottom:calc(12px + env(safe-area-inset-bottom))}
+.filter-picker-sheet .sheet-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:12px auto 0}
+.filter-picker-title{color:var(--muted);font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;padding:10px 20px 8px}
+.filter-opt{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;background:none;border:none;border-top:1px solid var(--border);color:var(--text);font-family:var(--font);font-size:14px;padding:13px 20px;text-align:left;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.filter-opt .filter-count{color:var(--muted);font-size:13px;white-space:nowrap}
+.filter-opt.selected,.filter-opt.selected .filter-count{color:var(--accent);font-weight:600}
+.filter-name{display:flex;align-items:center;min-width:0}
+.filter-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-right:10px}
 input[type=text]{background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font);font-size:14px;padding:10px 12px;width:100%;outline:none}
 input:focus{border-color:var(--accent)}
 .search-bar{background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font);font-size:14px;padding:10px 14px;width:100%;outline:none}
@@ -403,12 +405,12 @@ header.bar-hidden{transform:translateY(-100%)}
 </div>
 
 <!-- Album Detail Overlay -->
-<!-- v1.2 piece 2: Genre picker. Lists only genres in this collection, with counts. -->
-<div id="genrePicker" class="genre-picker" role="dialog" aria-modal="true" aria-label="Genre">
-  <div class="genre-picker-sheet">
+<!-- v1.2: filter picker sheet, shared by the Genre and Mood buttons. -->
+<div id="filterPicker" class="filter-picker" role="dialog" aria-modal="true" aria-label="Filter">
+  <div class="filter-picker-sheet">
     <div class="sheet-handle"></div>
-    <div class="genre-picker-title">Genre</div>
-    <div id="genrePickerList"></div>
+    <div class="filter-picker-title" id="filterPickerTitle"></div>
+    <div id="filterPickerList"></div>
   </div>
 </div>
 <div class="fullpage-overlay" id="sheetOverlay">
@@ -836,7 +838,7 @@ function closeAllOverlays(){
   $('statDrillOverlay').classList.remove('open');
   $('artistOverlay').classList.remove('open');
   closeMoodPatterns();
-  $('genrePicker').style.display='none';
+  $('filterPicker').style.display='none';
 }
 
 // Nav handlers
@@ -861,7 +863,7 @@ function updateCrateProgress(){
 function doShuffle(){
   let pool=collection;
   if(activeMoodFilter!=='all')pool=pool.filter(r=>(moodCache[r.releaseId]||[]).includes(activeMoodFilter));
-  if(activeGenreFilter!=='all')pool=pool.filter(r=>(genreCache[r.releaseId]||[]).includes(activeGenreFilter));
+  if(activeGenreFilter!=='all')pool=pool.filter(r=>recordGenres(r).includes(activeGenreFilter));
   if(!pool.length)return;
   openSheet(pool[Math.floor(Math.random()*pool.length)]);
 }
@@ -930,6 +932,19 @@ $('sortBtn').onclick=()=>{
   applyFilters();
 };
 
+// Genres as Crate shows them: the stored Discogs genres, plus Stage & Screen
+// when the title reads like a soundtrack and Discogs left it off (F1 The Album
+// is tagged Hip Hop + Pop at the source). Derived at read time, never written
+// back. "Music From Big Pink" must not match, so "music from" needs a
+// film/movie/series/show word after it. Verbatim copy of the owner app's helper,
+// guarded by test/genre-filter.test.mjs.
+const SOUNDTRACK_RE=/soundtrack|motion picture|original score|\bmusic from\b[^()]*\b(movie|film|series|show)\b/i;
+function recordGenres(r){
+  const g=genreCache[r.releaseId]||[];
+  if(g.includes('Stage & Screen')||!SOUNDTRACK_RE.test(r.title||''))return g;
+  return [...g,'Stage & Screen'];
+}
+
 // Searchable note text for a record: the in-app note plus the Discogs note.
 // Liner notes are deliberately excluded (v1.2 §1.2). Verbatim copy of the
 // owner app's helper, guarded by test/notes-search.test.mjs.
@@ -940,12 +955,12 @@ function recordNoteText(r){
 function applyFilters(){
   filtered=[...collection];
   if(activeMoodFilter!=='all')filtered=filtered.filter(r=>(moodCache[r.releaseId]||[]).includes(activeMoodFilter));
-  if(activeGenreFilter!=='all')filtered=filtered.filter(r=>(genreCache[r.releaseId]||[]).includes(activeGenreFilter));
+  if(activeGenreFilter!=='all')filtered=filtered.filter(r=>recordGenres(r).includes(activeGenreFilter));
   // Search
   const q=($('searchBarTop').value||'').toLowerCase().trim();
   if(q){
     filtered=filtered.filter(r=>{
-      const genres=(genreCache[r.releaseId]||[]).join(' ').toLowerCase();
+      const genres=recordGenres(r).join(' ').toLowerCase();
       const styles=(stylesCache[r.releaseId]||[]).join(' ').toLowerCase();
       const moods=(moodCache[r.releaseId]||[]).map(slug=>{const m=MOODS.find(x=>x.id===slug);return m?slug+' '+m.label:'';}).join(' ').toLowerCase();
       return(r.artist||'').toLowerCase().includes(q)||(r.title||'').toLowerCase().includes(q)||(r.label||'').toLowerCase().includes(q)||genres.includes(q)||styles.includes(q)||moods.includes(q)||recordNoteText(r).includes(q);
@@ -956,53 +971,82 @@ function applyFilters(){
   if(activeView==='crate')updateScrubber();
 }
 
-$('moodFilterBtn').onclick=()=>{
-  const opts=['all',...MOODS.map(m=>m.id)];
-  const idx=opts.indexOf(activeMoodFilter);
-  activeMoodFilter=opts[(idx+1)%opts.length];
-  const mood=MOODS.find(m=>m.id===activeMoodFilter);
-  $('moodFilterBtn').textContent=mood?'Mood: '+mood.label:'Mood: All';
-  $('moodFilterBtn').className='ctrl-btn'+(activeMoodFilter!=='all'?' active-filter':'');
-  applyFilters();updateShuffleLabel();
-};
 
 // ---- Genre filter (v1.2 piece 2) ----
 // Same behavior as /vinyl. genreCounts is a verbatim copy of the owner app's
 // helper, guarded by test/genre-filter.test.mjs.
 function genreCounts(records){
   const ct={};
-  records.forEach(r=>{new Set(genreCache[r.releaseId]||[]).forEach(g=>{ct[g]=(ct[g]||0)+1;});});
+  records.forEach(r=>{new Set(recordGenres(r)).forEach(g=>{ct[g]=(ct[g]||0)+1;});});
   return Object.entries(ct).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]));
 }
+// ── Filter picker sheet (v1.2) ───────────────────────────────
+// One bottom sheet shared by the Genre and Mood buttons. Rows are
+// {value,label,count,color?}. This block, genreCounts and moodCounts are
+// verbatim copies on both pages, guarded by test/genre-filter.test.mjs.
+let _filterPickHandler=null;
+function openFilterPicker(title,rows,active,onPick){
+  $('filterPickerTitle').textContent=title;
+  $('filterPicker').setAttribute('aria-label',title);
+  const list=$('filterPickerList');list.innerHTML='';
+  rows.forEach(row=>{
+    const btn=document.createElement('button');
+    const on=row.value===active;
+    btn.className='filter-opt'+(on?' selected':'');
+    btn.dataset.value=row.value;
+    const name=document.createElement('span');name.className='filter-name';
+    if(row.color){const dot=document.createElement('span');dot.className='filter-dot';dot.style.background=row.color;name.appendChild(dot);}
+    name.appendChild(document.createTextNode(row.label));
+    const count=document.createElement('span');count.className='filter-count';count.textContent=(on?'✓ ':'')+row.count;
+    btn.append(name,count);list.appendChild(btn);
+  });
+  _filterPickHandler=onPick;
+  $('filterPicker').style.display='flex';
+}
+function closeFilterPicker(){
+  $('filterPicker').style.display='none';_filterPickHandler=null;
+  if(typeof maybeShowUpdateCard==='function')setTimeout(maybeShowUpdateCard,260);
+}
+$('filterPickerList').onclick=e=>{
+  const b=e.target.closest('.filter-opt');if(!b)return;
+  const pick=_filterPickHandler;closeFilterPicker();
+  if(pick)pick(b.dataset.value);
+};
+$('filterPicker').onclick=e=>{if(e.target===$('filterPicker'))closeFilterPicker();};
+function moodCounts(records){
+  const ct={};
+  records.forEach(r=>{new Set(moodCache[r.releaseId]||[]).forEach(m=>{ct[m]=(ct[m]||0)+1;});});
+  return ct;
+}
 function renderGenreBtn(){
-  const b=$('genreFilterBtn');
+  const b=$('genreFilterBtn');if(!b)return;
   // Active state shows the bare genre name: the accent color already marks it,
   // and "Genre: Electronic" would be cut off at phone width.
   b.textContent=activeGenreFilter==='all'?'Genre: All':activeGenreFilter;
   b.className='ctrl-btn'+(activeGenreFilter!=='all'?' active-filter':'');
 }
+function setGenreFilter(g){
+  activeGenreFilter=g||'all';
+  renderGenreBtn();applyFilters();updateShuffleLabel();
+}
+function setMoodFilter(id){
+  activeMoodFilter=id||'all';
+  const mood=MOODS.find(m=>m.id===activeMoodFilter);
+  $('moodFilterBtn').textContent=mood?`Mood: ${mood.label}`:'Mood: All';
+  $('moodFilterBtn').className='ctrl-btn'+(activeMoodFilter!=='all'?' active-filter':'');
+  applyFilters();updateShuffleLabel();
+}
 function openGenrePicker(){
-  const list=$('genrePickerList');list.innerHTML='';
-  const rows=[['all','All genres',collection.length],...genreCounts(collection).map(([g,n])=>[g,g,n])];
-  rows.forEach(([value,label,n])=>{
-    const btn=document.createElement('button');
-    const on=value===activeGenreFilter;
-    btn.className='genre-opt'+(on?' selected':'');
-    btn.dataset.genre=value;
-    const name=document.createElement('span');name.textContent=label;
-    const count=document.createElement('span');count.className='genre-count';count.textContent=(on?'✓ ':'')+n;
-    btn.append(name,count);list.appendChild(btn);
-  });
-  $('genrePicker').style.display='flex';
+  const rows=[{value:'all',label:'All genres',count:collection.length},...genreCounts(collection).map(([g,n])=>({value:g,label:g,count:n}))];
+  openFilterPicker('Genre',rows,activeGenreFilter,setGenreFilter);
+}
+function openMoodPicker(){
+  const ct=moodCounts(collection);
+  const rows=[{value:'all',label:'All moods',count:collection.length},...MOODS.map(m=>({value:m.id,label:m.label,count:ct[m.id]||0,color:m.color}))];
+  openFilterPicker('Mood',rows,activeMoodFilter,setMoodFilter);
 }
 $('genreFilterBtn').onclick=openGenrePicker;
-$('genrePickerList').onclick=e=>{
-  const b=e.target.closest('.genre-opt');if(!b)return;
-  activeGenreFilter=b.dataset.genre||'all';
-  $('genrePicker').style.display='none';
-  renderGenreBtn();applyFilters();updateShuffleLabel();
-};
-$('genrePicker').onclick=e=>{if(e.target===$('genrePicker'))$('genrePicker').style.display='none';};
+$('moodFilterBtn').onclick=openMoodPicker;
 
 // Search
 $('searchBtn').onclick=()=>{$('searchOverlay').classList.add('open');$('searchBarTop').focus();};
@@ -1021,7 +1065,7 @@ function openSheet(r){
   if(artistTap)artistTap.onclick=(e)=>{e.stopPropagation();openArtistPage(artistTap.dataset.artistId,artistTap.dataset.artistName);};
 
   $('modalTitle').textContent=r.title;
-  const genres=genreCache[r.releaseId]||[];
+  const genres=recordGenres(r);
   const condStr=r.mediaCondition?shortCondition(r.mediaCondition)+'/'+shortCondition(r.sleeveCondition):'';
   $('modalMeta').innerHTML=[
     r.year&&'<span class="meta-chip">'+r.year+'</span>',
@@ -1211,13 +1255,13 @@ function renderStats(){
   const topArtist=artistsSorted.length?artistsSorted[0]:['--',0];
 
   const genrePlays={};
-  collection.forEach(r=>{(genreCache[r.releaseId]||[]).forEach(g=>{genrePlays[g]=(genrePlays[g]||0)+(playCounts[r.releaseId]||0);});});
+  collection.forEach(r=>{recordGenres(r).forEach(g=>{genrePlays[g]=(genrePlays[g]||0)+(playCounts[r.releaseId]||0);});});
   const genresSorted=Object.entries(genrePlays).sort((a,b)=>b[1]-a[1]);
   const topGenre=genresSorted.length?genresSorted[0]:['--',0];
 
   const uniqueArtists=[...new Set(collection.map(r=>r.artist).filter(Boolean))].length;
   const uniqueGenres=new Set();
-  Object.values(genreCache).forEach(g=>(g||[]).forEach(x=>uniqueGenres.add(x)));
+  collection.map(recordGenres).forEach(g=>(g||[]).forEach(x=>uniqueGenres.add(x)));
 
   // Top Decade — bucket by Math.floor(year/10)*10, ignore missing/invalid years
   const decadeCounts={};
@@ -1331,7 +1375,7 @@ function openStatDrill(tile){
   }else if(tile==='topgenre'){
     title='Genres by Plays';
     const gp={};
-    collection.forEach(r=>{(genreCache[r.releaseId]||[]).forEach(g=>{gp[g]=(gp[g]||0)+(playCounts[r.releaseId]||0);});});
+    collection.forEach(r=>{recordGenres(r).forEach(g=>{gp[g]=(gp[g]||0)+(playCounts[r.releaseId]||0);});});
     html=renderAggList(Object.entries(gp).sort((a,b)=>b[1]-a[1]).filter(g=>g[1]>0),true);
   }else if(tile==='artists'){
     title='All Artists';
@@ -1340,7 +1384,7 @@ function openStatDrill(tile){
     html=renderAggList(Object.entries(ct).sort((a,b)=>b[1]-a[1]).map(([n,c])=>[n,c+' record'+(c!==1?'s':'')]),false,aim);
   }else if(tile==='genres'){
     title='All Genres';
-    const ct={};Object.values(genreCache).forEach(g=>(g||[]).forEach(x=>{ct[x]=(ct[x]||0)+1;}));
+    const ct={};collection.map(recordGenres).forEach(g=>(g||[]).forEach(x=>{ct[x]=(ct[x]||0)+1;}));
     html=renderAggList(Object.entries(ct).sort((a,b)=>b[1]-a[1]).map(([n,c])=>[n,c+' record'+(c!==1?'s':'')]),false);
   }else if(tile==='topdecade'){
     // Records from the top decade, sorted by year then artist
