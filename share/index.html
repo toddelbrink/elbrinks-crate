@@ -368,8 +368,8 @@ header.bar-hidden{transform:translateY(-100%)}
     </div>
     <div class="controls-row">
       <button class="ctrl-btn sort-compact" id="sortBtn" aria-label="Sort">—</button>
-      <button class="ctrl-btn" id="moodFilterBtn">Mood: All</button>
-      <button class="ctrl-btn" id="genreFilterBtn">Genre: All</button>
+      <button class="ctrl-btn" id="moodFilterBtn">Mood</button>
+      <button class="ctrl-btn" id="genreFilterBtn">Genre</button>
     </div>
     <div class="grid" id="grid"></div>
   </div>
@@ -379,7 +379,7 @@ header.bar-hidden{transform:translateY(-100%)}
       <span class="count-badge" id="wantlistCount"></span>
     </div>
     <div class="controls-row">
-      <button class="ctrl-btn" id="wantSortBtn">Sort: Artist A–Z</button>
+      <button class="ctrl-btn sort-compact" id="wantSortBtn" aria-label="Sort">—</button>
     </div>
     <div class="grid" id="wantlistGrid"></div>
     <div id="wantlistEmpty" style="display:none;text-align:center;padding:40px 20px;color:var(--muted)">
@@ -396,7 +396,7 @@ header.bar-hidden{transform:translateY(-100%)}
       <h2 style="font-size:20px;font-weight:700">Recent plays</h2>
       <span id="recentCount" style="color:var(--muted);font-size:12px"></span>
     </div>
-    <div style="margin-bottom:12px"><button class="ctrl-btn" id="recentMoodFilterBtn" style="flex:none;width:auto">Mood: All</button></div>
+    <div style="margin-bottom:12px"><button class="ctrl-btn" id="recentMoodFilterBtn" style="flex:none;width:auto">Mood</button></div>
     <div id="recentList"></div>
     <div id="recentEmpty" style="text-align:center;padding:40px 16px;color:var(--muted);font-size:13px;line-height:1.6;display:none">
       No plays yet.<br>Listening history shows up here as records get played.
@@ -924,8 +924,11 @@ function applySort(){
 
 // Compact sort button (v1.2 piece 2), same as /vinyl. Written from JS.
 const SORT_ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16M3 8l4-4 4 4M17 20V4M13 16l4 4 4-4"/></svg>';
-function renderSortBtn(){$('sortBtn').innerHTML=SORT_ICON+'<span>'+sortLabels[sortIdx]+'</span>';}
-renderSortBtn();
+// Every sort button (Crate, Wantlist, drill-downs) uses this arrow style.
+function sortBtnHtml(label){return SORT_ICON+'<span>'+label+'</span>';}
+function renderSortBtn(){$('sortBtn').innerHTML=sortBtnHtml(sortLabels[sortIdx]);}
+function renderWantSortBtn(){$('wantSortBtn').innerHTML=sortBtnHtml(wantSortLabels[wantSortIdx]);}
+renderSortBtn();renderWantSortBtn();
 $('sortBtn').onclick=()=>openFilterPicker('Sort by',sortRows(sortModes,sortLabels),sortModes[sortIdx],m=>{
   sortIdx=sortModes.indexOf(m);
   renderSortBtn();
@@ -1022,9 +1025,9 @@ function moodCounts(records){
 }
 function renderGenreBtn(){
   const b=$('genreFilterBtn');if(!b)return;
-  // Active state shows the bare genre name: the accent color already marks it,
-  // and "Genre: Electronic" would be cut off at phone width.
-  b.textContent=activeGenreFilter==='all'?'Genre: All':activeGenreFilter;
+  // One rule for every filter button (Todd, 2026-10-04): the bare value once
+  // something is picked, the prefix alone when nothing is. Accent text marks it.
+  b.textContent=activeGenreFilter==='all'?'Genre':activeGenreFilter;
   b.className='ctrl-btn'+(activeGenreFilter!=='all'?' active-filter':'');
 }
 function setGenreFilter(g){
@@ -1034,7 +1037,7 @@ function setGenreFilter(g){
 function setMoodFilter(id){
   activeMoodFilter=id||'all';
   const mood=MOODS.find(m=>m.id===activeMoodFilter);
-  $('moodFilterBtn').textContent=mood?`Mood: ${mood.label}`:'Mood: All';
+  $('moodFilterBtn').textContent=mood?mood.label:'Mood';
   $('moodFilterBtn').className='ctrl-btn'+(activeMoodFilter!=='all'?' active-filter':'');
   applyFilters();updateShuffleLabel();
 }
@@ -1361,7 +1364,7 @@ function openStatDrill(tile){
 
   if(tile==='plays'){
     title='Most Played';
-    html=`<div class="controls-row"><button class="ctrl-btn" id="playsSortBtn">Sort: ${playsSortLabels[playsSortIdx]}</button></div>`+renderRecordList(sortPlaysList(playedRecords));
+    html=`<div class="controls-row"><button class="ctrl-btn sort-compact" id="playsSortBtn" aria-label="Sort">${sortBtnHtml(playsSortLabels[playsSortIdx])}</button></div>`+renderRecordList(sortPlaysList(playedRecords));
   }else if(tile==='played'){
     title='Played Records';
     html=renderRecordList([...playedRecords].sort((a,b)=>new Date(lastPlayed[b.releaseId]||0)-new Date(lastPlayed[a.releaseId]||0)));
@@ -1430,7 +1433,7 @@ function wireDrillTaps(playedRecords){
     psb.onclick=()=>openFilterPicker('Sort by',playsSortModes.map((m,i)=>({value:m,label:playsSortLabels[i]})),playsSortMode,m=>{
       playsSortIdx=playsSortModes.indexOf(m);
       playsSortMode=m;
-      $('drillContent').innerHTML=`<div class="controls-row"><button class="ctrl-btn" id="playsSortBtn">Sort: ${playsSortLabels[playsSortIdx]}</button></div>`+renderRecordList(sortPlaysList(playedRecords));
+      $('drillContent').innerHTML=`<div class="controls-row"><button class="ctrl-btn sort-compact" id="playsSortBtn" aria-label="Sort">${sortBtnHtml(playsSortLabels[playsSortIdx])}</button></div>`+renderRecordList(sortPlaysList(playedRecords));
       wireDrillTaps(playedRecords);
     });
   }
@@ -2390,9 +2393,9 @@ function openRecent(){
 function paintRecentMoodFilterBtn(){
   const btn=$('recentMoodFilterBtn');
   const mood=MOODS.find(m=>m.id===_recentMoodFilter);
-  btn.textContent=mood?'Mood: '+mood.label:'Mood: All';
-  btn.style.background=mood?mood.color:'';
-  btn.style.color=mood?'#fff':'';
+  btn.textContent=mood?mood.label:'Mood';
+  // Accent text marks an active filter everywhere (Todd, 2026-10-04).
+  btn.className='ctrl-btn'+(mood?' active-filter':'');
 }
 
 // Opens the mood sheet (v1.2). No counts, matching /vinyl's Recent view.
@@ -2650,7 +2653,7 @@ function renderWantlistGrid(){
 
 $('wantSortBtn').onclick=()=>openFilterPicker('Sort by',sortRows(wantSortModes,wantSortLabels),wantSortModes[wantSortIdx],m=>{
   wantSortIdx=wantSortModes.indexOf(m);
-  $('wantSortBtn').textContent='Sort: '+wantSortLabels[wantSortIdx];
+  renderWantSortBtn();
   if(wantlistLoaded)applyWantlistFilters();
 });
 

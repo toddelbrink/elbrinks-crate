@@ -148,7 +148,7 @@ for (const page of Object.keys(PAGES)) {
     check(`${page}: mood counts are records, a doubled tag counts once`, rows[1]?.count === 3 && rows[2]?.count === 1 && rows[3]?.count === 0, rows.map((r) => r.count).join(','));
     check(`${page}: mood rows carry their color, All does not`, rows[1]?.color === '#a78bfa' && !rows[0]?.color);
     sheet.onPick('core');
-    check(`${page}: picking a mood sets the filter, label and active state`, sb.activeMoodFilter === 'core' && els.moodFilterBtn.textContent === 'Mood: Core' && /active-filter/.test(els.moodFilterBtn.className) && sb.applied === 1, els.moodFilterBtn.textContent);
+    check(`${page}: picking a mood sets the filter, label and active state`, sb.activeMoodFilter === 'core' && els.moodFilterBtn.textContent === 'Core' && /active-filter/.test(els.moodFilterBtn.className) && sb.applied === 1, els.moodFilterBtn.textContent);
     sb.openGenrePicker();
     check(`${page}: genre sheet uses the same picker, F1 counted under Stage & Screen`, sheet.title === 'Genre' && sheet.rows.find((r) => r.value === 'Stage & Screen')?.count === 2);
     sheet.onPick('Rock');
@@ -209,6 +209,38 @@ for (const [page, src] of [['/vinyl', APP], ['share', SHARE]]) {
   mustContain(src, /\$\('recentMoodFilterBtn'\)\.onclick=\(\)=>openFilterPicker\('Mood',moodRows\(false\)/, `${page} Recent mood sheet`);
   const cycles = src.match(/\((?:sortIdx|wantSortIdx|playsSortIdx)\+1\)%|opts\.indexOf\((?:_recentMoodFilter|activeMoodFilter)\)/g) || [];
   check(`${page}: NEGATIVE guard, no cycle-on-tap handlers remain`, cycles.length === 0, cycles.join(' ') || 'none');
+}
+
+// ── One label rule, accent text everywhere (Todd, 2026-10-04) ──
+for (const [page, src] of [['/vinyl', APP], ['share', SHARE]]) {
+  const s = PAGES[page];
+  const els = { moodFilterBtn: { textContent: '', className: '' }, genreFilterBtn: { textContent: '', className: '' } };
+  const sb = { ...sandbox(), $: (id) => els[id] || { style: {}, setAttribute() {} }, document: { createElement: () => ({}) }, setTimeout() {} };
+  runIn([s.genres, s.counts, s.picker].join('\n'), sb);
+  sb.applyFilters = () => {}; sb.updateShuffleLabel = () => {};
+  sb.setMoodFilter('all'); sb.setGenreFilter('all');
+  check(`${page}: unset filters read "Mood" and "Genre"`, els.moodFilterBtn.textContent === 'Mood' && els.genreFilterBtn.textContent === 'Genre' && !/active-filter/.test(els.moodFilterBtn.className + els.genreFilterBtn.className),
+    `${els.moodFilterBtn.textContent} / ${els.genreFilterBtn.textContent}`);
+  sb.setMoodFilter('latenight'); sb.setGenreFilter('Rock');
+  check(`${page}: picked filters show the bare value in accent text`, els.moodFilterBtn.textContent === 'Late' && els.genreFilterBtn.textContent === 'Rock' && /active-filter/.test(els.moodFilterBtn.className) && /active-filter/.test(els.genreFilterBtn.className),
+    `${els.moodFilterBtn.textContent} / ${els.genreFilterBtn.textContent}`);
+
+  const paint = sliceTo(src, /^function paintRecentMoodFilterBtn\(\)\{/, '}');
+  const btn = { textContent: '', className: '', style: {} };
+  const rsb = { $: () => btn, MOODS, _recentMoodFilter: 'core' };
+  runIn(paint + '\npaintRecentMoodFilterBtn();', rsb);
+  check(`${page}: Recent chip uses accent text, no mood-color fill`, btn.textContent === 'Core' && /active-filter/.test(btn.className) && !btn.style.background, `${btn.textContent} ${btn.className} bg=${btn.style.background || 'none'}`);
+  rsb._recentMoodFilter = 'all';
+  runIn('paintRecentMoodFilterBtn();', rsb);
+  check(`${page}: Recent chip unset reads "Mood"`, btn.textContent === 'Mood' && !/active-filter/.test(btn.className), btn.textContent);
+
+  // Every sort button uses the arrow style. Negative guard: no "Sort: " text left.
+  mustContain(src, /^function sortBtnHtml\(label\)\{/m, `${page} shared sort button renderer`);
+  const sortBtns = src.match(/id="(?:sortBtn|wantSortBtn|playsSortBtn)"/g) || [];
+  const compact = src.match(/class="ctrl-btn sort-compact" id="(?:sortBtn|wantSortBtn|playsSortBtn)"/g) || [];
+  check(`${page}: every sort button is the compact arrow style`, sortBtns.length >= 4 && compact.length === sortBtns.length, `${compact.length}/${sortBtns.length}`);
+  const leftovers = src.match(/Sort: \$\{|'Sort: '|>Sort: |Mood: \$\{|'Mood: |Genre: All/g) || [];
+  check(`${page}: NEGATIVE guard, no old "Sort:/Mood:/Genre: All" labels remain`, leftovers.length === 0, leftovers.join(' ') || 'none');
 }
 
 // Parity: the shared pieces are verbatim on both pages.

@@ -726,8 +726,8 @@ input:focus,textarea:focus{border-color:var(--accent)}
     </div>
     <div class="controls-row">
       <button class="ctrl-btn sort-compact" id="sortBtn" aria-label="Sort">—</button>
-      <button class="ctrl-btn" id="moodFilterBtn">Mood: All</button>
-      <button class="ctrl-btn" id="genreFilterBtn">Genre: All</button>
+      <button class="ctrl-btn" id="moodFilterBtn">Mood</button>
+      <button class="ctrl-btn" id="genreFilterBtn">Genre</button>
     </div>
     <div class="grid" id="grid"></div>
   </div>
@@ -737,7 +737,7 @@ input:focus,textarea:focus{border-color:var(--accent)}
       <span class="count-badge" id="wantlistCount"></span>
     </div>
     <div class="controls-row">
-      <button class="ctrl-btn" id="wantSortBtn">Sort: Artist A–Z</button>
+      <button class="ctrl-btn sort-compact" id="wantSortBtn" aria-label="Sort">—</button>
     </div>
     <div class="grid" id="wantlistGrid"></div>
     <div id="wantlistEmpty" style="display:none;text-align:center;padding:40px 20px;color:var(--muted)">
@@ -756,7 +756,7 @@ input:focus,textarea:focus{border-color:var(--accent)}
       <h2 style="font-size:20px;font-weight:700">Recent plays</h2>
       <span id="recentCount" style="color:var(--muted);font-size:12px"></span>
     </div>
-    <div style="margin-bottom:12px"><button class="ctrl-btn" id="recentMoodFilterBtn">Mood: All</button></div>
+    <div style="margin-bottom:12px"><button class="ctrl-btn" id="recentMoodFilterBtn">Mood</button></div>
     <div id="recentList"></div>
     <div id="recentLoadMore" style="text-align:center;padding:16px;display:none">
       <button class="btn-ghost-sm" id="recentLoadMoreBtn" style="padding:8px 16px">Load more</button>
@@ -3769,7 +3769,7 @@ function openStatDrill(tile){
 
   if(tile==='plays'){
     title='Most Played';
-    html=`<div class="controls-row"><button class="ctrl-btn" id="playsSortBtn">Sort: ${playsSortLabels[playsSortIdx]}</button></div>`+renderRecordList(sortPlaysList(playedRecords));
+    html=`<div class="controls-row"><button class="ctrl-btn sort-compact" id="playsSortBtn" aria-label="Sort">${sortBtnHtml(playsSortLabels[playsSortIdx])}</button></div>`+renderRecordList(sortPlaysList(playedRecords));
   }else if(tile==='played'){
     title='Played Records';
     html=renderRecordList([...playedRecords].sort((a,b)=>new Date(lastPlayed[b.releaseId]||0)-new Date(lastPlayed[a.releaseId]||0)));
@@ -3846,7 +3846,7 @@ function wireDrillTaps(playedRecords){
     psb.onclick=()=>openFilterPicker('Sort by',playsSortModes.map((m,i)=>({value:m,label:playsSortLabels[i]})),playsSortMode,m=>{
       playsSortIdx=playsSortModes.indexOf(m);
       playsSortMode=m;
-      $('drillContent').innerHTML=`<div class="controls-row"><button class="ctrl-btn" id="playsSortBtn">Sort: ${playsSortLabels[playsSortIdx]}</button></div>`+renderRecordList(sortPlaysList(playedRecords));
+      $('drillContent').innerHTML=`<div class="controls-row"><button class="ctrl-btn sort-compact" id="playsSortBtn" aria-label="Sort">${sortBtnHtml(playsSortLabels[playsSortIdx])}</button></div>`+renderRecordList(sortPlaysList(playedRecords));
       wireDrillTaps(playedRecords);
     });
   }
@@ -5151,9 +5151,9 @@ function moodCounts(records){
 }
 function renderGenreBtn(){
   const b=$('genreFilterBtn');if(!b)return;
-  // Active state shows the bare genre name: the accent color already marks it,
-  // and "Genre: Electronic" would be cut off at phone width.
-  b.textContent=activeGenreFilter==='all'?'Genre: All':activeGenreFilter;
+  // One rule for every filter button (Todd, 2026-10-04): the bare value once
+  // something is picked, the prefix alone when nothing is. Accent text marks it.
+  b.textContent=activeGenreFilter==='all'?'Genre':activeGenreFilter;
   b.className='ctrl-btn'+(activeGenreFilter!=='all'?' active-filter':'');
 }
 function setGenreFilter(g){
@@ -5163,7 +5163,7 @@ function setGenreFilter(g){
 function setMoodFilter(id){
   activeMoodFilter=id||'all';
   const mood=MOODS.find(m=>m.id===activeMoodFilter);
-  $('moodFilterBtn').textContent=mood?`Mood: ${mood.label}`:'Mood: All';
+  $('moodFilterBtn').textContent=mood?mood.label:'Mood';
   $('moodFilterBtn').className='ctrl-btn'+(activeMoodFilter!=='all'?' active-filter':'');
   applyFilters();updateShuffleLabel();
 }
@@ -5190,15 +5190,10 @@ $('moodFilterBtn').onclick=openMoodPicker;
 function paintRecentMoodFilterBtn(){
   const mood=MOODS.find(m=>m.id===_recentMoodFilter);
   const btn=$('recentMoodFilterBtn');
-  btn.textContent=mood?`Mood: ${mood.label}`:'Mood: All';
+  btn.textContent=mood?mood.label:'Mood';
+  // Accent text marks an active filter everywhere (Todd, 2026-10-04). The
+  // old mood-color fill is gone.
   btn.className='ctrl-btn'+(_recentMoodFilter!=='all'?' active-filter':'');
-  if(_recentMoodFilter!=='all'&&mood){
-    // Tint the chip with the active mood's accent so the filter state reads
-    // at a glance — matches the visual language of mood pills on rows.
-    btn.style.background=mood.color;btn.style.color='#fff';btn.style.borderColor=mood.color;
-  }else{
-    btn.style.background='';btn.style.color='';btn.style.borderColor='';
-  }
 }
 $('recentMoodFilterBtn').onclick=()=>openFilterPicker('Mood',moodRows(false),_recentMoodFilter,m=>{
   _recentMoodFilter=m||'all';
@@ -5793,15 +5788,18 @@ function truncText(ctx,text,maxW){
 // Compact sort button (v1.2 piece 2): an up-down arrow plus the label, so
 // Mood and Genre fit on the same row. Written from JS, never static HTML.
 const SORT_ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16M3 8l4-4 4 4M17 20V4M13 16l4 4 4-4"/></svg>';
-function renderSortBtn(){$('sortBtn').innerHTML=SORT_ICON+'<span>'+sortLabels[sortIdx]+'</span>';}
-renderSortBtn();
+// Every sort button (Crate, Wantlist, drill-downs) uses this arrow style.
+function sortBtnHtml(label){return SORT_ICON+'<span>'+label+'</span>';}
+function renderSortBtn(){$('sortBtn').innerHTML=sortBtnHtml(sortLabels[sortIdx]);}
+function renderWantSortBtn(){$('wantSortBtn').innerHTML=sortBtnHtml(wantSortLabels[wantSortIdx]);}
+renderSortBtn();renderWantSortBtn();
 $('sortBtn').onclick=()=>openFilterPicker('Sort by',sortRows(sortModes,sortLabels),sortModes[sortIdx],m=>{
   sortIdx=sortModes.indexOf(m);sortMode=m;
   renderSortBtn();applyFilters();
 });
 $('wantSortBtn').onclick=()=>openFilterPicker('Sort by',sortRows(wantSortModes,wantSortLabels),wantSortMode,m=>{
   wantSortIdx=wantSortModes.indexOf(m);wantSortMode=m;
-  $('wantSortBtn').textContent=`Sort: ${wantSortLabels[wantSortIdx]}`;applyWantlistFilters();
+  renderWantSortBtn();applyWantlistFilters();
 });
 // ── Shared inputPromptModal helper (v1.1 §6) ──
 // Promise-based replacement for native prompt(). Lives in #inputPromptModal
@@ -6253,17 +6251,7 @@ async function openRecent(){
   if(_recentMoodFilter!=='all'&&!MOODS.find(m=>m.id===_recentMoodFilter)){
     _recentMoodFilter='all';
   }
-  const btn=document.getElementById('recentMoodFilterBtn');
-  if(btn){
-    const mood=MOODS.find(m=>m.id===_recentMoodFilter);
-    btn.textContent=mood?`Mood: ${mood.label}`:'Mood: All';
-    btn.className='ctrl-btn'+(_recentMoodFilter!=='all'?' active-filter':'');
-    if(_recentMoodFilter!=='all'&&mood){
-      btn.style.background=mood.color;btn.style.color='#fff';btn.style.borderColor=mood.color;
-    }else{
-      btn.style.background='';btn.style.color='';btn.style.borderColor='';
-    }
-  }
+  if(document.getElementById('recentMoodFilterBtn'))paintRecentMoodFilterBtn();
   await loadMoreRecent();
 }
 
@@ -6394,13 +6382,13 @@ function renderRecentList(){
 // Clear the active mood and genre filters. Called by the Crate / Wantlist /
 // Stats / Recent nav buttons (per PRD §10.2 — session mood doesn't survive
 // cross-view nav; the v1.2 genre filter follows the same rule).
-// No-op visual indicator pill in v1.0; the existing "Mood: <X>" chip on
+// No-op visual indicator pill in v1.0; the existing Mood button on
 // the Crate view is the canonical surface. Revisit pill in v1.1+ when
 // session mood persists across views.
 function clearCrateFilters(){
   activeMoodFilter='all';activeGenreFilter='all';
   const mFb=document.getElementById('moodFilterBtn');
-  if(mFb){mFb.textContent='Mood: All';mFb.className='ctrl-btn';}
+  if(mFb){mFb.textContent='Mood';mFb.className='ctrl-btn';}
   if(typeof renderGenreBtn==='function')renderGenreBtn();
   if(typeof applyFilters==='function')applyFilters();
   if(typeof updateShuffleLabel==='function')updateShuffleLabel();
