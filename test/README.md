@@ -14,6 +14,7 @@ Run them:
     node test/notes-search.test.mjs
     node test/no-discogs-labels.test.mjs
     node test/genre-filter.test.mjs
+    node test/artist-fetch.test.mjs
 
 No dependencies, no install. Exit code 0 means pass.
 

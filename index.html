@@ -2638,11 +2638,17 @@ async function seedDiscogsNotes(){
 
 // ── Artist Wikipedia URL fetch + vinyl_artists sync ──────────
 let wikiFetching=false;
+// Discogs placeholder artists: Various (194), Unknown Artist (355), No Artist
+// (118760). They have no artist page, so /artists/<id> always 404s. Never look
+// them up. Before this, every compilation (F1, Pump Up The Volume) retried the
+// lookup on every cold open.
+const DISCOGS_PLACEHOLDER_ARTISTS=new Set(['194','355','118760']);
+
 async function startWikiFetch(){
   if(wikiFetching||!token)return;
   // Build list of releases missing wiki URLs, grouped by unique artistId
   // Include releases missing wiki URLs OR artists missing from vinyl_artists table
-  const missing=collection.filter(r=>r.artistId&&(!wikiCache[r.releaseId]||!artistsDB[r.artistId]));
+  const missing=collection.filter(r=>r.artistId&&!DISCOGS_PLACEHOLDER_ARTISTS.has(String(r.artistId))&&(!wikiCache[r.releaseId]||!artistsDB[r.artistId]));
   if(!missing.length)return;
   // Deduplicate by artistId so we only call Discogs once per artist
   const artistMap={};
@@ -2688,11 +2694,22 @@ async function startWikiFetch(){
         image_url:artistImage||''
       };
     }catch(e){
-      console.log(`Artist ${aid} fetch failed:`,e.message);
       // Mark as checked so we don't retry endlessly
       for(const rid of artistMap[aid]){
         wikiCache[rid]='__none__';
         saveMetaToAPI(rid,{artist_wiki_url:'__none__'});
+      }
+      if(e.message==='HTTP 404'){
+        // The artist page is gone on Discogs. Store a name-only artist row so
+        // the next open doesn't ask again. Quiet: this is expected, not broken.
+        const rec=collection.find(x=>x.releaseId===artistMap[aid][0]);
+        const artistName=(rec&&rec.artist)||'';
+        artistBulk[aid]={artist_name:artistName,discogs_url:'',wiki_url:null,image_url:null};
+        artistsDB[aid]={artist_name:artistName,discogs_url:'',wiki_url:'',bio_text:'',image_url:''};
+        console.debug(`Artist ${aid} not on Discogs (404); stored name only`);
+      }else{
+        // Timeouts, 5xx, rate limits: stay loud and retry on the next open.
+        console.log(`Artist ${aid} fetch failed:`,e.message);
       }
     }
     done++;
