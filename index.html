@@ -501,6 +501,34 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .reset-card h2{font-size:22px;font-weight:700;margin-bottom:8px}
 .reset-card p{color:var(--muted);font-size:14px;line-height:1.6;margin-bottom:24px}
 .reset-card button{width:100%;border:none;border-radius:10px;cursor:pointer;font-family:var(--font);font-size:15px;font-weight:700;padding:14px;background:var(--accent);color:#fff}
+/* ── §12 front moment: runout groove, tonearm lift ─────────────
+   Earned-recognition register (memory/feedback_earned_recognition_register.md):
+   vinyl-native motion, quiet type, no confetti. A record seen from above
+   coasts to a stop while the arm lifts out of the runout groove and swings
+   back to rest. Light catches the needle at the top of the lift, then the
+   cycle number fades in. About 3 seconds. Tap anywhere skips. */
+.cycle-moment{position:fixed;inset:0;z-index:450;background:#050505;display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px;-webkit-tap-highlight-color:transparent;touch-action:manipulation;cursor:pointer;opacity:0;transition:opacity .5s ease}
+.cycle-moment.on{opacity:1}
+.cycle-moment.out{opacity:0;transition:opacity .45s ease}
+.cm-deck{width:min(78vw,340px);height:auto;overflow:visible}
+.cm-record{transform-origin:160px 160px;animation:cm-coast 3s cubic-bezier(.15,.55,.3,1) forwards}
+@keyframes cm-coast{from{transform:rotate(0)}to{transform:rotate(300deg)}}
+.cm-arm{transform-origin:292px 34px;animation:cm-lift 1.6s cubic-bezier(.45,0,.25,1) .45s forwards}
+.cm-arm-shadow{transform-origin:292px 34px;animation:cm-swing 1.6s cubic-bezier(.45,0,.25,1) .45s forwards}
+/* The arm rises toward the viewer (it grows and its shadow falls away),
+   then swings back to the rest post. */
+@keyframes cm-lift{0%{transform:translate(0,0) scale(1) rotate(0)}35%{transform:translate(-3px,-7px) scale(1.035) rotate(0)}100%{transform:translate(-3px,-7px) scale(1.035) rotate(-36deg)}}
+@keyframes cm-swing{0%{transform:rotate(0);opacity:.55}35%{transform:rotate(0);opacity:.3}100%{transform:rotate(-36deg);opacity:.3}}
+.cm-flare{opacity:0;animation:cm-flare 1.1s ease-out 1.05s forwards}
+@keyframes cm-flare{0%{opacity:0}35%{opacity:.9}100%{opacity:0}}
+.cm-title{margin-top:28px;font-size:24px;font-weight:600;letter-spacing:.01em;color:var(--text);opacity:0;transform:translateY(4px);animation:cm-text .9s ease 1.7s forwards}
+.cm-hint{margin-top:10px;font-size:12px;color:var(--muted);opacity:0;animation:cm-text .8s ease 2.6s forwards}
+@keyframes cm-text{to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){
+  .cm-record,.cm-arm,.cm-arm-shadow,.cm-flare{animation:none}
+  .cm-arm,.cm-arm-shadow{transform:rotate(-36deg)}
+  .cm-title,.cm-hint{animation-delay:0s;animation-duration:.3s}
+}
 
 /* Review-and-approve modal for bulk auto-tag (PRD v1.1 §2) */
 .review-modal{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:410;display:none;align-items:stretch;justify-content:center;padding:24px}
@@ -1343,6 +1371,54 @@ input:focus,textarea:focus{border-color:var(--accent)}
 
 <!-- Wantlist page (removed, now inline in mainContent) -->
 
+<!-- §12 front moment. Filled and played by playCycleMoment(). The cycle
+     number is written in at show time, never static (memory/static_ui_surfaces_are_a_footgun.md). -->
+<div id="cycleMoment" class="cycle-moment" role="dialog" aria-modal="true" aria-labelledby="cmTitle">
+  <svg class="cm-deck" viewBox="0 0 320 320" aria-hidden="true">
+    <defs>
+      <radialGradient id="cmSheen" cx="35%" cy="28%" r="70%">
+        <stop offset="0" stop-color="#fff" stop-opacity=".09"/>
+        <stop offset=".5" stop-color="#fff" stop-opacity=".02"/>
+        <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+      </radialGradient>
+      <radialGradient id="cmFlare" cx="50%" cy="50%" r="50%">
+        <stop offset="0" stop-color="#fff" stop-opacity="1"/>
+        <stop offset=".25" stop-color="#fff" stop-opacity=".55"/>
+        <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <circle cx="160" cy="160" r="152" fill="#141414"/>
+    <g class="cm-record">
+      <circle cx="160" cy="160" r="146" fill="#0c0c0c"/>
+      <g fill="none" stroke="#fff" stroke-opacity=".045" stroke-width="1">
+        <circle cx="160" cy="160" r="140"/><circle cx="160" cy="160" r="132"/><circle cx="160" cy="160" r="124"/>
+        <circle cx="160" cy="160" r="116"/><circle cx="160" cy="160" r="108"/><circle cx="160" cy="160" r="100"/>
+        <circle cx="160" cy="160" r="92"/><circle cx="160" cy="160" r="84"/><circle cx="160" cy="160" r="76"/>
+      </g>
+      <!-- the runout: a smooth band between the last track and the label -->
+      <circle cx="160" cy="160" r="62" fill="none" stroke="#fff" stroke-opacity=".09" stroke-width="10"/>
+      <circle class="cm-label" cx="160" cy="160" r="48" fill="var(--accent)"/>
+      <rect x="128" y="152" width="64" height="3" rx="1.5" fill="#000" fill-opacity=".25"/>
+      <rect x="138" y="164" width="44" height="2" rx="1" fill="#000" fill-opacity=".2"/>
+      <circle cx="160" cy="160" r="3.5" fill="#d8d8d8"/>
+    </g>
+    <circle cx="160" cy="160" r="146" fill="url(#cmSheen)"/>
+    <!-- arm shadow stays on the platter; the arm itself lifts toward the viewer -->
+    <g class="cm-arm-shadow" opacity=".55">
+      <path d="M296 40 L236 150 L214 196" fill="none" stroke="#000" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <g class="cm-arm">
+      <circle cx="292" cy="34" r="15" fill="#2a2a2a" stroke="#3a3a3a"/>
+      <circle cx="292" cy="34" r="5" fill="#555"/>
+      <path d="M292 34 L232 146 L211 191" fill="none" stroke="#b9b9b9" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="200" y="186" width="20" height="13" rx="2" fill="#8a8a8a" transform="rotate(26 210 192)"/>
+      <circle class="cm-flare" cx="207" cy="199" r="16" fill="url(#cmFlare)"/>
+    </g>
+  </svg>
+  <p class="cm-title" id="cmTitle"></p>
+  <p class="cm-hint">Tap to continue</p>
+</div>
+
 <div id="resetModal" class="reset-modal" style="display:none">
   <!-- Placeholder until the §12 completion reward ships. Quiet register per
        memory/feedback_earned_recognition_register.md: no emoji, no party copy. -->
@@ -1535,6 +1611,8 @@ function anyUpdateBlockerActive(){
   if(document.getElementById('moodEditModal')?.style.display==='flex')return true;
   // Shared inputPromptModal (crate-name edit, Discogs PAT paste, future text-entry surfaces).
   if(document.getElementById('inputPromptModal')?.style.display==='flex')return true;
+  // §12 front moment.
+  if(document.getElementById('cycleMoment')?.classList.contains('on'))return true;
   // Filter picker sheet, Genre and Mood (v1.2).
   if(document.getElementById('filterPicker')?.style.display==='flex')return true;
   // Liner Notes provenance modal (Sprint 3 §13.14).
@@ -1755,6 +1833,8 @@ let cycleCounts={},cycleStartedAt=null;
 // provenance ('manual' / 'heuristic' / 'claude_suggest' / 'claude_auto').
 // autoSuggestRunning is the worker re-entrancy guard; the rest drives UI.
 let autoSuggestEnabled=null,moodsSource={};
+// §12.12 celebration sounds. Column default is true, and null means unset.
+let celebrationSounds=true;
 // Liner notes caches (Sprint 3 §13) — populated by loadMetaFromAPI from
 // vinyl_meta.liner_notes (jsonb array of {category, body, confidence}) and
 // vinyl_meta.liner_notes_status (pending | generated | low_confidence | failed).
@@ -2051,6 +2131,7 @@ async function loadCycleStateFromAPI(){
       autoSuggestEnabled=profRes.data.auto_suggest_enabled!==false;
       // Sprint 3 §13 Step 4 — paired toggle, same default-true semantics.
       linerNotesEnabled=profRes.data.liner_notes_enabled!==false;
+      celebrationSounds=profRes.data.celebration_sounds!==false;
     }
     const cRes=await crate.loadCyclePlayCounts({userId:session.user.id,since:cycleStartedAt});
     if(cRes.success&&cRes.data)cycleCounts=cRes.data;
@@ -2174,8 +2255,87 @@ async function logPlay(releaseId){
   await dbSet('plays','lastPlayed',lastPlayed);
   updateCrateProgress();renderGrid();
   const allIds=[...new Set(collection.map(r=>r.releaseId).filter(Boolean))];
-  if(allIds.every(id=>cycleLog[id]))setTimeout(()=>$('resetModal').style.display='flex',600);
+  if(allIds.every(id=>cycleLog[id]))queueCycleComplete();
 }
+
+// ── §12 cycle complete ─────────────────────────────────────────
+// The closing play queues the moment. It waits for any open modal, sheet or
+// subpanel to close (§12.14, same list as the update card), plays the front
+// moment, then hands off. The recap slides (§12 steps 4 to 8) slot in between
+// the moment and the Crate Complete card once they exist.
+let _cycleCompleteQueued=false;
+function queueCycleComplete(){
+  if(_cycleCompleteQueued)return;
+  _cycleCompleteQueued=true;
+  const n=currentCycle;
+  const go=async()=>{
+    if(anyUpdateBlockerActive()){setTimeout(go,800);return;}
+    await playCycleMoment(n);
+    _cycleCompleteQueued=false;
+    $('resetModal').style.display='flex';
+  };
+  setTimeout(go,600);
+}
+
+// The runout groove, drawn in code: a soft pop once per turn at 33 1/3
+// (every 1.8 s) over faint surface noise, fading as the arm lifts. No file to
+// load. Gated by the celebration-sounds setting, and the device mute applies
+// as it does to any web audio. If the browser will not start audio outside a
+// tap, the moment simply runs silent (§12.14).
+function playRunoutSound(){
+  if(!celebrationSounds)return;
+  try{
+    const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
+    const ctx=new AC();
+    if(ctx.state==='suspended')ctx.resume().catch(()=>{});
+    const sr=ctx.sampleRate,dur=2.4,buf=ctx.createBuffer(1,Math.floor(sr*dur),sr),d=buf.getChannelData(0);
+    let seed=7;const rnd=()=>((seed=(seed*16807)%2147483647)/2147483647);
+    for(let i=0;i<d.length;i++){
+      const t=i/sr;
+      let v=(rnd()*2-1)*0.012;                       // surface hiss
+      if(rnd()<0.0009)v+=(rnd()*2-1)*0.18;           // stray crackle
+      const ph=(t+0.15)%1.8;                          // the runout pop, once a turn
+      if(ph<0.012)v+=Math.sin(ph*2*Math.PI*90)*Math.exp(-ph*420)*0.55;
+      d[i]=v*Math.min(1,(dur-t)/1.2);                 // fade as the arm lifts
+    }
+    const src=ctx.createBufferSource();src.buffer=buf;
+    const lp=ctx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=3200;
+    const g=ctx.createGain();g.gain.value=0.9;
+    src.connect(lp);lp.connect(g);g.connect(ctx.destination);
+    src.start();src.onended=()=>ctx.close().catch(()=>{});
+  }catch(e){/* silent is fine: the visual carries the moment */}
+}
+
+// Plays the front moment for cycle n. Resolves when it ends (about 3.4 s)
+// or on the first tap, whichever comes first.
+function playCycleMoment(n){
+  return new Promise(resolve=>{
+    const el=$('cycleMoment');
+    $('cmTitle').textContent=`Cycle ${n} complete.`;
+    // Restart the CSS animations from frame zero.
+    el.querySelectorAll('.cm-record,.cm-arm,.cm-arm-shadow,.cm-flare,.cm-title,.cm-hint').forEach(x=>{x.style.animation='none';void x.getBoundingClientRect();x.style.animation='';});
+    el.classList.remove('out');el.style.display='flex';
+    void el.offsetWidth;el.classList.add('on');   // force a layout so the fade-in runs
+    playRunoutSound();
+    let done=false;
+    const finish=()=>{
+      if(done)return;done=true;
+      clearTimeout(timer);el.removeEventListener('click',finish);
+      el.classList.add('out');
+      setTimeout(()=>{el.classList.remove('on','out');el.style.display='none';resolve();},450);
+    };
+    const timer=setTimeout(finish,3400);
+    el.addEventListener('click',finish);
+  });
+}
+
+// Temporary preview until the Cycle History replay ships (§12 step 9): open
+// /vinyl#preview-cycle-moment to watch the moment. Nothing is reset or saved.
+window.addEventListener('load',()=>{
+  if(location.hash!=='#preview-cycle-moment')return;
+  history.replaceState(null,'',location.pathname+location.search);
+  setTimeout(()=>playCycleMoment(currentCycle),900);
+});
 
 async function resetCycle(){
   // The server saves the closing cycle to vinyl_cycle_recaps before it stamps

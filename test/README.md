@@ -18,6 +18,7 @@ Run them:
     node test/button-wiring.test.mjs
     node test/settings-stats.test.mjs
     node test/cycle-reset.test.mjs
+    node test/cycle-moment.test.mjs
 
 No dependencies, no install. Exit code 0 means pass.
 
