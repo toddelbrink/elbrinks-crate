@@ -2329,12 +2329,51 @@ function playCycleMoment(n){
   });
 }
 
+// Temporary preview of the recap data and Claude's bridges (§12 steps 4 and 5),
+// until the slides ship (step 6): open /vinyl#preview-cycle-recap. It opens the
+// newest saved cycle. The first open computes and stores the recap and asks
+// Claude for the bridges; later opens read the stored copy.
+function recapStatLine(slide,r){
+  const pct=x=>Math.round(x*100)+'%';
+  if(slide==='scale')return `${r.days} days. ${r.plays} plays. ${r.started.month} ${r.started.year} to ${r.ended.month} ${r.ended.year}.`;
+  if(slide==='closer')return `Cycle closer: ${r.closer.title} by ${r.closer.artist}.`;
+  if(slide==='most_played')return `Most spun: ${r.most_played.title} by ${r.most_played.artist}. ${r.most_played.play_count} plays.`;
+  if(slide==='mood_mix')return 'Mood mix: '+r.mood_mix.map(m=>`${m.name} ${pct(m.share)}`).join(', ')+'.';
+  if(slide==='returning')return 'Came back: '+r.returning.map(x=>`${x.title} by ${x.artist}`).join('; ')+'.';
+  if(slide==='cycle_over_cycle'){const c=r.cycle_over_cycle;return `vs Cycle ${c.previous_cycle}: ${c.days.before} to ${c.days.now} days, top mood ${c.top_mood.before} to ${c.top_mood.now}.`;}
+  return slide;
+}
+async function previewCycleRecap(){
+  const wrap=document.createElement('div');
+  wrap.className='reset-modal';wrap.style.display='flex';wrap.style.zIndex='460';
+  const card=document.createElement('div');card.className='reset-card';card.style.textAlign='left';card.style.maxWidth='440px';card.style.maxHeight='86vh';card.style.overflow='auto';
+  const h=document.createElement('h2');h.textContent='Recap preview';
+  const body=document.createElement('div');body.textContent='Building the recap. The first open asks Claude, which can take half a minute.';body.style.color='var(--muted)';body.style.fontSize='14px';body.style.lineHeight='1.6';
+  const close=document.createElement('button');close.textContent='Close';close.style.marginTop='20px';close.onclick=()=>wrap.remove();
+  card.append(h,body,close);wrap.append(card);document.body.append(wrap);
+  const list=await crate.listCycleRecaps();
+  const latest=list.success&&list.data[0];
+  if(!latest){body.textContent='No saved cycles yet.';return;}
+  h.textContent=`Cycle ${latest.cycle_number} recap preview`;
+  const res=await crate.loadCycleRecap(latest.cycle_number);
+  if(!res.success){body.textContent='Could not load it: '+(res.error&&res.error.message||res.error);return;}
+  const d=res.data;body.textContent='';body.style.color='var(--text)';
+  d.slides.forEach(slide=>{
+    const stat=document.createElement('p');stat.textContent=recapStatLine(slide,d.recap);stat.style.fontWeight='600';stat.style.margin='14px 0 4px';stat.style.color='var(--text)';
+    const bridge=document.createElement('p');bridge.textContent=d.bridges?d.bridges[slide]:'';bridge.style.color='var(--muted)';bridge.style.margin='0';bridge.style.fontStyle='italic';
+    body.append(stat,bridge);
+  });
+  if(!d.bridges){const n=document.createElement('p');n.textContent='Claude was unreachable ('+d.bridges_error+'). The lines fill in on the next open.';n.style.color='var(--muted)';n.style.marginTop='14px';body.append(n);}
+}
+
 // Temporary preview until the Cycle History replay ships (§12 step 9): open
 // /vinyl#preview-cycle-moment to watch the moment. Nothing is reset or saved.
 window.addEventListener('load',()=>{
-  if(location.hash!=='#preview-cycle-moment')return;
+  const h=location.hash;
+  if(h!=='#preview-cycle-moment'&&h!=='#preview-cycle-recap')return;
   history.replaceState(null,'',location.pathname+location.search);
-  setTimeout(()=>playCycleMoment(currentCycle),900);
+  if(h==='#preview-cycle-moment')setTimeout(()=>playCycleMoment(currentCycle),900);
+  else setTimeout(previewCycleRecap,1500);   // after sign-in restores the session
 });
 
 async function resetCycle(){

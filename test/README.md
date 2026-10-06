@@ -19,6 +19,7 @@ Run them:
     node test/settings-stats.test.mjs
     node test/cycle-reset.test.mjs
     node test/cycle-moment.test.mjs
+    node test/cycle-recap.test.mjs
 
 No dependencies, no install. Exit code 0 means pass.
 
