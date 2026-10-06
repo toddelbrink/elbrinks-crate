@@ -5818,6 +5818,176 @@ $('wantSortBtn').onclick=()=>openFilterPicker('Sort by',sortRows(wantSortModes,w
   wantSortIdx=wantSortModes.indexOf(m);wantSortMode=m;
   renderWantSortBtn();applyWantlistFilters();
 });
+
+// ── Index scrubber (alpha + year) ────────────────────────────
+let scrubberEnabled=false,scrubberFadeTimer=null;
+
+function updateAlphaScrubber(){
+  const scrubber=$('alphaScrubber');
+  const isCrate=activeView==='crate';
+  const isWant=activeView==='want';
+  // Determine which scrubber mode to show
+  const showAlpha=(isCrate&&sortMode==='alpha')||(isWant&&wantSortMode==='alpha');
+  const showYear=(isCrate&&sortMode==='year')||(isWant&&wantSortMode==='year');
+  if(!showAlpha&&!showYear){scrubber.classList.remove('visible');scrubberEnabled=false;return;}
+  const items=isCrate?filtered:wantFiltered;
+  const gridId=isCrate?'grid':'wantlistGrid';
+  if(items.length<10){scrubber.classList.remove('visible');scrubberEnabled=false;return;}
+
+  let markers=[];
+  if(showAlpha){
+    markers=[...new Set(items.map(r=>{
+      const ch=r.artist.charAt(0).toUpperCase();
+      return /[A-Z]/.test(ch)?ch:'#';
+    }))].sort((a,b)=>a==='#'?1:b==='#'?-1:a.localeCompare(b));
+  }else if(showYear){
+    const decades=[...new Set(items.map(r=>{
+      const y=r.year||0;
+      if(y<1950)return 0;
+      return Math.floor(y/10)*10;
+    }).filter(d=>d>0))].sort((a,b)=>b-a);
+    markers=decades.map(d=>({val:String(d),label:String(d)+'s'}));
+  }
+
+  // Normalize markers to {val, label} objects
+  markers=markers.map(m=>typeof m==='string'?{val:m,label:m}:m);
+  if(markers.length<3){scrubber.classList.remove('visible');scrubberEnabled=false;return;}
+  // Thin out if too many markers to fit comfortably (max ~14)
+  const maxMarkers=14;
+  if(markers.length>maxMarkers){
+    const step=Math.ceil(markers.length/maxMarkers);
+    markers=markers.filter((_,i)=>i%step===0||i===markers.length-1);
+  }
+  scrubber.innerHTML=markers.map(m=>`<span data-marker="${m.val}">${m.label}</span>`).join('');
+  scrubberEnabled=true;
+  // Start hidden, show on scroll
+  scrubber.classList.add('visible');
+  scrubber.classList.add('scroll-fade');
+
+  let lastJump='';
+  function jumpTo(marker){
+    if(marker===lastJump)return;lastJump=marker;
+    let idx=-1;
+    if(showAlpha){
+      idx=items.findIndex(r=>{
+        const ch=r.artist.charAt(0).toUpperCase();
+        return (/[A-Z]/.test(ch)?ch:'#')===marker;
+      });
+    }else if(showYear){
+      const decade=parseInt(marker);
+      idx=items.findIndex(r=>(r.year||0)>=decade&&(r.year||0)<decade+10);
+    }
+    if(idx<0)return;
+    const cards=$(gridId).querySelectorAll('.record-card');
+    if(cards[idx]){
+      // Manual scroll: get card position, subtract header height + padding
+      const headerH=$('topBar').offsetHeight||56;
+      const rect=cards[idx].getBoundingClientRect();
+      const scrollTarget=window.scrollY+rect.top-headerH-12;
+      window.scrollTo({top:Math.max(0,scrollTarget),behavior:'instant'});
+    }
+    // Show toast — show full decade label for year mode
+    const toast=$('alphaJumpToast');
+    const toastLabel=showYear?parseInt(marker)+'s':marker;
+    toast.textContent=toastLabel;toast.classList.add('show');
+    clearTimeout(toast._t);toast._t=setTimeout(()=>toast.classList.remove('show'),800);
+    // Keep scrubber visible while using it
+    scrubber.classList.remove('scroll-fade');
+    clearTimeout(scrubberFadeTimer);
+    scrubberFadeTimer=setTimeout(()=>{scrubber.classList.add('scroll-fade');},2000);
+  }
+
+  // Touch: tap + slide. No onclick (300ms delay on mobile Safari).
+  let touching=false,moved=false,tapTarget=null;
+  scrubber.ontouchstart=e=>{
+    touching=true;moved=false;lastJump='';e.preventDefault();
+    scrubber.classList.remove('scroll-fade');
+    // Capture which marker the finger landed on
+    const touch=e.touches[0];
+    const el=document.elementFromPoint(touch.clientX,touch.clientY);
+    tapTarget=(el&&el.dataset&&el.dataset.marker)?el.dataset.marker:null;
+  };
+  scrubber.ontouchmove=e=>{
+    if(!touching)return;moved=true;e.preventDefault();
+    const touch=e.touches[0];
+    const el=document.elementFromPoint(touch.clientX,touch.clientY);
+    if(el&&el.dataset&&el.dataset.marker)jumpTo(el.dataset.marker);
+  };
+  scrubber.ontouchend=()=>{
+    // If no move happened, it's a tap — jump to the letter
+    if(!moved&&tapTarget){lastJump='';jumpTo(tapTarget);}
+    touching=false;tapTarget=null;lastJump='';
+    clearTimeout(scrubberFadeTimer);
+    scrubberFadeTimer=setTimeout(()=>{scrubber.classList.add('scroll-fade');},2000);
+  };
+}
+
+function showScrubberOnScroll(){
+  if(!scrubberEnabled)return;
+  const scrubber=$('alphaScrubber');
+  scrubber.classList.remove('scroll-fade');
+  clearTimeout(scrubberFadeTimer);
+  scrubberFadeTimer=setTimeout(()=>{scrubber.classList.add('scroll-fade');},1500);
+}
+
+// ── Scroll-hide top & bottom bars ────────────────────────────
+let lastScrollY=0,scrollTicking=false;
+function onScroll(){
+  const y=window.scrollY;const delta=y-lastScrollY;
+  if(Math.abs(delta)<5){scrollTicking=false;return;}
+  if(delta>0&&y>60){
+    $('topBar').classList.add('bar-hidden');
+    $('bottomNav').classList.add('bar-hidden');
+  }else{
+    $('topBar').classList.remove('bar-hidden');
+    $('bottomNav').classList.remove('bar-hidden');
+  }
+  lastScrollY=y;scrollTicking=false;
+}
+window.addEventListener('scroll',()=>{
+  if(!scrollTicking){scrollTicking=true;requestAnimationFrame(onScroll);}
+  showScrubberOnScroll();
+},{ passive:true });
+
+$('fullSyncBtn').onclick=fullSync;
+$('resetCycleBtn').onclick=async()=>{await resetCycle();closeSettings();};
+$('resetConfirmBtn').onclick=async()=>{await resetCycle();$('resetModal').style.display='none';};
+
+// Review modal wiring (v1.1 Sprint 1)
+$('reviewCloseBtn').onclick=closeReviewModal;
+$('reviewCancelBtn').onclick=closeReviewModal;
+$('reviewApplyBtn').onclick=applyReviewChanges;
+// Global toggle flip resets all per-row overrides (§2.A). Rationale: global
+// is the source of truth, overrides are exceptions to the current global.
+// Preserving overrides through a global flip creates hidden state the user
+// has to remember. Brief toast tells them how many rows got reset.
+function flipGlobalToggle(nextMode){
+  if(!_reviewState)return;
+  if(_reviewState.toggle===nextMode)return; // no-op
+  const overrideCount=_reviewState.overrides.size;
+  _reviewState.toggle=nextMode;
+  _reviewState.overrides.clear();
+  $('reviewToggleOverwrite').classList.toggle('active',nextMode==='overwrite');
+  $('reviewToggleMerge').classList.toggle('active',nextMode==='merge');
+  $('reviewToggleHelp').textContent=nextMode==='overwrite'
+    ? 'Overwrite replaces existing moods with proposed.'
+    : 'Merge adds proposed moods to existing, deduped.';
+  if(overrideCount>0){
+    renderReviewList(); // hide stale badges
+    showToast(`Reset ${overrideCount} row override${overrideCount===1?'':'s'}`);
+  }
+}
+$('reviewToggleOverwrite').onclick=()=>flipGlobalToggle('overwrite');
+$('reviewToggleMerge').onclick=()=>flipGlobalToggle('merge');
+$('moodPickCancelBtn').onclick=closeMoodPickModal;
+$('moodPickSaveBtn').onclick=saveMoodPickModal;
+$('clearPlaysBtn').onclick=clearPlayHistory;
+$('clearNotesBtn').onclick=async()=>{
+  if(!confirm('Clear all notes and moods? This cannot be undone.'))return;
+  await dbClear('moods');await dbClear('notes');
+  moodCache={};notesCache={};
+  renderGrid();closeSettings();showToast('Notes and moods cleared');
+};
 // ── Shared inputPromptModal helper (v1.1 §6) ──
 // Promise-based replacement for native prompt(). Lives in #inputPromptModal
 // (HTML at top of body). Single modal reused across all text-entry surfaces.

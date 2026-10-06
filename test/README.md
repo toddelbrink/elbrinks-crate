@@ -15,6 +15,7 @@ Run them:
     node test/no-discogs-labels.test.mjs
     node test/genre-filter.test.mjs
     node test/artist-fetch.test.mjs
+    node test/button-wiring.test.mjs
 
 No dependencies, no install. Exit code 0 means pass.
 
