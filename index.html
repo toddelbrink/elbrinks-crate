@@ -578,6 +578,7 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .cr-ctas button{border:none;border-radius:10px;padding:14px;font-family:var(--font);font-size:15px;font-weight:700;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
 .cr-ctas .primary{background:var(--accent);color:#fff}
 .cr-ctas .quiet{background:none;color:var(--muted);font-weight:600}
+.cr-ctas .share{background:var(--surface2);color:var(--text)}
 .cr-ctas button:disabled{opacity:.5}
 @media (prefers-reduced-motion:reduce){
   .cr-slide,.cr-bridge,.cr-bar .cr-fill{transition:none}
@@ -2467,8 +2468,9 @@ function recapFinalHTML(r,slides,closing){
     <h2>Cycle ${r.cycle_number} complete.</h2>
     <div class="cr-tiles">${tiles.join('')}</div>
     <div class="cr-ctas">
-      ${closing?`<button class="primary" id="crStart">Start Cycle ${r.cycle_number+1}</button>
-      <button class="quiet" id="crLater">Not yet</button>`:`<button class="quiet" id="crLater">Close</button>`}
+      ${closing?`<button class="primary" id="crStart">Start Cycle ${r.cycle_number+1}</button>`:''}
+      ${r.mosaic&&r.mosaic.grid?`<button class="share" id="crShare">Share</button>`:''}
+      <button class="quiet" id="crLater">${closing?'Not yet':'Close'}</button>
     </div></div>`;
 }
 function playRecap(source,{closing=false}={}){
@@ -2504,7 +2506,11 @@ function playRecap(source,{closing=false}={}){
       else wireFinal();
     };
     const wireFinal=()=>{
-      const later=$('crLater'),start=$('crStart');
+      const later=$('crLater'),start=$('crStart'),share=$('crShare');
+      if(share)share.onclick=async ev=>{
+        ev.stopPropagation();share.disabled=true;share.textContent='Making the image...';
+        try{await shareCycleImage(r);}finally{share.disabled=false;share.textContent='Share';}
+      };
       if(later)later.onclick=ev=>{ev.stopPropagation();finish(false);};
       if(start)start.onclick=async ev=>{
         ev.stopPropagation();start.disabled=true;start.textContent='Starting...';
@@ -2532,6 +2538,88 @@ function playRecap(source,{closing=false}={}){
     document.addEventListener('keydown',onKey);
     show(0);
   });
+}
+
+// ── §12 step 8: the cycle share image ─────────────────────────
+// 1080x1080, drawn on demand when Share is tapped (§12.9). Header band
+// "Cycle N complete." with the crate name, the cover mosaic chosen by the
+// server (recap.mosaic: repeats first, recent plays filling a short cycle),
+// then a footer with days, plays and the top mood beside the brand badge.
+// Covers load through the image proxy so the canvas can be exported. A cover
+// that fails stays a dark tile rather than failing the image. The share link
+// is drawn only when public sharing is on, as on the album image.
+async function drawCycleShareImage(r){
+  const W=1080,H=1080,canvas=document.createElement('canvas');canvas.width=W;canvas.height=H;
+  const ctx=canvas.getContext('2d');
+  const FONT='-apple-system, BlinkMacSystemFont, sans-serif';
+  ctx.fillStyle='#0b0b0b';ctx.fillRect(0,0,W,H);
+
+  // Header band, about 12% of the height.
+  const pad=60,headerH=150,footerH=200;
+  ctx.textAlign='left';ctx.fillStyle='#e53935';ctx.font=`700 20px ${FONT}`;
+  ctx.fillText((crateName||'Crate').toUpperCase(),pad,70);
+  ctx.fillStyle='#ffffff';ctx.font=`800 52px ${FONT}`;
+  ctx.fillText(`Cycle ${r.cycle_number} complete.`,pad,128);
+
+  // Mosaic, centered in the band between header and footer.
+  const m=r.mosaic||{grid:0,tiles:[]};
+  const areaTop=headerH+20,areaH=H-headerH-footerH-40,size=Math.min(W-pad*2,areaH);
+  const x0=(W-size)/2,gap=m.grid>1?6:0,cell=m.grid?(size-gap*(m.grid-1))/m.grid:0;
+  const load=url=>new Promise(res=>{
+    if(!url)return res(null);
+    const img=new Image();const t=setTimeout(()=>res(null),8000);
+    img.onload=()=>{clearTimeout(t);res(img);};img.onerror=()=>{clearTimeout(t);res(null);};
+    img.src=crate.proxyImage(url);
+  });
+  const imgs=await Promise.all(m.tiles.map(t=>load((typeof artCache!=='undefined'&&artCache[t.release_id])||t.art)));
+  imgs.forEach((img,k)=>{
+    const cx=x0+(k%m.grid)*(cell+gap),cy=areaTop+Math.floor(k/m.grid)*(cell+gap);
+    ctx.fillStyle='#1a1a1a';ctx.fillRect(cx,cy,cell,cell);
+    if(!img)return;
+    const iw=img.naturalWidth||img.width,ih=img.naturalHeight||img.height,sq=Math.min(iw,ih);
+    ctx.drawImage(img,(iw-sq)/2,(ih-sq)/2,sq,sq,cx,cy,cell,cell);
+  });
+
+  // Footer, about 18%: three stats left, badge right.
+  const fy=H-footerH+60;
+  const stats=[[`${r.days}`,'days'],[`${r.plays}`,'plays']];
+  if(r.mood_mix&&r.mood_mix.length)stats.push([r.mood_mix[0].name,'top mood']);
+  let fx=pad;
+  stats.forEach(([v,k])=>{
+    ctx.fillStyle='#ffffff';ctx.font=`800 44px ${FONT}`;ctx.textAlign='left';
+    const vt=truncText(ctx,v,260);ctx.fillText(vt,fx,fy+30);
+    ctx.fillStyle='rgba(255,255,255,0.55)';ctx.font=`600 18px ${FONT}`;
+    ctx.fillText(k.toUpperCase(),fx,fy+62);
+    ctx.font=`800 44px ${FONT}`;fx+=Math.max(150,ctx.measureText(vt).width+56);
+  });
+  const ecLogo=typeof loadEcLogo==='function'?await loadEcLogo():null;
+  if(ecLogo){ctx.drawImage(ecLogo,W-pad-70,fy-14,70,70);}
+  const url=typeof shareUrl==='function'?shareUrl():'';
+  if(shareEnabled&&url){
+    ctx.fillStyle='rgba(255,255,255,0.5)';ctx.font=`500 16px ${FONT}`;ctx.textAlign='left';
+    ctx.fillText(url.replace(/^https?:\/\//,''),pad,H-36);
+  }
+  return canvas;
+}
+
+async function shareCycleImage(r){
+  let canvas;
+  try{canvas=await drawCycleShareImage(r);}catch(e){console.error('[cycle share]',e);showToast('Could not make the image');return;}
+  const blob=await new Promise(res=>canvas.toBlob(res,'image/png'));
+  if(!blob){showToast('Could not make the image');return;}
+  const name=`crate-cycle-${r.cycle_number}.png`;
+  const file=new File([blob],name,{type:'image/png'});
+  const url=typeof shareUrl==='function'?shareUrl():'';
+  const text=`Cycle ${r.cycle_number} complete. ${r.days} days, ${r.plays} plays.`+((shareEnabled&&url)?`\n${url}`:'');
+  if(navigator.canShare&&navigator.canShare({files:[file]})){
+    try{await navigator.share({files:[file],title:`Cycle ${r.cycle_number} complete`,text});}
+    catch(e){if(e.name!=='AbortError')showToast('Share cancelled');}
+  }else{
+    const href=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=href;a.download=name;
+    document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(href);
+    showToast('Image saved');
+  }
 }
 
 // Temporary preview until Cycle History replay ships (§12 step 9): open

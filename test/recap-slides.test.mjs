@@ -53,7 +53,10 @@ check('final screen leads with the cycle number', /<h2>Cycle 2 complete\.<\/h2>/
 check('the crate name is escaped', /Todd&#39;s &lt;Crate&gt;|Todd's &lt;Crate&gt;/.test(live), live.match(/cr-kicker">([^<]*)/)?.[1]);
 check('live end offers Start Cycle 3 and Not yet', /id="crStart">Start Cycle 3</.test(live) && /id="crLater">Not yet</.test(live));
 const replay = sb.recapFinalHTML(r, ['scale'], false);
-check('a replay offers only Close', !/crStart/.test(replay) && /id="crLater">Close</.test(replay));
+check('a replay offers no Start, and Close', !/crStart/.test(replay) && /id="crLater">Close</.test(replay));
+const withMosaic = sb.recapFinalHTML({ ...r, mosaic: { grid: 3, tiles: [] } }, ['scale'], true);
+check('Share appears when there is a mosaic', /id="crShare">Share</.test(withMosaic));
+check('no Share without a mosaic', !/crShare/.test(live));
 check('no tile for slides with no data', !/Came back/.test(live) && !/vs Cycle/.test(live));
 
 // Negative case: the old preview printed a placeholder sentence when bridges

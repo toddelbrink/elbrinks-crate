@@ -40,7 +40,7 @@ check('most played tie goes to the more recent', r.most_played && r.most_played.
 check('mood mix counts a multi-mood play toward each mood', r.mood_mix[0].name === 'Move' && r.mood_mix[0].count === 5, JSON.stringify(r.mood_mix));
 check('mood share is of all tags, so shares total 100%', Math.abs(r.mood_mix[0].share - 5 / 7) < 1e-9 &&
   Math.abs(r.mood_mix.reduce((a, m) => a + m.share, 0) - 1) < 1e-9);
-check('recap carries the current version', r.version === 2);
+check('recap carries the current version', r.version === 3);
 check('returning is null with no history before the cycle', r.returning === null);
 check('cycle over cycle is null with no saved previous cycle', r.cycle_over_cycle === null);
 check('repeats lists records played twice or more, heaviest then latest', r.repeats.map((x) => x.release_id).join(',') === 'c,b');
@@ -79,6 +79,31 @@ check('system prompt keeps unsure record details out', /running times, track cou
 
 check('schema requires exactly the shown slides and nothing else',
   JSON.stringify(bridgeSchema(['scale', 'closer']).required) === '["scale","closer"]' && bridgeSchema(['scale']).additionalProperties === false);
+
+
+// ── share mosaic (§12.9 and the fallback Todd chose 2026-10-06)
+const many = {}; const manyRecords = {}; const manyEvents = [];
+for (let k = 0; k < 30; k++) {
+  const id = 'r' + k; manyRecords[id] = { title: 'T' + k, artist: 'A' }; many[id] = 'https://img/' + id;
+  manyEvents.push(ev(id, new Date(Date.UTC(2026, 5, 1) + k * 86400000).toISOString(), ['energy']));
+}
+// three repeats, like Cycle 2
+manyEvents.push(ev('r1', '2026-08-01T00:00:00Z'), ev('r2', '2026-08-02T00:00:00Z'), ev('r3', '2026-08-03T00:00:00Z'));
+const m = computeRecap({ cycleNumber: 2, start: '2026-06-01T00:00:00Z', end: '2026-08-03T00:00:00Z', events: manyEvents, records: manyRecords, art: many }).mosaic;
+check('few repeats: the grid fills to 3x3 from recent plays', m.grid === 3 && m.tiles.length === 9 && m.filled_from_recent === true, JSON.stringify({ g: m.grid, n: m.tiles.length }));
+check('repeats lead the mosaic', m.tiles.slice(0, 3).map((x) => x.release_id).sort().join(',') === 'r1,r2,r3');
+check('fallback fills newest first after the repeats', m.tiles[3].release_id === 'r29', m.tiles[3].release_id);
+check('no cover repeats in the mosaic', new Set(m.tiles.map((x) => x.release_id)).size === m.tiles.length);
+
+const heavy = [];
+for (let k = 0; k < 20; k++) heavy.push(ev('r' + k, '2026-06-0' + (1 + (k % 9)) + 'T00:00:00Z'), ev('r' + k, '2026-07-0' + (1 + (k % 9)) + 'T00:00:00Z'));
+const mh = computeRecap({ cycleNumber: 2, start: '2026-06-01T00:00:00Z', end: '2026-08-01T00:00:00Z', events: heavy, records: manyRecords, art: many }).mosaic;
+check('20 repeats make the largest full square, 4x4, all repeats', mh.grid === 4 && mh.tiles.length === 16 && mh.filled_from_recent === false);
+
+const noArt = computeRecap({ cycleNumber: 2, start: '2026-06-01T00:00:00Z', end: '2026-08-03T00:00:00Z', events: manyEvents, records: manyRecords, art: {} }).mosaic;
+check('records without covers never become tiles', noArt.grid === 0 && noArt.tiles.length === 0);
+const single = computeRecap({ cycleNumber: 1, start: '2026-01-01T00:00:00Z', end: '2026-01-01T00:00:00Z', events: [ev('r1', '2026-01-01T00:00:00Z')], records: manyRecords, art: many }).mosaic;
+check('a one-record cycle gets one full-frame cover', single.grid === 1 && single.tiles.length === 1);
 
 // Negative case: an unsorted input must not decide the closer.
 const shuffled = computeRecap({ cycleNumber: 2, start: '2026-05-19T00:24:00Z', end: '2026-10-06T13:03:58Z', events: [...events].reverse(), records });
