@@ -5221,14 +5221,17 @@ $('recentMoodFilterBtn').onclick=()=>openFilterPicker('Mood',moodRows(false),_re
 // ── Settings ──────────────────────────────────────────────────
 async function updateSettingsPanel(){
   if(!db)return;
-  const cached=Object.values(artCache).filter(Boolean).length;
-  const total=[...new Set(collection.map(r=>r.releaseId).filter(Boolean))].length;
+  // Count only records in the collection now. The caches keep entries for
+  // records later removed on Discogs, which made these read "131 of 128".
+  const ids=[...new Set(collection.map(r=>r.releaseId).filter(Boolean))];
+  const total=ids.length;
+  const cached=ids.filter(id=>artCache[id]).length;
   const lastSync=await dbGet('meta','lastSync');
   const totalPlays=Object.values(playCounts).reduce((a,b)=>a+b,0);
   const playedThisCycle=collection.filter(r=>cycleLog[r.releaseId]).length;
   $('sUsername').textContent=username;$('sCount').textContent=`${collection.length} records`;
   $('sArt').textContent=`${cached} of ${total} covers`;
-  $('sGenres').textContent=`${Object.keys(genreCache).length} of ${total} records`;
+  $('sGenres').textContent=`${ids.filter(id=>id in genreCache).length} of ${total} records`;
   const uniqueArtists=[...new Set(collection.map(r=>r.artistId).filter(Boolean))].length;
   const wikiFound=Object.values(wikiCache).filter(v=>v&&v!=='__none__').length;
   const wikiChecked=Object.keys(wikiCache).length;
@@ -5236,9 +5239,9 @@ async function updateSettingsPanel(){
   $('sWiki').textContent=`${wikiFound} linked · ${artistsChecked} of ${uniqueArtists} artists checked`;
   const withCondition=collection.filter(r=>r.mediaCondition).length;
   $('sConditions').textContent=`${withCondition} of ${total} records`;
-  const withMoods=Object.values(moodCache).filter(m=>m&&m.length).length;
+  const withMoods=ids.filter(id=>moodCache[id]&&moodCache[id].length).length;
   $('sMoods').textContent=`${withMoods} of ${total} records`;
-  const withNotes=Object.values(notesCache).filter(n=>n&&n.trim()).length;
+  const withNotes=ids.filter(id=>notesCache[id]&&notesCache[id].trim()).length;
   const discogsNotes=collection.filter(r=>r.discogsNotes&&r.discogsNotes.trim()).length;
   $('sNotes').textContent=`${withNotes} user · ${discogsNotes} from Discogs`;
   // Wantlist: show in-memory count + check DB count
