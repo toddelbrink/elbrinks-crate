@@ -59,6 +59,19 @@ check('Share appears when there is a mosaic', /id="crShare">Share</.test(withMos
 check('no Share without a mosaic', !/crShare/.test(live));
 check('no tile for slides with no data', !/Came back/.test(live) && !/vs Cycle/.test(live));
 
+
+// ── §12.10 Cycle History in the Cycle tile's drill
+const drill = sliceTo(APP, /^function openStatDrill\(tile\)\{/, '}');
+check('the Cycle drill shows past cycles above what is left', /id="cycleHistory"/.test(drill) && drill.indexOf('cycleHistory') < drill.indexOf('Remaining this cycle'));
+check('the Cycle drill loads the history', /if\(tile==='cycle'\)renderCycleHistory\(\);/.test(APP));
+const hist = sliceTo(APP, /^async function renderCycleHistory\(\)\{/, '}');
+check('a history row replays read-only (no Start)', /playRecap\(recapP,\{closing:false\}\)/.test(hist));
+check('Skip animation skips only the moment', /if\(!skip\)await playCycleMoment\(n\);/.test(hist));
+check('history titles and art are escaped', /escapeHTML\(u\)/.test(hist));
+const SUPA = read('lib/supabase.js');
+check('the history list carries the mosaic for thumbnails', /mosaic:recap_data->mosaic/.test(SUPA));
+check('the temporary preview links are gone', !/preview-cycle-(moment|recap)/.test(APP));
+
 // Negative case: the old preview printed a placeholder sentence when bridges
 // were missing; the slides must not.
 check('negative: no "unreachable" copy in the slides', !/unreachable/i.test(builders));

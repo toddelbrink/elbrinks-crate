@@ -339,6 +339,22 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .stat-record-item:hover{background:var(--surface2)}
 .stat-record-item:active{opacity:.7}
 .stat-record-item:last-child{border-bottom:none}
+/* §12.10 Cycle History, inside the Cycle tile's drill-down. */
+.ch-status{background:var(--surface);border-radius:var(--radius);padding:14px 16px;margin-bottom:22px}
+.ch-status b{font-size:18px}
+.ch-status p{color:var(--muted);font-size:13px;margin-top:4px}
+.ch-status .ch-bar{height:6px;border-radius:3px;background:var(--surface2);margin-top:10px;overflow:hidden}
+.ch-status .ch-bar i{display:block;height:100%;background:var(--accent)}
+.ch-row{display:grid;grid-template-columns:52px 1fr auto;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.ch-row:last-child{border-bottom:none}
+.ch-row:active{opacity:.7}
+.ch-thumb{width:52px;height:52px;border-radius:6px;overflow:hidden;background:var(--surface2);display:grid;grid-template-columns:1fr 1fr}
+.ch-thumb.one{grid-template-columns:1fr}
+.ch-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.ch-row .t{font-size:14px;font-weight:600}
+.ch-row .d{font-size:12px;color:var(--muted);margin-top:2px}
+.ch-skip{background:none;border:none;color:var(--muted);font-family:var(--font);font-size:12px;font-weight:600;padding:8px 4px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.ch-empty{color:var(--muted);font-size:13px;padding:6px 0 4px}
 .stat-record-art{width:40px;height:40px;border-radius:6px;background:var(--surface2);overflow:hidden;flex-shrink:0}
 .stat-record-art img{width:100%;height:100%;object-fit:cover}
 .stat-record-info{flex:1;min-width:0}
@@ -2622,24 +2638,6 @@ async function shareCycleImage(r){
   }
 }
 
-// Temporary preview until Cycle History replay ships (§12 step 9): open
-// /vinyl#preview-cycle-recap to replay the newest saved cycle's recap.
-async function previewCycleRecap(){
-  const list=await crate.listCycleRecaps();
-  const latest=list.success&&list.data[0];
-  if(!latest){showToast('No saved cycles yet.');return;}
-  playRecap(crate.loadCycleRecap(latest.cycle_number),{closing:false});
-}
-
-// Temporary preview until the Cycle History replay ships (§12 step 9): open
-// /vinyl#preview-cycle-moment to watch the moment. Nothing is reset or saved.
-window.addEventListener('load',()=>{
-  const h=location.hash;
-  if(h!=='#preview-cycle-moment'&&h!=='#preview-cycle-recap')return;
-  history.replaceState(null,'',location.pathname+location.search);
-  if(h==='#preview-cycle-moment')setTimeout(()=>playCycleMoment(currentCycle),900);
-  else setTimeout(previewCycleRecap,1500);   // after sign-in restores the session
-});
 
 async function resetCycle(){
   // The database saves the closing cycle when the new boundary is stamped
@@ -4269,8 +4267,16 @@ function openStatDrill(tile){
     title='Unplayed Records';
     html=renderRecordList(unplayedRecords);
   }else if(tile==='cycle'){
-    title='Remaining This Cycle';
-    html=renderRecordList(cycleRemaining);
+    // §12.10: the Cycle tile drill shows where this cycle stands, the saved
+    // cycles (replayable), then what is left to play.
+    title=`Cycle ${currentCycle}`;
+    const total=collection.length,played=cyclePlayed.length;
+    const day=cycleStartedAt?Math.floor((Date.now()-Date.parse(cycleStartedAt))/86400000)+1:null;
+    html=`<div class="ch-status"><b>${played} of ${total} played</b>
+      <p>${day?`Day ${day} &middot; `:''}${total?Math.round(played/total*100):0}% of the crate this cycle</p>
+      <div class="ch-bar"><i style="width:${total?(played/total*100).toFixed(1):0}%"></i></div></div>
+      <div class="stat-list"><div class="stat-list-title">Past cycles</div><div id="cycleHistory"><div class="ch-empty">Loading...</div></div></div>
+      ${cycleRemaining.length?`<div class="stat-list-title">Remaining this cycle</div>`:''}${renderRecordList(cycleRemaining)}`;
   }else if(tile==='cycleplayed'){
     title='Played This Cycle';
     html=renderRecordList([...cyclePlayed].sort((a,b)=>new Date(lastPlayed[b.releaseId]||0)-new Date(lastPlayed[a.releaseId]||0)));
@@ -4316,6 +4322,39 @@ function openStatDrill(tile){
   $('statDrillOverlay').scrollTop=0;
 
   wireDrillTaps(playedRecords);
+  if(tile==='cycle')renderCycleHistory();
+}
+
+// Past cycles for the Cycle drill (§12.10). Newest first. Each row replays
+// that cycle: the front moment then the slides, or just the slides via Skip
+// animation. Replays read the stored recap and never start a new cycle.
+async function renderCycleHistory(){
+  const box=$('cycleHistory');if(!box)return;
+  const res=crate.listCycleRecaps?await crate.listCycleRecaps():{success:false};
+  if(!$('cycleHistory'))return;   // the drill closed while loading
+  const rows=res.success?res.data:[];
+  if(!res.success){box.innerHTML='<div class="ch-empty">Could not load past cycles.</div>';return;}
+  if(!rows.length){box.innerHTML='<div class="ch-empty">Finished cycles appear here, each one replayable.</div>';return;}
+  const fmt=iso=>new Date(iso).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  box.innerHTML=rows.map(c=>{
+    const tiles=(c.mosaic&&c.mosaic.tiles||[]).slice(0,4);
+    const urls=tiles.map(t=>artCache[t.release_id]||t.art).filter(Boolean);
+    const thumb=urls.length>=4?`<div class="ch-thumb">${urls.slice(0,4).map(u=>`<img src="${escapeHTML(u)}" alt="" loading="lazy">`).join('')}</div>`
+      :urls.length?`<div class="ch-thumb one"><img src="${escapeHTML(urls[0])}" alt="" loading="lazy"></div>`:`<div class="ch-thumb one"></div>`;
+    return `<div class="ch-row" data-cycle="${c.cycle_number}">${thumb}
+      <div><div class="t">Cycle ${c.cycle_number}</div><div class="d">${fmt(c.start_date)} to ${fmt(c.end_date)} &middot; ${c.total_plays} plays</div></div>
+      <button class="ch-skip" data-skip="${c.cycle_number}">Skip animation</button></div>`;
+  }).join('');
+  box.querySelectorAll('.ch-row').forEach(row=>{
+    row.onclick=async ev=>{
+      const n=Number(row.dataset.cycle);
+      const skip=!!ev.target.closest('.ch-skip');
+      const recapP=crate.loadCycleRecap(n);
+      if(!skip)await playCycleMoment(n);
+      const shown=await playRecap(recapP,{closing:false});
+      if(!shown)showToast('Could not open that cycle. Try again in a moment.');
+    };
+  });
 }
 
 function wireDrillTaps(playedRecords){
