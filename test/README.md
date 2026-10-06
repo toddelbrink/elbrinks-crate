@@ -17,6 +17,7 @@ Run them:
     node test/artist-fetch.test.mjs
     node test/button-wiring.test.mjs
     node test/settings-stats.test.mjs
+    node test/cycle-reset.test.mjs
 
 No dependencies, no install. Exit code 0 means pass.
 

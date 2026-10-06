@@ -2178,11 +2178,20 @@ async function logPlay(releaseId){
 }
 
 async function resetCycle(){
+  // The server saves the closing cycle to vinyl_cycle_recaps before it stamps
+  // the new boundary (§12 step 1). If that fails nothing is reset, so local
+  // state only changes after it succeeds. It used to clear first and call
+  // second, so a failed reset still wiped progress on this device.
+  const res=await crate.resetCycle({closingCycle:currentCycle});
+  if(!res||!res.success){
+    console.error('[resetCycle]',res&&res.error);
+    showToast('Could not start a new cycle. Check your connection and try again.');
+    return false;
+  }
   cycleLog={};cycleCounts={};currentCycle++;
-  const res=await crate.resetCycle();
   // Capture the new boundary the server stamped so subsequent in-session
   // event-count queries (none today, but future Recent Plays + patterns) use it.
-  if(res&&res.success&&res.data&&res.data.cycle_started_at){
+  if(res.data&&res.data.cycle_started_at){
     cycleStartedAt=res.data.cycle_started_at;
   }
   await dbSet('plays','cycleLog',cycleLog);
@@ -2190,6 +2199,7 @@ async function resetCycle(){
   crate.saveSetting('cycle',currentCycle);
   updateCrateProgress();renderGrid();
   showToast(`Cycle ${currentCycle} started`);
+  return true;
 }
 
 async function clearPlayHistory(){
@@ -5954,8 +5964,8 @@ window.addEventListener('scroll',()=>{
 },{ passive:true });
 
 $('fullSyncBtn').onclick=fullSync;
-$('resetCycleBtn').onclick=async()=>{await resetCycle();closeSettings();};
-$('resetConfirmBtn').onclick=async()=>{await resetCycle();$('resetModal').style.display='none';};
+$('resetCycleBtn').onclick=async()=>{if(await resetCycle())closeSettings();};
+$('resetConfirmBtn').onclick=async()=>{if(await resetCycle())$('resetModal').style.display='none';};
 
 // Review modal wiring (v1.1 Sprint 1)
 $('reviewCloseBtn').onclick=closeReviewModal;

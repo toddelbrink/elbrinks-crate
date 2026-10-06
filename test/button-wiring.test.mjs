@@ -54,9 +54,12 @@ check('found the share page buttons', share.ids.length >= 10, `${share.ids.lengt
 check('every /vinyl button is referenced by the script', app.missing.length === 0, app.missing.join(', ') || 'all wired');
 check('every share page button is referenced by the script', share.missing.length === 0, share.missing.join(', ') || 'all wired');
 
-// The specific chain Todd hit: Start Fresh Cycle must reset and close the modal.
-check('Start Fresh Cycle resets the cycle and closes the modal',
-  /\$\('resetConfirmBtn'\)\.onclick=async\(\)=>\{await resetCycle\(\);\$\('resetModal'\)\.style\.display='none';\};/.test(APP));
+// The specific chain Todd hit: Start Fresh Cycle must reset, and close the
+// modal only when the reset succeeded (so a failed save can be retried).
+check('Start Fresh Cycle resets the cycle and closes the modal on success',
+  /\$\('resetConfirmBtn'\)\.onclick=async\(\)=>\{if\(await resetCycle\(\)\)\$\('resetModal'\)\.style\.display='none';\};/.test(APP));
+check('Settings Reset Cycle resets, closing Settings on success',
+  /\$\('resetCycleBtn'\)\.onclick=async\(\)=>\{if\(await resetCycle\(\)\)closeSettings\(\);\};/.test(APP));
 // applyFilters and applyWantlistFilters call this unguarded. Without it every
 // filter, sort and search threw at its last step.
 check('updateAlphaScrubber is defined', /^function updateAlphaScrubber\(\)\{/m.test(APP));
