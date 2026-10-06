@@ -1,12 +1,16 @@
 // Vercel serverless function — §12 cycle recap: stats plus Claude's bridges.
 //
 // POST /api/cycle-recap
-// Body: { cycle_number }
+// Body: { cycle_number }  or  { closing: true }
 // Header: Authorization: Bearer <supabase_access_token>
 //
-// The row is created by the database when a cycle is reset (trigger
-// save_closing_cycle, with recap_data {status:'pending'}). This function
-// finishes it, once, and every later call reads what it stored:
+// A saved cycle's row comes from one of two places. { closing: true } is sent
+// the moment the last unplayed record is played: it creates the row for the
+// cycle that just finished (or finds it), because the recap shows before the
+// listener resets. Otherwise the database creates it at reset (trigger
+// save_closing_cycle), which also recognizes a row already created here and
+// leaves it alone. Either way this function finishes the row, once, and every
+// later call reads what it stored:
 //   1. recap_data pending  -> compute from play events (lib/recap.js), store.
 //   2. bridges null        -> one Claude call writes a short line per slide, store.
 //   3. return recap_data + bridges (never the share image bytes).
@@ -18,7 +22,7 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
-import { computeRecap, recapSlides, SYSTEM_PROMPT, bridgeSchema, bridgePrompt } from '../lib/recap.js';
+import { computeRecap, recapSlides, SYSTEM_PROMPT, bridgeSchema, bridgePrompt, RECAP_VERSION } from '../lib/recap.js';
 
 // One Claude call at medium effort; 120 s is generous headroom.
 export const config = { runtime: 'nodejs', maxDuration: 120 };
@@ -69,8 +73,40 @@ export default async function handler(req, res) {
   if (userError || !userData?.user) { res.status(401).json({ error: 'Invalid session' }); return; }
   const userId = userData.user.id;
 
-  const n = Number((req.body || {}).cycle_number);
-  if (!Number.isInteger(n) || n < 1) { res.status(400).json({ error: 'cycle_number required' }); return; }
+  const body = req.body || {};
+  let n = Number(body.cycle_number);
+  if (body.closing === true) {
+    // The cycle that just finished: from the current boundary (or the first
+    // play, for a first cycle) to the last play.
+    const [{ data: prof, error: pErr }, { data: lastRows, error: lErr }, { data: top, error: tErr }] = await Promise.all([
+      supabase.from('vinyl_user_profile').select('cycle_started_at').eq('user_id', userId).maybeSingle(),
+      supabase.from('vinyl_play_events').select('played_at').eq('user_id', userId).order('played_at', { ascending: false }).limit(1),
+      supabase.from('vinyl_cycle_recaps').select('cycle_number, start_date').order('cycle_number', { ascending: false }).limit(1),
+    ]);
+    if (pErr || lErr || tErr) { res.status(500).json({ error: 'Could not load the cycle' }); return; }
+    let start = prof && prof.cycle_started_at;
+    if (!start) {
+      const { data: firstRows } = await supabase.from('vinyl_play_events').select('played_at')
+        .eq('user_id', userId).order('played_at', { ascending: true }).limit(1);
+      start = firstRows && firstRows[0] && firstRows[0].played_at;
+    }
+    const end = lastRows && lastRows[0] && lastRows[0].played_at;
+    if (!start || !end) { res.status(404).json({ error: 'No plays in this cycle' }); return; }
+    const latest = top && top[0];
+    if (latest && Date.parse(latest.start_date) === Date.parse(start)) {
+      n = latest.cycle_number;                       // already saved, reuse it
+    } else {
+      n = (latest ? latest.cycle_number : 0) + 1;
+      const { count } = await supabase.from('vinyl_play_events').select('id', { count: 'exact', head: true })
+        .eq('user_id', userId).gte('played_at', start).lte('played_at', end);
+      const { error: insErr } = await supabase.from('vinyl_cycle_recaps').insert({
+        user_id: userId, cycle_number: n, start_date: start, end_date: end, total_plays: count || 0,
+        recap_data: { status: 'pending', saved_at: new Date().toISOString() },
+      });
+      if (insErr && insErr.code !== '23505') { res.status(500).json({ error: 'Could not save the cycle' }); return; }
+    }
+  }
+  if (!Number.isInteger(n) || n < 1) { res.status(400).json({ error: 'cycle_number or closing required' }); return; }
 
   const { data: row, error: rowErr } = await supabase
     .from('vinyl_cycle_recaps')
@@ -80,9 +116,11 @@ export default async function handler(req, res) {
   if (rowErr) { res.status(500).json({ error: 'Could not load the cycle' }); return; }
   if (!row) { res.status(404).json({ error: 'No saved cycle with that number' }); return; }
 
-  // 1. Stats, once.
+  // 1. Stats, once per RECAP_VERSION. They come only from stored plays, so a
+  // recompute after a version bump gives the same facts in the new shape; the
+  // stored bridges are kept.
   let recap = row.recap_data;
-  if (!recap || recap.status === 'pending') {
+  if (!recap || recap.status === 'pending' || (recap.version || 0) < RECAP_VERSION) {
     const [ev, prior, coll, meta, moods, prev] = await Promise.all([
       supabase.from('vinyl_play_events').select('release_id, played_at, mood_active')
         .eq('user_id', userId).gte('played_at', row.start_date).lte('played_at', row.end_date),

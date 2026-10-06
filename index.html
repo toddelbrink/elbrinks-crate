@@ -524,6 +524,65 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .cm-title{margin-top:28px;font-size:24px;font-weight:600;letter-spacing:.01em;color:var(--text);opacity:0;transform:translateY(4px);animation:cm-text .9s ease 1.7s forwards}
 .cm-hint{margin-top:10px;font-size:12px;color:var(--muted);opacity:0;animation:cm-text .8s ease 2.6s forwards}
 @keyframes cm-text{to{opacity:1;transform:none}}
+/* ── §12 recap: story-reveal slides, then the final composite ──
+   One slide at a time, full screen: the stat large, Claude's bridge quiet
+   beneath it. Fade in, hold 4 s, fade out; tap or swipe to move early. Same
+   register as the front moment: dark, still, vinyl-native, no party. */
+.cycle-recap{position:fixed;inset:0;z-index:455;background:#050505;color:var(--text);display:none;flex-direction:column;-webkit-tap-highlight-color:transparent;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+.cycle-recap.on{display:flex}
+.cr-progress{display:flex;gap:4px;padding:calc(env(safe-area-inset-top,0px) + 14px) 16px 0}
+.cr-progress span{flex:1;height:2px;border-radius:1px;background:rgba(255,255,255,.18);overflow:hidden}
+.cr-progress span i{display:block;height:100%;width:0;background:rgba(255,255,255,.75)}
+.cr-progress span.done i{width:100%}
+.cr-progress span.now i{animation:cr-fill linear forwards}
+@keyframes cr-fill{from{width:0}to{width:100%}}
+.cr-close{position:absolute;top:calc(env(safe-area-inset-top,0px) + 22px);right:12px;width:40px;height:40px;border:none;background:none;color:var(--muted);font-size:26px;line-height:1;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.cr-stage{flex:1;position:relative;display:flex;align-items:center;justify-content:center;padding:24px 28px 40px;cursor:pointer}
+.cr-slide{width:100%;max-width:420px;text-align:center;opacity:0;transition:opacity .5s ease}
+.cr-slide.in{opacity:1}
+.cr-kicker{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:14px}
+.cr-big{font-size:46px;font-weight:700;letter-spacing:-.01em;line-height:1.05}
+.cr-big2{font-size:28px;font-weight:600;color:var(--muted);margin-top:6px}
+.cr-cover{width:min(62vw,250px);aspect-ratio:1;object-fit:cover;border-radius:6px;display:block;margin:0 auto 22px;background:var(--surface2);box-shadow:0 12px 40px rgba(0,0,0,.6)}
+.cr-cover.ph{display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:40px}
+.cr-title{font-size:24px;font-weight:700;line-height:1.2}
+.cr-sub{font-size:15px;color:var(--muted);margin-top:6px}
+.cr-bridge{font-size:16px;line-height:1.6;color:#b9b9b9;margin-top:26px;min-height:3.2em;opacity:0;transition:opacity .6s ease .5s}
+.cr-slide.in .cr-bridge{opacity:1}
+.cr-bars{text-align:left;margin-top:6px}
+.cr-bar{display:grid;grid-template-columns:76px 1fr 44px;align-items:center;gap:10px;margin:10px 0;font-size:14px}
+.cr-bar b{font-weight:600}
+.cr-bar .cr-track{display:block;height:10px;border-radius:5px;background:rgba(255,255,255,.08);overflow:hidden}
+.cr-bar .cr-fill{display:block;height:10px;border-radius:5px;width:0;transition:width .9s cubic-bezier(.2,.7,.2,1) .3s}
+.cr-slide.in .cr-bar .cr-fill{width:var(--w)}
+.cr-bar .cr-pct{color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+.cr-trio{display:flex;gap:12px;justify-content:center}
+.cr-trio div{width:30%;max-width:120px}
+.cr-trio img,.cr-trio .ph{width:100%;aspect-ratio:1;object-fit:cover;border-radius:4px;background:var(--surface2);display:block}
+.cr-trio p{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.3}
+.cr-rows{text-align:left;margin:0 auto;max-width:300px}
+.cr-rows p{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.08);font-size:15px}
+.cr-rows p span:first-child{color:var(--muted)}
+/* final composite */
+.cr-final{width:100%;max-width:440px;text-align:center}
+.cr-final h2{font-size:28px;font-weight:700;margin:4px 0 22px}
+.cr-tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px;text-align:left}
+.cr-tile{background:var(--surface);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:12px;min-height:84px}
+.cr-tile .k{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.cr-tile .v{font-size:15px;font-weight:600;line-height:1.3}
+.cr-tile .s{font-size:12px;color:var(--muted);margin-top:3px}
+.cr-tile.rec{display:grid;grid-template-columns:44px 1fr;gap:10px;align-items:center}
+.cr-tile.rec img,.cr-tile.rec .ph{width:44px;height:44px;border-radius:3px;object-fit:cover;background:var(--surface2)}
+.cr-tile .stack{display:flex;height:8px;border-radius:4px;overflow:hidden;margin-top:8px}
+.cr-ctas{display:flex;flex-direction:column;gap:10px;margin-top:22px}
+.cr-ctas button{border:none;border-radius:10px;padding:14px;font-family:var(--font);font-size:15px;font-weight:700;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.cr-ctas .primary{background:var(--accent);color:#fff}
+.cr-ctas .quiet{background:none;color:var(--muted);font-weight:600}
+.cr-ctas button:disabled{opacity:.5}
+@media (prefers-reduced-motion:reduce){
+  .cr-slide,.cr-bridge,.cr-bar .cr-fill{transition:none}
+  .cr-progress span.now i{animation:none;width:100%}
+}
 @media (prefers-reduced-motion:reduce){
   .cm-record,.cm-arm,.cm-arm-shadow,.cm-flare{animation:none}
   .cm-arm,.cm-arm-shadow{transform:rotate(-36deg)}
@@ -1419,6 +1478,13 @@ input:focus,textarea:focus{border-color:var(--accent)}
   <p class="cm-hint">Tap to continue</p>
 </div>
 
+<!-- §12 recap. Filled by playRecap(); slides are built from the stored recap. -->
+<div id="cycleRecap" class="cycle-recap" role="dialog" aria-modal="true" aria-label="Cycle recap">
+  <div class="cr-progress" id="crProgress"></div>
+  <button class="cr-close" id="crClose" aria-label="Close the recap">&times;</button>
+  <div class="cr-stage" id="crStage" aria-live="polite"></div>
+</div>
+
 <div id="resetModal" class="reset-modal" style="display:none">
   <!-- Placeholder until the §12 completion reward ships. Quiet register per
        memory/feedback_earned_recognition_register.md: no emoji, no party copy. -->
@@ -1611,8 +1677,9 @@ function anyUpdateBlockerActive(){
   if(document.getElementById('moodEditModal')?.style.display==='flex')return true;
   // Shared inputPromptModal (crate-name edit, Discogs PAT paste, future text-entry surfaces).
   if(document.getElementById('inputPromptModal')?.style.display==='flex')return true;
-  // §12 front moment.
+  // §12 front moment and recap.
   if(document.getElementById('cycleMoment')?.classList.contains('on'))return true;
+  if(document.getElementById('cycleRecap')?.classList.contains('on'))return true;
   // Filter picker sheet, Genre and Mood (v1.2).
   if(document.getElementById('filterPicker')?.style.display==='flex')return true;
   // Liner Notes provenance modal (Sprint 3 §13.14).
@@ -2270,9 +2337,15 @@ function queueCycleComplete(){
   const n=currentCycle;
   const go=async()=>{
     if(anyUpdateBlockerActive()){setTimeout(go,800);return;}
+    // Ask for the recap while the moment plays. The first time, Claude writes
+    // the bridges, which can take a while; the moment covers part of it.
+    const recapP=crate.loadCycleRecap?crate.loadCycleRecap({closing:true}):Promise.resolve({success:false});
     await playCycleMoment(n);
+    const shown=await playRecap(recapP,{closing:true});
     _cycleCompleteQueued=false;
-    $('resetModal').style.display='flex';
+    // No recap (offline, server error): the Crate Complete card still offers
+    // the reset, as before §12.
+    if(!shown)$('resetModal').style.display='flex';
   };
   setTimeout(go,600);
 }
@@ -2329,41 +2402,145 @@ function playCycleMoment(n){
   });
 }
 
-// Temporary preview of the recap data and Claude's bridges (§12 steps 4 and 5),
-// until the slides ship (step 6): open /vinyl#preview-cycle-recap. It opens the
-// newest saved cycle. The first open computes and stores the recap and asks
-// Claude for the bridges; later opens read the stored copy.
-function recapStatLine(slide,r){
-  const pct=x=>Math.round(x*100)+'%';
-  if(slide==='scale')return `${r.days} days. ${r.plays} plays. ${r.started.month} ${r.started.year} to ${r.ended.month} ${r.ended.year}.`;
-  if(slide==='closer')return `Cycle closer: ${r.closer.title} by ${r.closer.artist}.`;
-  if(slide==='most_played')return `Most spun: ${r.most_played.title} by ${r.most_played.artist}. ${r.most_played.play_count} plays.`;
-  if(slide==='mood_mix')return 'Mood mix: '+r.mood_mix.map(m=>`${m.name} ${pct(m.share)}`).join(', ')+'.';
-  if(slide==='returning')return 'Came back: '+r.returning.map(x=>`${x.title} by ${x.artist}`).join('; ')+'.';
-  if(slide==='cycle_over_cycle'){const c=r.cycle_over_cycle;return `vs Cycle ${c.previous_cycle}: ${c.days.before} to ${c.days.now} days, top mood ${c.top_mood.before} to ${c.top_mood.now}.`;}
-  return slide;
+// ── §12 recap slides (steps 6 and 7) ──────────────────────────
+// playRecap(source, {closing}) shows the stored recap one slide at a time,
+// then the final composite. source is the recap response or a promise of one.
+// closing: true is the live end of a cycle and offers Start new cycle;
+// false is a replay and only closes. Resolves true if the recap was shown,
+// false if it could not be loaded (the caller falls back to the old card).
+const RECAP_HOLD_MS=5000;   // 0.5 s fade in, 4 s hold, 0.5 s fade out
+function recapArt(rec){
+  if(!rec)return '';
+  return (typeof artCache!=='undefined'&&artCache[rec.release_id])||rec.art||'';
 }
+function recapCover(rec,cls){
+  const url=recapArt(rec);
+  // A dead cover link falls back to the same quiet placeholder as no cover.
+  return url?`<img class="${cls}" src="${escapeHTML(url)}" alt="" onerror="this.outerHTML='<div class=&quot;${cls} ph&quot;>&#9835;</div>'">`:`<div class="${cls} ph">&#9835;</div>`;
+}
+function recapMoodColor(slug){
+  const m=(typeof MOODS!=='undefined'?MOODS:[]).find(x=>x.id===slug);
+  return m?m.color:'var(--accent)';
+}
+function recapSlideHTML(slide,r,bridge){
+  const e=escapeHTML,pct=x=>Math.round(x*100)+'%';
+  let stat='';
+  if(slide==='scale'){
+    stat=`<p class="cr-kicker">Cycle ${r.cycle_number} &middot; ${e(r.started.month)} to ${e(r.ended.month)}</p>
+      <p class="cr-big">${r.days} days</p><p class="cr-big2">${r.plays} plays</p>`;
+  }else if(slide==='closer'){
+    stat=`${recapCover(r.closer,'cr-cover')}<p class="cr-kicker">Cycle closer</p>
+      <p class="cr-title">${e(r.closer.title)}</p><p class="cr-sub">${e(r.closer.artist)}</p>`;
+  }else if(slide==='most_played'){
+    const m=r.most_played;
+    stat=`${recapCover(m,'cr-cover')}<p class="cr-kicker">Most spun</p>
+      <p class="cr-title">${e(m.title)}</p><p class="cr-sub">${e(m.artist)} &middot; ${m.play_count} plays</p>`;
+  }else if(slide==='mood_mix'){
+    stat=`<p class="cr-kicker">Mood mix</p><div class="cr-bars">`+r.mood_mix.slice(0,6).map((m,i)=>
+      `<div class="cr-bar">${i===0?`<b>${e(m.name)}</b>`:`<span>${e(m.name)}</span>`}
+        <div class="cr-track"><div class="cr-fill" style="--w:${(m.share*100).toFixed(1)}%;background:${recapMoodColor(m.slug)}"></div></div>
+        <span class="cr-pct">${pct(m.share)}</span></div>`).join('')+`</div>`;
+  }else if(slide==='returning'){
+    stat=`<p class="cr-kicker">Came back</p><div class="cr-trio">`+r.returning.map(x=>
+      `<div>${recapCover(x,'')}<p>${e(x.title)}</p></div>`).join('')+`</div>`;
+  }else if(slide==='cycle_over_cycle'){
+    const c=r.cycle_over_cycle,row=(k,a,b)=>`<p><span>${k}</span><span>${e(String(a??'-'))} &rarr; ${e(String(b??'-'))}</span></p>`;
+    stat=`<p class="cr-kicker">vs Cycle ${c.previous_cycle}</p><div class="cr-rows">
+      ${row('Days',c.days.before,c.days.now)}${row('Plays',c.plays.before,c.plays.now)}${row('Top mood',c.top_mood.before,c.top_mood.now)}</div>`;
+  }
+  return `<div class="cr-slide">${stat}<p class="cr-bridge">${bridge?e(bridge):''}</p></div>`;
+}
+function recapFinalHTML(r,slides,closing){
+  const e=escapeHTML,tiles=[];
+  tiles.push(`<div class="cr-tile"><p class="k">Length</p><p class="v">${r.days} days</p><p class="s">${r.plays} plays &middot; ${e(r.started.month)} to ${e(r.ended.month)}</p></div>`);
+  if(r.mood_mix&&r.mood_mix.length){
+    const top=r.mood_mix[0];
+    tiles.push(`<div class="cr-tile"><p class="k">Mood</p><p class="v">${e(top.name)}</p><p class="s">${Math.round(top.share*100)}% of moods</p>
+      <div class="stack">${r.mood_mix.map(m=>`<i style="flex:${m.share};background:${recapMoodColor(m.slug)}"></i>`).join('')}</div></div>`);
+  }
+  if(r.closer)tiles.push(`<div class="cr-tile rec">${recapCover(r.closer,'')}<div><p class="k">Closer</p><p class="v">${e(r.closer.title)}</p></div></div>`);
+  if(r.most_played)tiles.push(`<div class="cr-tile rec">${recapCover(r.most_played,'')}<div><p class="k">Most spun</p><p class="v">${e(r.most_played.title)}</p></div></div>`);
+  if(r.returning)tiles.push(`<div class="cr-tile"><p class="k">Came back</p><p class="v">${r.returning.length} record${r.returning.length===1?'':'s'}</p><p class="s">${e(r.returning[0].title)}</p></div>`);
+  if(r.cycle_over_cycle){const c=r.cycle_over_cycle;tiles.push(`<div class="cr-tile"><p class="k">vs Cycle ${c.previous_cycle}</p><p class="v">${e(String(c.top_mood.before??'-'))} &rarr; ${e(String(c.top_mood.now??'-'))}</p><p class="s">${c.days.before} &rarr; ${c.days.now} days</p></div>`);}
+  return `<div class="cr-slide cr-final">
+    <p class="cr-kicker">${e(crateName||'Your crate')}</p>
+    <h2>Cycle ${r.cycle_number} complete.</h2>
+    <div class="cr-tiles">${tiles.join('')}</div>
+    <div class="cr-ctas">
+      ${closing?`<button class="primary" id="crStart">Start Cycle ${r.cycle_number+1}</button>
+      <button class="quiet" id="crLater">Not yet</button>`:`<button class="quiet" id="crLater">Close</button>`}
+    </div></div>`;
+}
+function playRecap(source,{closing=false}={}){
+  return new Promise(async resolve=>{
+    const el=$('cycleRecap'),stage=$('crStage'),prog=$('crProgress');
+    el.classList.add('on');prog.innerHTML='';
+    stage.innerHTML='<div class="cr-slide in"><p class="cr-kicker">Gathering the cycle</p></div>';
+    let res;
+    try{res=await source;}catch(e){res=null;}
+    if(!res||!res.success||!res.data||!res.data.recap){
+      console.error('[recap]',res&&res.error);
+      el.classList.remove('on');stage.innerHTML='';resolve(false);return;
+    }
+    const d=res.data,r=d.recap,slides=d.slides||[],bridges=d.bridges||{};
+    const total=slides.length+1;   // the slides, then the final composite
+    prog.innerHTML=Array.from({length:total},()=>'<span><i></i></span>').join('');
+    const bars=[...prog.children];
+    let i=-1,timer=null,done=false;
+    const finish=started=>{
+      if(done)return;done=true;clearTimeout(timer);
+      el.classList.remove('on');stage.innerHTML='';prog.innerHTML='';
+      el.removeEventListener('keydown',onKey);document.removeEventListener('keydown',onKey);
+      resolve(true);
+      if(closing&&!started)showToast('Cycle saved. Start the next one from Settings when you are ready.');
+    };
+    const show=k=>{
+      clearTimeout(timer);
+      i=Math.max(0,Math.min(total-1,k));
+      bars.forEach((b,j)=>{b.className=j<i?'done':(j===i&&i<total-1?'now':(j===i?'done':''));const f=b.firstChild;f.style.animation='none';void f.offsetWidth;f.style.animation='';f.style.animationDuration=RECAP_HOLD_MS+'ms';});
+      stage.innerHTML=i<slides.length?recapSlideHTML(slides[i],r,bridges[slides[i]]):recapFinalHTML(r,slides,closing);
+      const node=stage.firstElementChild;void node.offsetWidth;node.classList.add('in');
+      if(i<total-1)timer=setTimeout(()=>show(i+1),RECAP_HOLD_MS);
+      else wireFinal();
+    };
+    const wireFinal=()=>{
+      const later=$('crLater'),start=$('crStart');
+      if(later)later.onclick=ev=>{ev.stopPropagation();finish(false);};
+      if(start)start.onclick=async ev=>{
+        ev.stopPropagation();start.disabled=true;start.textContent='Starting...';
+        const ok=await resetCycle();
+        if(ok)finish(true);else{start.disabled=false;start.textContent=`Start Cycle ${r.cycle_number+1}`;}
+      };
+    };
+    // Tap: right two thirds forward, left third back. Swipe works the same way.
+    stage.onclick=ev=>{
+      if(i>=total-1)return;   // the final screen uses its buttons
+      const x=ev.clientX/window.innerWidth;show(x<0.33?i-1:i+1);
+    };
+    let sx=null;
+    stage.ontouchstart=ev=>{sx=ev.touches[0].clientX;};
+    stage.ontouchend=ev=>{
+      if(sx===null)return;const dx=ev.changedTouches[0].clientX-sx;sx=null;
+      if(Math.abs(dx)>40&&i<total-1){ev.preventDefault();show(dx<0?i+1:i-1);}
+    };
+    $('crClose').onclick=ev=>{ev.stopPropagation();finish(false);};
+    const onKey=ev=>{
+      if(ev.key==='Escape')finish(false);
+      else if(ev.key==='ArrowRight'&&i<total-1)show(i+1);
+      else if(ev.key==='ArrowLeft')show(i-1);
+    };
+    document.addEventListener('keydown',onKey);
+    show(0);
+  });
+}
+
+// Temporary preview until Cycle History replay ships (§12 step 9): open
+// /vinyl#preview-cycle-recap to replay the newest saved cycle's recap.
 async function previewCycleRecap(){
-  const wrap=document.createElement('div');
-  wrap.className='reset-modal';wrap.style.display='flex';wrap.style.zIndex='460';
-  const card=document.createElement('div');card.className='reset-card';card.style.textAlign='left';card.style.maxWidth='440px';card.style.maxHeight='86vh';card.style.overflow='auto';
-  const h=document.createElement('h2');h.textContent='Recap preview';
-  const body=document.createElement('div');body.textContent='Building the recap. The first open asks Claude, which can take half a minute.';body.style.color='var(--muted)';body.style.fontSize='14px';body.style.lineHeight='1.6';
-  const close=document.createElement('button');close.textContent='Close';close.style.marginTop='20px';close.onclick=()=>wrap.remove();
-  card.append(h,body,close);wrap.append(card);document.body.append(wrap);
   const list=await crate.listCycleRecaps();
   const latest=list.success&&list.data[0];
-  if(!latest){body.textContent='No saved cycles yet.';return;}
-  h.textContent=`Cycle ${latest.cycle_number} recap preview`;
-  const res=await crate.loadCycleRecap(latest.cycle_number);
-  if(!res.success){body.textContent='Could not load it: '+(res.error&&res.error.message||res.error);return;}
-  const d=res.data;body.textContent='';body.style.color='var(--text)';
-  d.slides.forEach(slide=>{
-    const stat=document.createElement('p');stat.textContent=recapStatLine(slide,d.recap);stat.style.fontWeight='600';stat.style.margin='14px 0 4px';stat.style.color='var(--text)';
-    const bridge=document.createElement('p');bridge.textContent=d.bridges?d.bridges[slide]:'';bridge.style.color='var(--muted)';bridge.style.margin='0';bridge.style.fontStyle='italic';
-    body.append(stat,bridge);
-  });
-  if(!d.bridges){const n=document.createElement('p');n.textContent='Claude was unreachable ('+d.bridges_error+'). The lines fill in on the next open.';n.style.color='var(--muted)';n.style.marginTop='14px';body.append(n);}
+  if(!latest){showToast('No saved cycles yet.');return;}
+  playRecap(crate.loadCycleRecap(latest.cycle_number),{closing:false});
 }
 
 // Temporary preview until the Cycle History replay ships (§12 step 9): open

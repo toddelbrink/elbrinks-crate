@@ -38,7 +38,9 @@ check('closer is the last play by time, not by input order', r.closer && r.close
 check('most played tie goes to the more recent', r.most_played && r.most_played.title === 'Currents' && r.most_played.play_count === 2,
   JSON.stringify(r.most_played));
 check('mood mix counts a multi-mood play toward each mood', r.mood_mix[0].name === 'Move' && r.mood_mix[0].count === 5, JSON.stringify(r.mood_mix));
-check('mood share is of plays that carry a mood', Math.abs(r.mood_mix[0].share - 5 / 6) < 1e-9);
+check('mood share is of all tags, so shares total 100%', Math.abs(r.mood_mix[0].share - 5 / 7) < 1e-9 &&
+  Math.abs(r.mood_mix.reduce((a, m) => a + m.share, 0) - 1) < 1e-9);
+check('recap carries the current version', r.version === 2);
 check('returning is null with no history before the cycle', r.returning === null);
 check('cycle over cycle is null with no saved previous cycle', r.cycle_over_cycle === null);
 check('repeats lists records played twice or more, heaviest then latest', r.repeats.map((x) => x.release_id).join(',') === 'c,b');
@@ -73,6 +75,7 @@ const prompt = bridgePrompt(r, recapSlides(r));
 check('prompt names the closer and the most played', /Lateralus by Tool/.test(prompt) && /Currents by Moontricks, 2 plays/.test(prompt));
 check('prompt asks only for the slides shown', /slides: scale, closer, most_played, mood_mix\.$/.test(prompt) && !/returning/.test(prompt.split('\n').pop()));
 check('system prompt holds the register', /earned recognition/.test(SYSTEM_PROMPT) && /no emoji/.test(SYSTEM_PROMPT) && /Never invent/.test(SYSTEM_PROMPT));
+check('system prompt keeps unsure record details out', /running times, track counts/.test(SYSTEM_PROMPT));
 
 check('schema requires exactly the shown slides and nothing else',
   JSON.stringify(bridgeSchema(['scale', 'closer']).required) === '["scale","closer"]' && bridgeSchema(['scale']).additionalProperties === false);

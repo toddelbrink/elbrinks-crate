@@ -20,6 +20,7 @@ check('no emoji in the moment or the card',
 const logPlay = sliceTo(APP, /^async function logPlay\(/, '}');
 check('the closing play queues the moment', /allIds\.every\(id=>cycleLog\[id\]\)\)queueCycleComplete\(\);/.test(logPlay));
 check('the closing play no longer opens the card directly', !/resetModal/.test(logPlay));
+check('the recap counts as a blocker for other pop-ups', /getElementById\('cycleRecap'\)\?\.classList\.contains\('on'\)/.test(APP));
 check('the moment counts as a blocker for other pop-ups', /getElementById\('cycleMoment'\)\?\.classList\.contains\('on'\)/.test(APP));
 check('the moment respects the celebration-sounds setting', /function playRunoutSound\(\)\{\s*if\(!celebrationSounds\)return;/.test(APP));
 check('reduced motion stops the animation', /@media \(prefers-reduced-motion:reduce\)\{\s*\.cm-record,\.cm-arm/.test(APP));
@@ -28,7 +29,7 @@ check('reduced motion stops the animation', /@media \(prefers-reduced-motion:red
 // From the queued flag through the end of queueCycleComplete.
 const fn = sliceTo(APP, /^let _cycleCompleteQueued=false;/, '}');
 mustContain(fn, /function queueCycleComplete\(\)\{/, 'queueCycleComplete');
-function harness() {
+function harness({ recapShown = true } = {}) {
   let now = 0; const timers = [];
   const log = [];
   const card = { style: { display: 'none' } };
@@ -37,6 +38,8 @@ function harness() {
     currentCycle: 2,
     anyUpdateBlockerActive: () => blocked,
     playCycleMoment: async (n) => { log.push('moment ' + n); },
+    crate: { loadCycleRecap: (w) => { log.push('load ' + JSON.stringify(w)); return Promise.resolve({ success: recapShown }); } },
+    playRecap: async (p, opts) => { await p; log.push('recap closing=' + opts.closing); return recapShown; },
     $: (id) => (id === 'resetModal' ? card : {}),
     setTimeout: (f, ms) => timers.push({ at: now + ms, f }),
   });
@@ -59,8 +62,16 @@ await h.advance(5000);
 check('waits while another surface is open', h.log.length === 0 && h.card.style.display === 'none', h.log.join(', '));
 h.unblock();
 await h.advance(1000);
-check('plays once the surface closes, with the cycle number', h.log.join(', ') === 'moment 2', h.log.join(', '));
-check('hands off to the Crate Complete card', h.card.style.display === 'flex');
+check('loads the recap as the moment starts, then plays the slides',
+  h.log.join(', ') === 'load {"closing":true}, moment 2, recap closing=true', h.log.join(', '));
+check('a shown recap replaces the Crate Complete card', h.card.style.display === 'none');
+
+// No recap (offline, server error): the old card still offers the reset.
+const f = harness({ recapShown: false });
+f.unblock();
+f.sb.queueCycleComplete();
+await f.advance(2000);
+check('without a recap, falls back to the Crate Complete card', f.card.style.display === 'flex', f.log.join(', '));
 
 // Negative case: before the moment, the closing play opened the thin card directly.
 let old = null;
