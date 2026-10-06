@@ -22,7 +22,14 @@ check('the closing play queues the moment', /allIds\.every\(id=>cycleLog\[id\]\)
 check('the closing play no longer opens the card directly', !/resetModal/.test(logPlay));
 check('the recap counts as a blocker for other pop-ups', /getElementById\('cycleRecap'\)\?\.classList\.contains\('on'\)/.test(APP));
 check('the moment counts as a blocker for other pop-ups', /getElementById\('cycleMoment'\)\?\.classList\.contains\('on'\)/.test(APP));
-check('the moment respects the celebration-sounds setting', /function playRunoutSound\(\)\{\s*if\(!celebrationSounds\)return;/.test(APP));
+check('the moment respects the celebration-sounds setting', /function playRunoutSound\(force\)\{\s*if\(!celebrationSounds&&!force\)return;/.test(APP));
+check('the moment plays the sound unforced', /playCycleMoment[\s\S]{0,900}playRunoutSound\(\);/.test(APP));
+// §12.12 the toggle
+check('Theme has a Celebration sounds switch', /id="subpanelTheme"[\s\S]*?Celebration sounds[\s\S]*?id="celebrationSoundsToggle"/.test(APP));
+check('the switch saves to the profile', /updateProfile\(\{celebration_sounds:want\}\)/.test(APP));
+check('a failed save puts the switch back', /celebrationSounds=prev;tog\.checked=prev!==false;/.test(APP));
+check('the preview plays even with sounds off', /onclick=\(\)=>playRunoutSound\(true\)/.test(APP));
+check('the setting loads with the profile', /celebrationSounds=profRes\.data\.celebration_sounds!==false;/.test(APP) && /celebration_sounds'\)/.test(read('lib/supabase.js')));
 check('reduced motion stops the animation', /@media \(prefers-reduced-motion:reduce\)\{\s*\.cm-record,\.cm-arm/.test(APP));
 
 // ── behavior on a fake clock

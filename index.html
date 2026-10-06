@@ -1304,6 +1304,21 @@ input:focus,textarea:focus{border-color:var(--accent)}
     <div class="subpanel-section-header">Choose a look</div>
     <div class="theme-grid" id="themeGrid"></div>
     <div class="subpanel-foot-note">Tap a theme to apply it. The change persists across devices when you're signed in. Mood pill colors stay constant across themes so your tags read the same everywhere.</div>
+
+    <!-- §12.12: one sound toggle. It lives under Theme because it is the only
+         sound in the app; split into a Sound subpanel if more arrive. -->
+    <div class="subpanel-section-header" style="margin-top:24px">Sound</div>
+    <div class="share-toggle-row">
+      <div class="share-toggle-label">
+        <div class="share-toggle-title">Celebration sounds</div>
+        <div class="share-toggle-sub">Audio for cycle-complete moments.</div>
+      </div>
+      <label class="share-switch">
+        <input type="checkbox" id="celebrationSoundsToggle" />
+        <span class="share-switch-slider"></span>
+      </label>
+    </div>
+    <button class="ch-skip" id="celebrationSoundPreview" style="padding:4px 0 12px;margin-left:16px">Play the sound</button>
   </div>
 </div>
 
@@ -2372,8 +2387,8 @@ function queueCycleComplete(){
 // load. Gated by the celebration-sounds setting, and the device mute applies
 // as it does to any web audio. If the browser will not start audio outside a
 // tap, the moment simply runs silent (§12.14).
-function playRunoutSound(){
-  if(!celebrationSounds)return;
+function playRunoutSound(force){
+  if(!celebrationSounds&&!force)return;
   try{
     const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
     const ctx=new AC();
@@ -7900,7 +7915,33 @@ function onShareOpen(){
   window.open(url,'_blank','noopener');
 }
 
+// §12.12 Celebration sounds: saved on the profile so it follows the user
+// across devices. Same save-then-revert pattern as the liner notes toggle.
+// The preview plays even when the toggle is off, so the choice is informed.
+function wireCelebrationSoundsToggle(){
+  const tog=document.getElementById('celebrationSoundsToggle');
+  if(tog){
+    tog.checked=celebrationSounds!==false;
+    tog.onchange=async e=>{
+      const want=e.target.checked,prev=celebrationSounds;
+      tog.disabled=true;celebrationSounds=want;
+      try{
+        const res=await crate.updateProfile({celebration_sounds:want});
+        if(!res.success)throw new Error(res.error?.message||'unknown');
+        showToast(want?'Celebration sounds on':'Celebration sounds off');
+      }catch(err){
+        celebrationSounds=prev;tog.checked=prev!==false;
+        showToast('Save failed. '+err.message);
+      }
+      tog.disabled=false;
+    };
+  }
+  const prev=document.getElementById('celebrationSoundPreview');
+  if(prev)prev.onclick=()=>playRunoutSound(true);
+}
+
 function renderThemeSubpanel(){
+  wireCelebrationSoundsToggle();
   const grid=document.getElementById('themeGrid');
   if(!grid)return;
   grid.innerHTML=Object.entries(THEMES).map(([key,t])=>{
