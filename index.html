@@ -474,6 +474,12 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .theme-card-preview-swatch{flex:1}
 .theme-card-name{font-size:14px;color:var(--text);font-weight:600;line-height:1.2}
 .theme-card-status{font-size:11px;color:var(--muted);margin-top:2px}
+.theme-card.previewing{border-color:var(--accent)}
+.theme-card.previewing .theme-card-status{color:var(--accent)}
+.theme-preview-bar{display:none;gap:10px;padding:12px 16px;border-top:1px solid var(--border);background:var(--bg);flex-shrink:0}
+.theme-preview-bar.open{display:flex}
+.theme-preview-bar button{flex:1;padding:12px;font-size:15px;font-weight:600;border-radius:8px;font-family:var(--font);cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.theme-preview-cancel{background:var(--surface2);border:1px solid var(--border);color:var(--text)}
 .theme-card-badge{position:absolute;top:6px;right:6px;background:var(--surface2);color:var(--muted);font-size:10px;font-weight:600;padding:2px 6px;border-radius:4px;letter-spacing:.04em;text-transform:uppercase}
 /* Sync stats — dense rows in subpanel */
 .sync-stat-row{display:flex;align-items:center;justify-content:space-between;min-height:44px;padding:0 16px;border-bottom:1px solid var(--border)}
@@ -1303,7 +1309,7 @@ input:focus,textarea:focus{border-color:var(--accent)}
   <div class="subpanel-body">
     <div class="subpanel-section-header">Choose a look</div>
     <div class="theme-grid" id="themeGrid"></div>
-    <div class="subpanel-foot-note">Tap a theme to apply it. The change persists across devices when you're signed in. Mood pill colors stay constant across themes so your tags read the same everywhere.</div>
+    <div class="subpanel-foot-note">Tap a theme to preview it. Apply keeps it on all your devices. Mood pill colors stay constant across themes so your tags read the same everywhere.</div>
 
     <!-- §12.12: one sound toggle. It lives under Theme because it is the only
          sound in the app; split into a Sound subpanel if more arrive. -->
@@ -1319,6 +1325,11 @@ input:focus,textarea:focus{border-color:var(--accent)}
       </label>
     </div>
     <button class="ch-skip" id="celebrationSoundPreview" style="padding:4px 0 12px;margin-left:16px">Play the sound</button>
+  </div>
+  <!-- §5.1 tap-to-preview: shown only while a theme is being previewed. -->
+  <div class="theme-preview-bar" id="themePreviewBar">
+    <button class="theme-preview-cancel" id="themePreviewCancel" type="button">Cancel</button>
+    <button class="btn-accent theme-preview-apply" id="themePreviewApply" type="button">Apply</button>
   </div>
 </div>
 
@@ -1976,6 +1987,7 @@ function closeAllOverlays(){
   const mpOpen=$('moodPatternsOverlay')&&$('moodPatternsOverlay').classList.contains('open');
   const wasOpen=subpanelWasOpen||mpOpen||$('sheetOverlay').classList.contains('open')||$('statDrillOverlay').classList.contains('open')||$('settingsOverlay').classList.contains('open')||$('artistOverlay').classList.contains('open');
   document.querySelectorAll('.settings-subpanel.open').forEach(el=>el.classList.remove('open'));
+  if(typeof cancelThemePreview==='function')cancelThemePreview();
   $('sheetOverlay').classList.remove('open');currentRecord=null;
   $('statDrillOverlay').classList.remove('open');
   if($('moodPatternsOverlay')){$('moodPatternsOverlay').classList.remove('open');$('moodPatternsOverlay').setAttribute('aria-hidden','true');}
@@ -2721,7 +2733,7 @@ function closeSheet(){
   else setActiveNav('navCrate');
 }
 function closeStats(){switchView('crate');setActiveNav('navCrate');}
-function closeSettings(){$('settingsOverlay').classList.remove('open');setActiveNav('navCrate');if(typeof maybeShowUpdateCard==='function')maybeShowUpdateCard();}
+function closeSettings(){if(typeof cancelThemePreview==='function')cancelThemePreview();$('settingsOverlay').classList.remove('open');setActiveNav('navCrate');if(typeof maybeShowUpdateCard==='function')maybeShowUpdateCard();}
 window.addEventListener('popstate',()=>{
   // Settings subpanels close first (so back goes subpanel → settings → main)
   if(typeof anySubpanelOpen==='function'&&anySubpanelOpen()){closeSubpanel();return;}
@@ -6920,6 +6932,7 @@ const THEMES={
   },
 };
 let activeThemeKey='dark';
+let previewThemeKey=null; // §5.1 theme being previewed, null when none
 
 // User's personalized Crate name (PRD §7.8). Empty default — gets overwritten
 // during init by ensureProfile() with the user's crate_name (existing) or a
@@ -7137,18 +7150,53 @@ function renderCrateName(){
   if(aboutHero)aboutHero.textContent=name;
 }
 
-function applyTheme(key){
+// Swap the CSS variables only. Used for both applying and previewing.
+function paintTheme(key){
   const t=THEMES[key]||THEMES.dark;
   const root=document.documentElement;
   for(const[k,v] of Object.entries(t.vars))root.style.setProperty('--'+k,v);
+}
+function applyTheme(key){
+  const t=THEMES[key]||THEMES.dark;
+  paintTheme(key);
   activeThemeKey=key;
+  previewThemeKey=null;
   // Reflect on theme subpanel if open
   const sec=document.getElementById('rowThemeSecondary');
   if(sec)sec.textContent=t.name;
-  // Re-paint active card if subpanel rendered
+  syncThemeCards();
+}
+// §5.1 tap-to-preview. A preview repaints the app but writes nothing.
+// Only Apply saves. Leaving the Theme panel any way reverts.
+function syncThemeCards(){
+  const shown=previewThemeKey||activeThemeKey;
   document.querySelectorAll('.theme-card').forEach(c=>{
-    c.classList.toggle('active',c.getAttribute('data-theme-id')===key);
+    const id=c.getAttribute('data-theme-id');
+    c.classList.toggle('active',!previewThemeKey&&id===activeThemeKey);
+    c.classList.toggle('previewing',!!previewThemeKey&&id===previewThemeKey);
+    const st=c.querySelector('.theme-card-status');
+    if(st)st.textContent=id===previewThemeKey?'Previewing':(id===activeThemeKey?'Current':'');
   });
+  const bar=document.getElementById('themePreviewBar');
+  if(bar)bar.classList.toggle('open',!!previewThemeKey&&shown!==activeThemeKey);
+}
+function previewTheme(key){
+  if(!THEMES[key])return;
+  // Re-tapping the applied theme ends the preview without a write.
+  if(key===activeThemeKey){cancelThemePreview();return;}
+  previewThemeKey=key;
+  paintTheme(key);
+  syncThemeCards();
+}
+function cancelThemePreview(){
+  if(!previewThemeKey)return;
+  previewThemeKey=null;
+  paintTheme(activeThemeKey);
+  syncThemeCards();
+}
+async function applyThemePreview(){
+  if(!previewThemeKey)return;
+  await setTheme(previewThemeKey);
 }
 async function setTheme(key){
   if(!THEMES[key])return;
@@ -7176,6 +7224,8 @@ function closeSubpanel(name){
                 :document.querySelector('.settings-subpanel.open');
   if(!el)return;
   el.classList.remove('open');
+  // §5.1 — leaving Theme mid-preview reverts. No implicit apply.
+  if(el.id==='subpanelTheme')cancelThemePreview();
   // §11 — settled-surface re-check. If an update card was queued behind this
   // subpanel, surface it now that the user is back on a settled surface.
   if(typeof maybeShowUpdateCard==='function')setTimeout(maybeShowUpdateCard,260);
@@ -7953,12 +8003,16 @@ function renderThemeSubpanel(){
           ${preview.map(c=>`<span class="theme-card-preview-swatch" style="background:${c}"></span>`).join('')}
         </div>
         <div class="theme-card-name">${t.name}</div>
+        <div class="theme-card-status"></div>
       </button>`;
   }).join('');
   grid.querySelectorAll('.theme-card').forEach(card=>{
-    card.addEventListener('click',()=>setTheme(card.getAttribute('data-theme-id')));
+    card.addEventListener('click',()=>previewTheme(card.getAttribute('data-theme-id')));
   });
+  syncThemeCards();
 }
+document.getElementById('themePreviewCancel').onclick=()=>cancelThemePreview();
+document.getElementById('themePreviewApply').onclick=()=>applyThemePreview();
 function renderAccountSubpanel(){
   // Pull email + name from Supabase session if available. crate.getSession()
   // returns the session object directly (or null), not the native Supabase

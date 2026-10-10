@@ -22,6 +22,7 @@ Run them:
     node test/cycle-recap.test.mjs
     node test/recap-slides.test.mjs
     node test/cycle-recap-fallback.test.mjs
+    node test/theme-preview.test.mjs
 
 No dependencies, no install. Exit code 0 means pass.
 
