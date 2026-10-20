@@ -24,6 +24,7 @@ Run them:
     node test/cycle-recap-fallback.test.mjs
     node test/theme-preview.test.mjs
     node test/collection-dedupe.test.mjs
+    node test/discogs-write.test.mjs
 
 No dependencies, no install. Exit code 0 means pass.
 

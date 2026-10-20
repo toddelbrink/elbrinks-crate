@@ -19,7 +19,7 @@
 
 import { createClient } from '@supabase/supabase-js';
 import {
-  oauthAuthHeader,
+  discogsAuthForUser,
   getSupabaseForRequest,
 } from '../lib/discogs-oauth-helpers.js';
 
@@ -56,53 +56,11 @@ export default async function handler(req, res) {
     return;
   }
 
-  // 3. Load user's Discogs credentials (RLS scopes to this user only)
-  const { data: settings, error: sErr } = await supabase
-    .from('vinyl_settings')
-    .select('setting_key, setting_val')
-    .in('setting_key', ['discogs_mode', 'discogs_oauth_token', 'discogs_oauth_secret', 'token']);
-  if (sErr) {
-    res.status(500).json({ error: 'Failed to load Discogs credentials' });
-    return;
-  }
-  const settingMap = {};
-  for (const row of (settings || [])) settingMap[row.setting_key] = row.setting_val;
-  const mode = settingMap.discogs_mode || (settingMap.token ? 'pat' : null);
-  if (!mode) {
-    res.status(403).json({ error: 'No Discogs credentials configured — connect Discogs in Settings.' });
-    return;
-  }
-
-  // 4. Build the Authorization header
-  let authHeader;
-  if (mode === 'oauth') {
-    const CONSUMER_KEY = process.env.DISCOGS_CONSUMER_KEY;
-    const CONSUMER_SECRET = process.env.DISCOGS_CONSUMER_SECRET;
-    const accessToken = settingMap.discogs_oauth_token;
-    const accessSecret = settingMap.discogs_oauth_secret;
-    if (!CONSUMER_KEY || !CONSUMER_SECRET) {
-      res.status(500).json({ error: 'Discogs consumer credentials not configured' });
-      return;
-    }
-    if (!accessToken || !accessSecret) {
-      res.status(403).json({ error: 'OAuth tokens missing — reconnect Discogs in Settings.' });
-      return;
-    }
-    authHeader = oauthAuthHeader({
-      consumerKey: CONSUMER_KEY,
-      consumerSecret: CONSUMER_SECRET,
-      tokenSecret: accessSecret,
-      extras: { oauth_token: accessToken },
-    });
-  } else if (mode === 'pat') {
-    const pat = settingMap.token;
-    if (!pat) {
-      res.status(403).json({ error: 'PAT missing — set one in Settings → Discogs → Advanced.' });
-      return;
-    }
-    authHeader = `Discogs token=${pat}`;
-  } else {
-    res.status(500).json({ error: `Unknown discogs_mode: ${mode}` });
+  // 3-4. The caller's own Discogs credentials, as an Authorization header.
+  // Shared with api/discogs-write.js (lib/discogs-oauth-helpers.js).
+  const { authHeader, status, error } = await discogsAuthForUser(supabase);
+  if (!authHeader) {
+    res.status(status).json({ error });
     return;
   }
 
