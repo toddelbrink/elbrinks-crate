@@ -179,6 +179,47 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .btn-play{background:var(--accent);color:#fff}
 .btn-again{background:var(--surface2);color:var(--text)}
 .btn-back{background:var(--surface2);color:var(--muted)}
+/* v1.3 Add a record */
+.search-add-btn{background:none;border:none;color:var(--muted);cursor:pointer;padding:6px;display:flex;align-items:center;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.search-add-btn svg{width:24px;height:24px}
+#addOverlay{z-index:220}
+.add-cam{position:relative;width:100%;aspect-ratio:4/3;max-height:52vh;background:#000;border-radius:12px;overflow:hidden;margin-bottom:14px}
+.add-cam video{width:100%;height:100%;object-fit:cover;display:block}
+.add-frame{position:absolute;left:12%;right:12%;top:30%;bottom:30%;border:2px solid rgba(255,255,255,.85);border-radius:10px;box-shadow:0 0 0 2000px rgba(0,0,0,.35);transition:border-color .15s}
+.add-cam-hit .add-frame{border-color:var(--accent)}
+.add-hint{position:absolute;left:0;right:0;bottom:12px;text-align:center;color:#fff;font-size:13px;font-weight:600;text-shadow:0 1px 3px rgba(0,0,0,.8)}
+.add-typed-row{display:flex;gap:8px}
+.add-typed-row .search-bar{flex:1}
+.add-msg{color:var(--muted);font-size:14px;line-height:1.45;margin-top:14px;display:none}
+.add-h{font-size:18px;font-weight:700;margin-bottom:4px}
+.add-sub{color:var(--muted);font-size:13px;margin-bottom:14px}
+.add-row{border-bottom:1px solid var(--border);padding:10px 0}
+.add-row-main{display:flex;align-items:center;gap:14px;width:100%;background:none;border:none;color:var(--text);text-align:left;cursor:pointer;padding:0;font-family:var(--font);-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.add-row-art{width:84px;height:84px;border-radius:8px;object-fit:cover;background:var(--surface2);flex-shrink:0}
+.add-art-empty{display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:34px;opacity:.5}
+.add-confirm-art.add-art-empty{font-size:80px;opacity:.2}
+.add-row-text{flex:1;min-width:0}
+.add-row-line{font-size:15px;font-weight:600;line-height:1.35}
+.add-row-owned{color:var(--accent);font-size:12px;font-weight:700;margin-top:4px}
+.add-link{background:none;border:none;color:var(--accent);font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;padding:8px 0;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.add-more{color:var(--muted);font-weight:500;font-size:12px;padding:6px 0 0 98px}
+.add-detail{color:var(--muted);font-size:12px;line-height:1.5;padding:4px 0 0 98px;word-break:break-word}
+.add-question{display:block;width:100%;text-align:left;background:var(--surface);border:1px solid var(--border);border-radius:12px;color:var(--text);font-family:var(--font);font-size:15px;font-weight:600;padding:16px;cursor:pointer;margin-bottom:6px;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.add-confirm-art{width:100%;max-width:320px;aspect-ratio:1;object-fit:cover;border-radius:10px;display:block;margin:0 auto 16px;background:var(--surface2)}
+.add-press-line{color:var(--muted);font-size:13px;margin-bottom:16px}
+.add-cond-row{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:16px;font-size:14px}
+.add-cond-row .add-cond-label{color:var(--muted)}
+.add-cond-val{background:none;border:none;color:var(--text);font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer;padding:2px 0;text-decoration:underline;text-decoration-color:var(--border);text-underline-offset:3px;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.add-primary{width:100%;padding:14px;font-size:15px;border-radius:10px}
+.add-primary:disabled{opacity:.6}
+.add-secondary{width:100%;padding:13px;font-size:14px;border-radius:10px;background:var(--surface2);color:var(--text);border:none;font-family:var(--font);font-weight:600;cursor:pointer;margin-top:10px}
+.add-note{color:var(--muted);font-size:13px;margin-top:10px;min-height:1em}
+.add-big{font-size:17px;font-weight:700;margin:4px 0 16px}
+.add-want{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:16px}
+.add-want p{font-size:14px;line-height:1.45;margin:0 0 12px}
+.add-want-actions{display:flex;gap:10px}
+.add-want-actions button{flex:1}
+.empty-add{margin-top:16px}
 /* Swipe-to-close */
 .fullpage-overlay{transition:transform .2s ease-out}
 .fullpage-overlay.swiping{transition:none}
@@ -786,6 +827,9 @@ input:focus,textarea:focus{border-color:var(--accent)}
 <!-- Search overlay -->
 <div class="search-overlay" id="searchOverlay">
   <input class="search-bar" id="searchBarTop" placeholder="Search artist, title, label, genre, mood..." type="text">
+  <button class="search-add-btn" id="addRecordBtn" aria-label="Add a record" type="button">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="8" x2="7" y2="16"/><line x1="10" y1="8" x2="10" y2="16"/><line x1="13.5" y1="8" x2="13.5" y2="16"/><line x1="17" y1="8" x2="17" y2="16"/></svg>
+  </button>
   <button class="search-cancel" id="searchCancel">Cancel</button>
 </div>
 
@@ -952,6 +996,65 @@ input:focus,textarea:focus{border-color:var(--accent)}
       <div class="tab-panel" id="tabLinerNotes">
         <div class="liner-notes-list" id="linerNotesList"></div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- v1.3 Add a record -->
+<div id="addOverlay" class="fullpage-overlay" aria-label="Add a record">
+  <div class="fullpage-header">
+    <span class="fullpage-title">Add a record</span>
+    <button class="fullpage-close" id="addClose" aria-label="Close">&#10005;</button>
+  </div>
+  <div class="fullpage-body">
+    <div id="addFind">
+      <div class="add-cam" id="addCam" style="display:none">
+        <video id="addVideo" playsinline muted autoplay></video>
+        <div class="add-frame"></div>
+        <div class="add-hint">Point at the barcode</div>
+      </div>
+      <div class="add-typed-row">
+        <input class="search-bar" id="addTyped" placeholder="Type it instead" type="text" enterkeyhint="search" autocomplete="off" autocapitalize="off">
+        <button class="btn-accent" id="addTypedGo" type="button" aria-label="Search">&#8594;</button>
+      </div>
+      <div class="add-msg" id="addMsg"></div>
+    </div>
+    <div id="addPick" style="display:none">
+      <div class="add-h">Which one do you have?</div>
+      <div class="add-sub" id="addPickSub"></div>
+      <div id="addList"></div>
+      <button class="add-link" id="addPickBack" type="button">Back</button>
+    </div>
+    <div id="addOwned" style="display:none">
+      <div id="addOwnedHead"></div>
+      <div class="add-big">You own this.</div>
+      <button class="add-secondary" id="addAnotherCopy" type="button">Add another copy</button>
+      <button class="add-link" id="addOwnedBack" type="button">Back</button>
+    </div>
+    <div id="addConfirm" style="display:none">
+      <div id="addConfirmHead"></div>
+      <div class="add-cond-row" id="addCondRow" style="display:none">
+        <span class="add-cond-label">Condition:</span>
+        <button class="add-cond-val" id="addCondMedia" type="button" aria-label="Media condition"></button>
+        <span id="addCondDot">&middot;</span>
+        <button class="add-cond-val" id="addCondSleeve" type="button" aria-label="Sleeve condition"></button>
+      </div>
+      <button class="btn-accent add-primary" id="addConfirmBtn" type="button">Add to crate</button>
+      <div class="add-note" id="addConfirmMsg"></div>
+      <button class="add-link" id="addConfirmBack" type="button">Back</button>
+    </div>
+    <div id="addDone" style="display:none">
+      <div id="addDoneHead"></div>
+      <div class="add-big" id="addDoneMsg"></div>
+      <div class="add-want" id="addWant" style="display:none">
+        <p id="addWantText"></p>
+        <div class="add-want-actions">
+          <button class="btn-accent add-primary" id="addWantRemove" type="button">Remove</button>
+          <button class="add-secondary" id="addWantKeep" type="button" style="margin-top:0">Keep</button>
+        </div>
+      </div>
+      <button class="btn-accent add-primary" id="addDoneBtn" type="button">Done</button>
+      <button class="add-secondary" id="addAnotherBtn" type="button">Add another record</button>
     </div>
   </div>
 </div>
@@ -1985,7 +2088,9 @@ function sortPlaysList(records){
 function closeAllOverlays(){
   const subpanelWasOpen=document.querySelectorAll('.settings-subpanel.open').length>0;
   const mpOpen=$('moodPatternsOverlay')&&$('moodPatternsOverlay').classList.contains('open');
-  const wasOpen=subpanelWasOpen||mpOpen||$('sheetOverlay').classList.contains('open')||$('statDrillOverlay').classList.contains('open')||$('settingsOverlay').classList.contains('open')||$('artistOverlay').classList.contains('open');
+  const addOpen=$('addOverlay').classList.contains('open');
+  if(addOpen)closeAddRecord();
+  const wasOpen=addOpen||subpanelWasOpen||mpOpen||$('sheetOverlay').classList.contains('open')||$('statDrillOverlay').classList.contains('open')||$('settingsOverlay').classList.contains('open')||$('artistOverlay').classList.contains('open');
   document.querySelectorAll('.settings-subpanel.open').forEach(el=>el.classList.remove('open'));
   if(typeof cancelThemePreview==='function')cancelThemePreview();
   $('sheetOverlay').classList.remove('open');currentRecord=null;
@@ -2737,6 +2842,7 @@ function closeSettings(){if(typeof cancelThemePreview==='function')cancelThemePr
 window.addEventListener('popstate',()=>{
   // Settings subpanels close first (so back goes subpanel → settings → main)
   if(typeof anySubpanelOpen==='function'&&anySubpanelOpen()){closeSubpanel();return;}
+  if($('addOverlay').classList.contains('open')){closeAddRecord();return;}
   if($('artistOverlay').classList.contains('open'))closeArtistPage();
   else if($('statDrillOverlay').classList.contains('open'))closeStatDrill();
   else if($('moodPatternsOverlay')&&$('moodPatternsOverlay').classList.contains('open'))closeMoodPatterns();
@@ -3252,7 +3358,7 @@ async function fetchWantlist(){
   }
   return results.map(w=>{
     const bi=w.basic_information||{};
-    return{releaseId:String(bi.id||w.id),
+    return{releaseId:String(bi.id||w.id),masterId:bi.master_id?String(bi.master_id):'',
       artist:bi.artists&&bi.artists.length?bi.artists.map(a=>a.name.replace(/\s*\(\d+\)$/,'')).join(', '):'Unknown',
       title:bi.title||'',label:bi.labels&&bi.labels.length?bi.labels[0].name:'',
       year:parseInt(bi.year)||0,thumb:bi.thumb||'',coverImage:bi.cover_image||'',
@@ -3870,7 +3976,18 @@ function getMoodColor(id){return MOODS.find(m=>m.id===id)||{color:'#888',bg:'#1f
 
 function renderGrid(){
   const grid=$('grid');grid.innerHTML='';
-  if(!filtered.length){grid.innerHTML='<div style="text-align:center;padding:60px 20px;color:var(--muted)"><div style="font-size:48px;margin-bottom:12px">🔍</div><p>No records match</p></div>';return;}
+  if(!filtered.length){
+    grid.innerHTML='<div style="text-align:center;padding:60px 20px;color:var(--muted)"><div style="font-size:48px;margin-bottom:12px">🔍</div><p>No records match</p></div>';
+    // v1.3: a search that finds nothing in the crate offers to add it (PRD 2).
+    const q=($('searchBarTop')||{value:''}).value.trim();
+    if(q&&token){
+      const p=grid.querySelector('p');p.textContent=ADD_COPY.emptySearch;
+      const b=document.createElement('button');b.className='btn-accent empty-add';b.id='emptyAddBtn';b.textContent=ADD_COPY.title;
+      b.onclick=()=>openAddRecord(q);
+      p.after(b);
+    }
+    return;
+  }
   filtered.forEach(r=>{
     const art=artCache[r.releaseId];const played=cycleLog[r.releaseId];
     const count=playCounts[r.releaseId]||0;const lp=formatLastPlayed(lastPlayed[r.releaseId]);
@@ -5920,6 +6037,556 @@ $('searchCancel').onclick=()=>{
 $('searchBarTop').addEventListener('input',()=>{
   if(activeView==='want')applyWantlistFilters();else applyFilters();
 });
+
+// ── Add a record (v1.3, specs/v1_3_add_a_record.md) ─────────────
+// Pure logic first, then the overlay. Every add goes to Discogs through
+// api/discogs-write.js and comes back through the normal sync, so the
+// collection keeps one source of truth. No user-visible text in this block
+// may say "Discogs" (test/no-discogs-labels.test.mjs checks ADD_COPY).
+
+// Every string the add flow shows, in one place (PRD section 6).
+const ADD_COPY={
+  title:'Add a record',
+  hint:'Point at the barcode',
+  typed:'Type it instead',
+  pick:'Which one do you have?',
+  owned:'You own this.',
+  anotherCopy:'Add another copy',
+  inCrate:'In your crate',
+  confirm:'Add to crate',
+  added:'Added. It\'s in your crate.',
+  noBarcode:'No match for that barcode. Type it instead?',
+  noTyped:'Nothing found. New releases can take a week or so to show up. Try again soon.',
+  emptySearch:'Not in your crate. Add it?',
+  wantSame:'This was on your wantlist. Remove it?',
+  wantOther:'You had a different pressing of this on your wantlist. Remove it?',
+  remove:'Remove',keep:'Keep',
+  removed:'Removed from your wantlist.',
+  expired:'Connection expired. Reconnect in Settings.',
+  busy:'Too many requests. Try again in a minute.',
+  failed:'Couldn\'t add it. Try again.',
+  condFailed:'Added. Condition didn\'t save.',
+  searching:'Looking it up…',
+  adding:'Adding…',
+  moreDetail:'More detail',
+  noDetail:'No runout details listed.',
+  showAll:'Show all',
+  notSure:'Not sure',
+  back:'Back',
+  done:'Done',
+  addAnother:'Add another record',
+  condition:'Condition',
+  media:'Media condition',
+  sleeve:'Sleeve condition',
+};
+
+// Barcode digits for comparison: digits only, leading zeros dropped, so a
+// UPC-A read as a 13-digit EAN ("0" + 12) matches the 12-digit listing.
+function normBarcode(s){
+  return String(s==null?'':s).replace(/\D/g,'').replace(/^0+/,'');
+}
+
+// Typed text that is a barcode: 12 or 13 digits once spaces and dashes are gone.
+// Returns the digits, or null for anything else (names, catalog numbers).
+function typedAsBarcode(text){
+  const t=String(text==null?'':text).trim();
+  if(!/^[\d\s-]+$/.test(t))return null;
+  const d=t.replace(/[\s-]/g,'');
+  return /^\d{12,13}$/.test(d)?d:null;
+}
+
+// Barcode search also matches runout and matrix strings filed under barcode.
+// Keep only results that list the scanned code itself (PRD 3.1).
+function exactBarcodeMatches(results,digits){
+  const want=normBarcode(digits);
+  if(!want)return [];
+  return (results||[]).filter(r=>(r.barcode||[]).some(b=>normBarcode(b)===want));
+}
+
+// What can tell two pressings apart, in the order the chooser shows it (PRD 4.1).
+const PRESSING_ATTRS=['title','color','weight','edition','country','year','label','catno'];
+const EDITION_WORDS=/^(reissue|repress|remastered|limited edition|numbered|deluxe edition|special edition|club edition|test pressing|promo|unofficial release|record store day|anniversary edition|stereo|mono|gatefold)$/i;
+function pressingAttrs(r){
+  const fmts=(r.formats||[]).filter(f=>/vinyl/i.test(f.name||'')||!(r.formats||[]).some(g=>/vinyl/i.test(g.name||'')));
+  const descs=fmts.flatMap(f=>f.descriptions||[]);
+  const color=fmts.map(f=>(f.text||'').trim()).filter(Boolean).join(', ');
+  const weight=descs.find(d=>/^\d+\s*g(ram)?$/i.test(d))||'';
+  const edition=descs.filter(d=>EDITION_WORDS.test(d)).join(', ');
+  const label=(r.label||[])[0]||'';
+  return{
+    title:r.title||'',
+    color,weight,edition,
+    country:r.country||'',
+    year:r.year?String(r.year):'',
+    label,
+    catno:r.catno&&r.catno!=='none'?r.catno:'',
+  };
+}
+
+// One line per result, holding only what differs across the results.
+// Anything every result shares is left out, and so is a blank (PRD 4.1).
+function pressingDiffs(results){
+  const attrs=results.map(pressingAttrs);
+  const differs=PRESSING_ATTRS.filter(k=>new Set(attrs.map(a=>a[k])).size>1);
+  return attrs.map(a=>differs.map(k=>a[k]).filter(Boolean).join(' · '));
+}
+
+// The full line for one pressing, for the confirm screen.
+function pressingLine(r){
+  const a=pressingAttrs(r);
+  return ['color','weight','edition','country','year'].map(k=>a[k]).filter(Boolean).join(' · ');
+}
+
+// Owned first, then by how many collectors own each pressing. The count
+// orders the list. It never picks (PRD 4.1).
+function orderMatches(results,ownedIds){
+  const owned=r=>!!(r.user_data&&r.user_data.in_collection)||ownedIds.has(String(r.id));
+  return [...results].sort((a,b)=>(owned(b)-owned(a))||(((b.community||{}).have||0)-((a.community||{}).have||0)));
+}
+
+// Five or more matches: ask the one question that splits them most evenly
+// (PRD 4.2). A question with more than five answers is just the list again,
+// so those are skipped. Ties go to the PRD order (color first). Returns null
+// when nothing left splits the list.
+const NARROW_QUESTIONS={
+  color:'What color is your vinyl?',
+  weight:'What weight is your record?',
+  edition:'Which edition do you have?',
+  country:'Where was your copy made?',
+  year:'What year is on your copy?',
+};
+const NARROW_MAX_ANSWERS=5;
+const NARROW_BLANK={color:'Black or not listed',weight:'Not listed',edition:'Original or not listed',country:'Not listed',year:'Not listed'};
+function pickNarrowingQuestion(results,skipped){
+  let best=null;
+  for(const key of Object.keys(NARROW_QUESTIONS)){
+    if(skipped&&skipped.has(key))continue;
+    const counts=new Map();
+    results.forEach(r=>{const v=pressingAttrs(r)[key];counts.set(v,(counts.get(v)||0)+1);});
+    if(counts.size<2||counts.size>NARROW_MAX_ANSWERS)continue;
+    const largest=Math.max(...counts.values());
+    if(!best||largest<best.largest)best={key,largest,counts};
+  }
+  if(!best)return null;
+  const options=[...best.counts.entries()].sort((a,b)=>b[1]-a[1]).map(([v,n])=>({value:v,label:v||NARROW_BLANK[best.key],count:n}));
+  return{key:best.key,question:NARROW_QUESTIONS[best.key],options};
+}
+function narrowBy(results,key,value){
+  return results.filter(r=>pressingAttrs(r)[key]===value);
+}
+
+// After an add: the same pressing on the wantlist, or another pressing of the
+// same album (same master). Returns { kind, releaseId } or null. Never removes
+// anything itself; the user taps Remove (PRD 5.1).
+function wantlistMatch(chosen,matches,wants){
+  const id=String(chosen.id);
+  const wantIds=new Set((wants||[]).map(w=>String(w.releaseId)));
+  if((chosen.user_data&&chosen.user_data.in_wantlist)||wantIds.has(id))return{kind:'same',releaseId:id};
+  const master=chosen.master_id?String(chosen.master_id):'';
+  const other=(matches||[]).find(m=>String(m.id)!==id&&m.user_data&&m.user_data.in_wantlist&&(!master||String(m.master_id||'')===master))
+    ||(master?(wants||[]).find(w=>w.masterId&&String(w.masterId)===master&&String(w.releaseId)!==id):null);
+  if(other)return{kind:'other',releaseId:String(other.id||other.releaseId)};
+  return null;
+}
+
+// Condition fields are the user's own (renamable, deletable). Find the media
+// and sleeve dropdowns by name and pick a default: the last value this user
+// chose if it is still an option, else Near Mint, else nothing (PRD 5, 7.2).
+function conditionFields(fields){
+  const drop=(fields||[]).filter(f=>f&&f.type==='dropdown'&&Array.isArray(f.options)&&f.options.length);
+  return{
+    media:drop.find(f=>/media/i.test(f.name||''))||null,
+    sleeve:drop.find(f=>/sleeve/i.test(f.name||''))||null,
+  };
+}
+function conditionDefault(field,last){
+  if(!field)return '';
+  if(last&&field.options.includes(last))return last;
+  return field.options.find(o=>/^near mint/i.test(o))||'';
+}
+// "Near Mint (NM or M-)" reads "Near Mint" on screen.
+function conditionLabel(v){
+  return String(v||'').replace(/\s*\([^)]*\)\s*$/,'');
+}
+
+// "Radiohead - OK Computer" → artist and title. Discogs search titles join
+// them with " - ".
+function splitSearchTitle(t){
+  const s=String(t||'');const i=s.indexOf(' - ');
+  if(i<0)return{artist:'',title:s};
+  return{artist:s.slice(0,i).replace(/\s*\(\d+\)$/,'').replace(/\*$/,''),title:s.slice(i+3)};
+}
+
+// ── Add a record: the overlay ───────────────────────────────────
+// States: find (camera + typed field) → pick (list or one narrowing question)
+// → owned or confirm → done (with the wantlist prompt when it applies).
+const BARCODE_LIB='https://cdn.jsdelivr.net/npm/barcode-detector@3.2.2/dist/iife/ponyfill.js';
+const ADD_COND_KEY={media:'crate.addCondition.media',sleeve:'crate.addCondition.sleeve'};
+let addState=null;        // { matches, all, skipped, chosen, fromBarcode }
+let addStream=null;       // camera MediaStream while scanning
+let addScanTimer=null;
+let addDetector=null;
+let addFieldsCache=null;  // the user's collection fields, read once per session
+let addWorking=false;
+
+function addShow(step){
+  ['addFind','addPick','addOwned','addConfirm','addDone'].forEach(id=>{$(id).style.display=id===step?'block':'none';});
+  $('addOverlay').scrollTop=0;
+}
+function addMsg(text){$('addMsg').textContent=text||'';$('addMsg').style.display=text?'block':'none';}
+
+async function openAddRecord(prefill){
+  if(!token){showToast(ADD_COPY.expired);return;}
+  addState=null;addWorking=false;
+  $('addTyped').value=prefill||'';
+  addMsg('');
+  addShow('addFind');
+  pushModalState();
+  $('addOverlay').classList.add('open');
+  ensureWantlistForAdd();
+  if(prefill){$('addCam').style.display='none';addSearchTyped();return;}
+  await addStartCamera();
+}
+function closeAddRecord(){
+  addStopCamera();
+  $('addOverlay').classList.remove('open');
+  $('addOverlay').style.transform='';
+  addState=null;
+}
+function addCloseTapped(){if(history.state?.modal)history.back();else closeAddRecord();}
+
+// The wantlist prompt needs the wantlist. Use what is loaded, else the cache.
+async function ensureWantlistForAdd(){
+  if(wantlistLoaded||wantlist.length)return;
+  try{const r=await crate.loadWantlist();if(r.success&&Array.isArray(r.data)&&r.data.length&&!wantlist.length)wantlist=r.data;}catch(e){console.warn('[add] wantlist cache',e);}
+}
+
+// ── camera ──
+async function addGetDetector(){
+  if(addDetector)return addDetector;
+  const formats=['ean_13','upc_a'];
+  try{
+    if('BarcodeDetector' in window){
+      const ok=await window.BarcodeDetector.getSupportedFormats();
+      if(formats.every(f=>ok.includes(f))){addDetector=new window.BarcodeDetector({formats});return addDetector;}
+    }
+  }catch(e){}
+  if(!window.BarcodeDetectionAPI){
+    await new Promise((res,rej)=>{const s=document.createElement('script');s.src=BARCODE_LIB;s.onload=res;s.onerror=()=>rej(new Error('barcode library failed to load'));document.head.appendChild(s);});
+  }
+  addDetector=new window.BarcodeDetectionAPI.BarcodeDetector({formats});
+  return addDetector;
+}
+async function addStartCamera(){
+  const cam=$('addCam');
+  // Camera denied or missing (desktop, refused permission): straight to the
+  // typed field, no error screen (PRD 3.1).
+  const toTyped=()=>{cam.style.display='none';setTimeout(()=>$('addTyped').focus(),50);};
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){toTyped();return;}
+  cam.style.display='block';cam.classList.remove('add-cam-hit');
+  try{
+    addStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false});
+  }catch(e){console.log('[add] camera unavailable:',e.name||e);addStream=null;toTyped();return;}
+  if(!$('addOverlay').classList.contains('open')){addStopCamera();return;}
+  const v=$('addVideo');v.srcObject=addStream;
+  try{await v.play();}catch(e){}
+  let detector;
+  try{detector=await addGetDetector();}catch(e){console.warn('[add]',e);addStopCamera();toTyped();return;}
+  const tick=async()=>{
+    if(!addStream)return;
+    try{
+      if(v.readyState>=2){
+        const codes=await detector.detect(v);
+        const hit=codes.find(c=>/^\d{12,13}$/.test(c.rawValue||''));
+        if(hit){addOnScan(hit.rawValue);return;}
+      }
+    }catch(e){}
+    addScanTimer=setTimeout(tick,180);
+  };
+  tick();
+}
+function addStopCamera(){
+  clearTimeout(addScanTimer);addScanTimer=null;
+  if(addStream){addStream.getTracks().forEach(t=>t.stop());addStream=null;}
+  const v=$('addVideo');if(v)v.srcObject=null;
+}
+function addOnScan(digits){
+  $('addCam').classList.add('add-cam-hit');
+  if(navigator.vibrate)try{navigator.vibrate(30);}catch(e){}
+  addStopCamera();
+  addSearchBarcode(digits);
+}
+
+// ── search ──
+async function addDiscogsSearch(params){
+  const q=new URLSearchParams({type:'release',per_page:'50',...params});
+  const res=await discogsGet(`https://api.discogs.com/database/search?${q}`);
+  const data=await res.json();
+  return data.results||[];
+}
+function addSearchError(e){
+  const m=String(e&&e.message||'');
+  addShow('addFind');
+  addMsg(/Reconnect/.test(m)?ADD_COPY.expired:/Rate limit/.test(m)?ADD_COPY.busy:ADD_COPY.failed);
+}
+async function addSearchBarcode(digits){
+  addMsg(ADD_COPY.searching);
+  let results;
+  try{results=exactBarcodeMatches(await addDiscogsSearch({barcode:digits}),digits);}
+  catch(e){addSearchError(e);return;}
+  if(!$('addOverlay').classList.contains('open'))return;
+  if(!results.length){
+    addShow('addFind');
+    $('addCam').style.display='none';
+    addMsg(ADD_COPY.noBarcode);
+    $('addTyped').focus();
+    return;
+  }
+  addMsg('');addShowMatches(results,true);
+}
+async function addSearchTyped(){
+  const text=$('addTyped').value.trim();
+  if(!text)return;
+  const digits=typedAsBarcode(text);
+  if(digits){addStopCamera();return addSearchBarcode(digits);}
+  addStopCamera();$('addCam').style.display='none';
+  addMsg(ADD_COPY.searching);
+  let results;
+  try{
+    results=await addDiscogsSearch({q:text,format:'Vinyl'});
+    if(!results.length)results=await addDiscogsSearch({q:text});
+  }catch(e){addSearchError(e);return;}
+  if(!$('addOverlay').classList.contains('open'))return;
+  if(!results.length){addShow('addFind');addMsg(ADD_COPY.noTyped);return;}
+  addMsg('');addShowMatches(results,false);
+}
+
+// ── pick your pressing ──
+function addOwnedIds(){return new Set(collection.map(r=>String(r.releaseId)));}
+function addIsOwned(r){return !!(r.user_data&&r.user_data.in_collection)||addOwnedIds().has(String(r.id));}
+function addShowMatches(results,fromBarcode){
+  const all=orderMatches(results,addOwnedIds());
+  addState={all,matches:all,skipped:new Set(),fromBarcode,chosen:null};
+  addRenderPick();
+}
+function addRenderPick(){
+  const s=addState;const list=$('addList');list.innerHTML='';
+  const shared=splitSearchTitle(s.matches.length&&new Set(s.matches.map(r=>r.title)).size===1?s.matches[0].title:'');
+  $('addPickSub').textContent=shared.title?(shared.artist?shared.artist+' · ':'')+shared.title:'';
+  const q=s.matches.length>4?pickNarrowingQuestion(s.matches,s.skipped):null;
+  if(q){
+    const card=document.createElement('button');card.className='add-question';
+    card.textContent=q.question;
+    card.onclick=()=>addAsk(q);
+    list.appendChild(card);
+    const all=document.createElement('button');all.className='add-link';
+    all.textContent=`${ADD_COPY.showAll} ${s.matches.length}`;
+    all.onclick=()=>{s.skipped=new Set(Object.keys(NARROW_QUESTIONS));addRenderPick();};
+    list.appendChild(all);
+    addShow('addPick');
+    addAsk(q);
+    return;
+  }
+  const lines=pressingDiffs(s.matches);
+  s.matches.forEach((r,i)=>list.appendChild(addMatchRow(r,lines[i])));
+  addShow('addPick');
+}
+// Cover art, or a quiet placeholder when the listing has none.
+function addArt(r,cls){
+  const src=r.cover_image&&!/spacer/.test(r.cover_image)?r.cover_image:(r.thumb&&!/spacer/.test(r.thumb)?r.thumb:'');
+  if(!src){const d=document.createElement('div');d.className=cls+' add-art-empty';d.textContent='\u25CE';return d;}
+  const img=document.createElement('img');img.className=cls;img.alt='';img.loading='lazy';img.src=src;
+  img.onerror=()=>{const d=document.createElement('div');d.className=cls+' add-art-empty';d.textContent='\u25CE';img.replaceWith(d);};
+  return img;
+}
+function addAsk(q){
+  const rows=[...q.options.map(o=>({value:'v:'+o.value,label:o.label,count:o.count})),{value:'skip',label:ADD_COPY.notSure,count:null}];
+  openFilterPicker(q.question,rows,null,picked=>{
+    const s=addState;if(!s)return;
+    if(picked==='skip')s.skipped.add(q.key);
+    else{s.matches=narrowBy(s.matches,q.key,picked.slice(2));s.skipped.add(q.key);}
+    addRenderPick();
+  });
+}
+function addMatchRow(r,line){
+  const row=document.createElement('div');row.className='add-row';
+  const btn=document.createElement('button');btn.className='add-row-main';
+  const img=addArt(r,'add-row-art');
+  const text=document.createElement('div');text.className='add-row-text';
+  const l1=document.createElement('div');l1.className='add-row-line';
+  l1.textContent=line||pressingLine(r)||r.catno||splitSearchTitle(r.title).title;
+  text.appendChild(l1);
+  if(addIsOwned(r)){const own=document.createElement('div');own.className='add-row-owned';own.textContent=ADD_COPY.inCrate;text.appendChild(own);}
+  btn.append(img,text);
+  btn.onclick=()=>addChoose(r);
+  const more=document.createElement('button');more.className='add-link add-more';more.textContent=ADD_COPY.moreDetail;
+  const detail=document.createElement('div');detail.className='add-detail';detail.style.display='none';
+  more.onclick=()=>addMoreDetail(r,more,detail);
+  row.append(btn,more,detail);
+  return row;
+}
+// Runout and matrix text sits behind a tap. One detail call, only on request (PRD 4.1, 7.3).
+async function addMoreDetail(r,btn,box){
+  if(box.style.display==='block'){box.style.display='none';return;}
+  box.style.display='block';
+  if(box.dataset.loaded)return;
+  box.textContent='…';
+  const d=await fetchReleaseDetail(r.id);
+  const ids=(d&&d.identifiers||[]).filter(x=>/matrix|runout/i.test(x.type||''));
+  box.textContent='';
+  if(!ids.length){box.textContent=ADD_COPY.noDetail;}
+  else ids.forEach(x=>{const p=document.createElement('div');p.textContent=(x.description?x.description+': ':'')+x.value;box.appendChild(p);});
+  box.dataset.loaded='1';
+}
+function addChoose(r){
+  addState.chosen=r;
+  if(addIsOwned(r)){addRenderHeader('addOwnedHead',r);addShow('addOwned');return;}
+  addRenderConfirm();
+}
+function addRenderHeader(id,r){
+  const box=$(id);box.innerHTML='';
+  const img=addArt(r,'add-confirm-art');
+  const t=splitSearchTitle(r.title);
+  const a=document.createElement('div');a.className='modal-artist';a.textContent=t.artist;
+  const ti=document.createElement('div');ti.className='modal-title';ti.textContent=t.title;
+  const line=document.createElement('div');line.className='add-press-line';line.textContent=pressingLine(r);
+  box.append(img,a,ti,line);
+}
+
+// ── confirm and add ──
+async function addLoadFields(){
+  if(addFieldsCache)return addFieldsCache;
+  const res=await discogsGet(`https://api.discogs.com/users/${encodeURIComponent(username)}/collection/fields`);
+  const data=await res.json();
+  addFieldsCache=conditionFields(data.fields||[]);
+  return addFieldsCache;
+}
+function addLastCondition(which){try{return localStorage.getItem(ADD_COND_KEY[which])||'';}catch(e){return '';}}
+async function addRenderConfirm(){
+  const r=addState.chosen;
+  addRenderHeader('addConfirmHead',r);
+  $('addCondRow').style.display='none';
+  $('addConfirmBtn').disabled=false;$('addConfirmBtn').textContent=ADD_COPY.confirm;
+  $('addConfirmMsg').textContent='';
+  addShow('addConfirm');
+  let f={media:null,sleeve:null};
+  try{f=await addLoadFields();}catch(e){console.warn('[add] collection fields',e);}
+  addState.cond={
+    media:f.media?{field:f.media,value:conditionDefault(f.media,addLastCondition('media'))}:null,
+    sleeve:f.sleeve?{field:f.sleeve,value:conditionDefault(f.sleeve,addLastCondition('sleeve'))}:null,
+  };
+  addRenderCondition();
+}
+function addRenderCondition(){
+  const c=addState&&addState.cond;if(!c)return;
+  const parts=['media','sleeve'].filter(k=>c[k]);
+  if(!parts.length){$('addCondRow').style.display='none';return;}
+  $('addCondRow').style.display='flex';
+  parts.forEach(k=>{$(k==='media'?'addCondMedia':'addCondSleeve').textContent=conditionLabel(c[k].value)||'—';});
+  $('addCondMedia').style.display=c.media?'':'none';
+  $('addCondSleeve').style.display=c.sleeve?'':'none';
+  $('addCondDot').style.display=c.media&&c.sleeve?'':'none';
+}
+function addPickCondition(which){
+  const c=addState&&addState.cond&&addState.cond[which];if(!c)return;
+  const rows=c.field.options.map(o=>({value:o,label:o,count:null}));
+  openFilterPicker(which==='media'?ADD_COPY.media:ADD_COPY.sleeve,rows,c.value,v=>{
+    c.value=v;try{localStorage.setItem(ADD_COND_KEY[which],v);}catch(e){}
+    addRenderCondition();
+  });
+}
+async function addConfirm(){
+  if(addWorking||!addState||!addState.chosen)return;
+  addWorking=true;
+  const r=addState.chosen;const c=addState.cond||{};
+  const fields=['media','sleeve'].filter(k=>c[k]&&c[k].value).map(k=>({id:c[k].field.id,value:c[k].value}));
+  $('addConfirmBtn').disabled=true;$('addConfirmBtn').textContent=ADD_COPY.adding;$('addConfirmMsg').textContent='';
+  let res,body={};
+  try{res=await crate.discogsWrite({action:'add',releaseId:String(r.id),fields});body=await res.json().catch(()=>({}));}
+  catch(e){res=null;}
+  addWorking=false;
+  if(!res||!res.ok||!body.added){
+    const st=res?res.status:0;
+    if(res)console.warn('[add] write failed',st,body.error||'');
+    $('addConfirmMsg').textContent=st===401||st===403?ADD_COPY.expired:st===429?ADD_COPY.busy:ADD_COPY.failed;
+    $('addConfirmBtn').disabled=false;$('addConfirmBtn').textContent=ADD_COPY.confirm;
+    return;
+  }
+  // Remember the condition the user added with, for next time.
+  fields.forEach(f=>{const k=c.media&&c.media.field.id===f.id?'media':'sleeve';try{localStorage.setItem(ADD_COND_KEY[k],f.value);}catch(e){}});
+  const condOk=(body.fields||[]).every(f=>f.ok);
+  addRenderDone(r,condOk);
+  // The record arrives through the normal sync path, like every other record.
+  silentSync();
+}
+function addRenderDone(r,condOk){
+  addRenderHeader('addDoneHead',r);
+  $('addDoneMsg').textContent=condOk?ADD_COPY.added:ADD_COPY.condFailed;
+  const w=wantlistMatch(r,addState?addState.all:[],wantlist);
+  const box=$('addWant');
+  if(w){
+    box.style.display='block';
+    $('addWantText').textContent=w.kind==='same'?ADD_COPY.wantSame:ADD_COPY.wantOther;
+    $('addWantRemove').disabled=false;
+    $('addWantRemove').onclick=()=>addRemoveWant(w.releaseId);
+    $('addWantKeep').onclick=()=>{box.style.display='none';};
+  }else box.style.display='none';
+  addShow('addDone');
+}
+async function addRemoveWant(releaseId){
+  $('addWantRemove').disabled=true;
+  let res;
+  try{res=await crate.discogsWrite({action:'remove_want',releaseId:String(releaseId)});}catch(e){res=null;}
+  if(!res||!res.ok){
+    $('addWantRemove').disabled=false;
+    showToast(res&&(res.status===401||res.status===403)?ADD_COPY.expired:ADD_COPY.failed);
+    return;
+  }
+  // Only rewrite the cached wantlist when it held this record. saveWantlist
+  // replaces the whole set, so saving a list that never loaded would wipe it.
+  const had=wantlist.some(w=>String(w.releaseId)===String(releaseId));
+  if(had){
+    wantlist=wantlist.filter(w=>String(w.releaseId)!==String(releaseId));
+    wantFiltered=wantFiltered.filter(w=>String(w.releaseId)!==String(releaseId));
+    crate.saveWantlist(wantlist);
+    if(activeView==='want')applyWantlistFilters();
+  }
+  $('addWant').style.display='none';
+  showToast(ADD_COPY.removed);
+}
+
+// ── wiring ──
+$('addRecordBtn').onclick=()=>openAddRecord('');
+$('addClose').onclick=addCloseTapped;
+$('addTyped').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('addTyped').blur();addSearchTyped();}});
+$('addTypedGo').onclick=addSearchTyped;
+$('addPickBack').onclick=()=>{addState=null;addMsg('');$('addTyped').value='';addShow('addFind');addStartCamera();};
+$('addOwnedBack').onclick=()=>addShow('addPick');
+$('addConfirmBack').onclick=()=>addShow('addPick');
+$('addAnotherCopy').onclick=()=>addRenderConfirm();
+$('addConfirmBtn').onclick=addConfirm;
+$('addCondMedia').onclick=()=>addPickCondition('media');
+$('addCondSleeve').onclick=()=>addPickCondition('sleeve');
+$('addDoneBtn').onclick=addCloseTapped;
+$('addAnotherBtn').onclick=()=>{addState=null;addMsg('');$('addTyped').value='';addShow('addFind');addStartCamera();};
+
+// Swipe down to close, same as the other full-page overlays.
+(function(){
+  const p=$('addOverlay');let startY=0,startScroll=0,swiping=false;
+  p.addEventListener('touchstart',e=>{startY=e.touches[0].clientY;startScroll=p.scrollTop;},{passive:true});
+  p.addEventListener('touchmove',e=>{
+    const dy=e.touches[0].clientY-startY;
+    if(p.scrollTop<=0&&dy>10&&startScroll<=0){swiping=true;p.classList.add('swiping');p.style.transform=`translateY(${Math.min(dy*0.5,200)}px)`;}
+  },{passive:true});
+  p.addEventListener('touchend',e=>{
+    if(!swiping)return;
+    const dy=e.changedTouches[0].clientY-startY;
+    p.classList.remove('swiping');
+    if(dy>120){p.style.transform='translateY(100%)';setTimeout(()=>{p.style.transform='';addCloseTapped();},200);}
+    else p.style.transform='';
+    swiping=false;
+  },{passive:true});
+})();
 
 // Sheet close handlers
 // Sheet close via drag handle area tap

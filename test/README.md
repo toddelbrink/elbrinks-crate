@@ -25,6 +25,7 @@ Run them:
     node test/theme-preview.test.mjs
     node test/collection-dedupe.test.mjs
     node test/discogs-write.test.mjs
+    node test/add-record.test.mjs
 
 No dependencies, no install. Exit code 0 means pass.
 

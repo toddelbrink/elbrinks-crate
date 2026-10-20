@@ -56,4 +56,21 @@ mustContain(GET, /res\.status===401\|\|res\.status===403/, 'the auth-expired bra
 const thrown = [...GET.matchAll(/throw new Error\(([^;]*)\);/g)].map((m) => m[1]);
 check('auth-expired error shown to users does not say Discogs', thrown.length && thrown.every((t) => !/discogs/i.test(t)), thrown.join(' | '));
 
+// v1.3 Add a Record: every string the flow shows lives in ADD_COPY, and the
+// overlay markup holds the rest. Neither may say Discogs (PRD 0, section 6).
+const COPY = sliceTo(APP, /^const ADD_COPY=\{/, '};');
+mustContain(COPY, /Which one do you have\?/, 'the add flow copy');
+const copyStrings = [...COPY.matchAll(/'((?:[^'\\]|\\.)*)'/g)].map((m) => m[1]);
+check('add flow copy does not say Discogs', copyStrings.length > 20 && copyStrings.every((t) => !/discogs/i.test(t)),
+  copyStrings.filter((t) => /discogs/i.test(t)).join(' | ') || `${copyStrings.length} strings clean`);
+const OVERLAY = sliceTo(APP, /^<div id="addOverlay"/, '</div>');
+const overlayText = OVERLAY.replace(/<[^>]+>/g, ' ');
+check('add overlay markup does not say Discogs', /Point at the barcode/.test(overlayText) && !/discogs/i.test(overlayText));
+const ADDBTN = APP.match(/<button class="search-add-btn"[\s\S]*?<\/button>/)?.[0] || '';
+check('barcode button label does not say Discogs', /aria-label="Add a record"/.test(ADDBTN) && !/discogs/i.test(ADDBTN.replace(/<svg[\s\S]*?<\/svg>/, '')));
+// Negative case: the copy check must catch a string that names Discogs.
+const badCopy = "const ADD_COPY={\n  noTyped:'Not on Discogs yet.',\n};";
+const badStrings = [...badCopy.matchAll(/'((?:[^'\\]|\\.)*)'/g)].map((m) => m[1]);
+check('NEGATIVE, copy check flags a Discogs string', badStrings.some((t) => /discogs/i.test(t)));
+
 process.exit(report() ? 1 : 0);
