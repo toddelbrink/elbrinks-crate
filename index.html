@@ -188,6 +188,7 @@ input:focus,textarea:focus{border-color:var(--accent)}
 .add-frame{position:absolute;left:12%;right:12%;top:30%;bottom:30%;border:2px solid rgba(255,255,255,.85);border-radius:10px;box-shadow:0 0 0 2000px rgba(0,0,0,.35);transition:border-color .15s}
 .add-cam-hit .add-frame{border-color:var(--accent)}
 .add-hint{position:absolute;left:0;right:0;bottom:12px;text-align:center;color:#fff;font-size:13px;font-weight:600;text-shadow:0 1px 3px rgba(0,0,0,.8)}
+.add-scan-debug{color:var(--muted);font-size:11px;font-family:ui-monospace,Menlo,monospace;margin:-8px 0 12px;word-break:break-all}
 .add-typed-row{display:flex;gap:8px}
 .add-typed-row .search-bar{flex:1}
 .add-msg{color:var(--muted);font-size:14px;line-height:1.45;margin-top:14px;display:none}
@@ -1011,8 +1012,9 @@ input:focus,textarea:focus{border-color:var(--accent)}
       <div class="add-cam" id="addCam" style="display:none">
         <video id="addVideo" playsinline muted autoplay></video>
         <div class="add-frame"></div>
-        <div class="add-hint">Point at the barcode</div>
+        <div class="add-hint" id="addHint">Point at the barcode</div>
       </div>
+      <div class="add-scan-debug" id="addScanDebug" style="display:none"></div>
       <div class="add-typed-row">
         <input class="search-bar" id="addTyped" placeholder="Type it instead" type="text" enterkeyhint="search" autocomplete="off" autocapitalize="off">
         <button class="btn-accent" id="addTypedGo" type="button" aria-label="Search">&#8594;</button>
@@ -6065,6 +6067,7 @@ const ADD_COPY={
   expired:'Connection expired. Reconnect in Settings.',
   busy:'Too many requests. Try again in a minute.',
   failed:'Couldn\'t add it. Try again.',
+  scanFailed:'The camera can\'t read barcodes here. Type it instead.',
   condFailed:'Added. Condition didn\'t save.',
   searching:'Looking it up…',
   adding:'Adding…',
@@ -6262,26 +6265,55 @@ async function ensureWantlistForAdd(){
 }
 
 // ── camera ──
-async function addGetDetector(){
-  if(addDetector)return addDetector;
+// Two decoders: the browser's own (Android Chrome) and the zxing ponyfill.
+// The native one is tried first only when it claims both formats; if it
+// throws while scanning, the loop switches to the ponyfill.
+async function addNativeDetector(){
   const formats=['ean_13','upc_a'];
   try{
-    if('BarcodeDetector' in window){
+    if(typeof window.BarcodeDetector==='function'){
       const ok=await window.BarcodeDetector.getSupportedFormats();
-      if(formats.every(f=>ok.includes(f))){addDetector=new window.BarcodeDetector({formats});return addDetector;}
+      if(formats.every(f=>ok.includes(f)))return{kind:'native',det:new window.BarcodeDetector({formats})};
     }
   }catch(e){}
+  return null;
+}
+async function addWasmDetector(){
   if(!window.BarcodeDetectionAPI){
     await new Promise((res,rej)=>{const s=document.createElement('script');s.src=BARCODE_LIB;s.onload=res;s.onerror=()=>rej(new Error('barcode library failed to load'));document.head.appendChild(s);});
   }
-  addDetector=new window.BarcodeDetectionAPI.BarcodeDetector({formats});
+  return{kind:'wasm',det:new window.BarcodeDetectionAPI.BarcodeDetector({formats:['ean_13','upc_a']})};
+}
+async function addGetDetector(){
+  if(addDetector)return addDetector;
+  addDetector=(await addNativeDetector())||(await addWasmDetector());
   return addDetector;
+}
+// The middle band of the frame, drawn to a canvas. Decoders get a canvas,
+// never the <video>: iOS Safari cannot hand video frames to them directly,
+// which left the first build scanning nothing, silently (2026-10-20).
+const ADD_SCAN_MAX_W=960;
+function addGrabFrame(v,canvas){
+  const vw=v.videoWidth,vh=v.videoHeight;
+  if(!vw||!vh)return false;
+  const sy=Math.round(vh*0.2),sh=Math.round(vh*0.6);
+  const scale=Math.min(1,ADD_SCAN_MAX_W/vw);
+  canvas.width=Math.round(vw*scale);canvas.height=Math.round(sh*scale);
+  canvas.getContext('2d',{willReadFrequently:true}).drawImage(v,0,sy,vw,sh,0,0,canvas.width,canvas.height);
+  return true;
+}
+// Scan diagnostics. Triple-tap the camera hint to show them on screen.
+const addScanStats={kind:'',frames:0,errors:0,last:''};
+function addScanDebugRender(){
+  const el=$('addScanDebug');if(!el||el.style.display==='none')return;
+  const v=$('addVideo');
+  el.textContent=`${addScanStats.kind||'—'} · ${v.videoWidth}×${v.videoHeight} · frames ${addScanStats.frames} · errors ${addScanStats.errors}${addScanStats.last?' · '+addScanStats.last:''}`;
 }
 async function addStartCamera(){
   const cam=$('addCam');
   // Camera denied or missing (desktop, refused permission): straight to the
   // typed field, no error screen (PRD 3.1).
-  const toTyped=()=>{cam.style.display='none';setTimeout(()=>$('addTyped').focus(),50);};
+  const toTyped=msg=>{cam.style.display='none';if(msg)addMsg(msg);setTimeout(()=>$('addTyped').focus(),50);};
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){toTyped();return;}
   cam.style.display='block';cam.classList.remove('add-cam-hit');
   try{
@@ -6290,18 +6322,33 @@ async function addStartCamera(){
   if(!$('addOverlay').classList.contains('open')){addStopCamera();return;}
   const v=$('addVideo');v.srcObject=addStream;
   try{await v.play();}catch(e){}
-  let detector;
-  try{detector=await addGetDetector();}catch(e){console.warn('[add]',e);addStopCamera();toTyped();return;}
+  try{await addGetDetector();}catch(e){console.warn('[add]',e);addStopCamera();toTyped(ADD_COPY.scanFailed);return;}
+  Object.assign(addScanStats,{kind:addDetector.kind,frames:0,errors:0,last:''});
+  const canvas=document.createElement('canvas');
+  let streak=0;
   const tick=async()=>{
     if(!addStream)return;
     try{
-      if(v.readyState>=2){
-        const codes=await detector.detect(v);
+      if(v.readyState>=2&&addGrabFrame(v,canvas)){
+        addScanStats.frames++;
+        const codes=await addDetector.det.detect(canvas);
+        streak=0;
         const hit=codes.find(c=>/^\d{12,13}$/.test(c.rawValue||''));
         if(hit){addOnScan(hit.rawValue);return;}
       }
-    }catch(e){}
-    addScanTimer=setTimeout(tick,180);
+    }catch(e){
+      // Never swallow this silently. Log it, switch decoders, and tell the
+      // user if neither works.
+      streak++;addScanStats.errors++;addScanStats.last=String(e&&(e.name||e.message)||e).slice(0,60);
+      if(addScanStats.errors<=3)console.warn('[add] scan error',addDetector.kind,e);
+      if(streak>=3&&addDetector.kind==='native'){
+        try{addDetector=await addWasmDetector();addScanStats.kind='wasm';streak=0;}catch(err){console.warn('[add]',err);}
+      }else if(streak>=8){
+        addStopCamera();toTyped(ADD_COPY.scanFailed);return;
+      }
+    }
+    addScanDebugRender();
+    addScanTimer=setTimeout(tick,150);
   };
   tick();
 }
@@ -6558,6 +6605,9 @@ async function addRemoveWant(releaseId){
 // ── wiring ──
 $('addRecordBtn').onclick=()=>openAddRecord('');
 $('addClose').onclick=addCloseTapped;
+// Triple-tap the camera hint to show scan diagnostics (for debugging on a phone).
+(function(){let taps=0,t=null;$('addCam').addEventListener('click',()=>{taps++;clearTimeout(t);t=setTimeout(()=>{taps=0;},600);
+  if(taps>=3){taps=0;const d=$('addScanDebug');d.style.display=d.style.display==='none'?'block':'none';addScanDebugRender();}});})();
 $('addTyped').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();$('addTyped').blur();addSearchTyped();}});
 $('addTypedGo').onclick=addSearchTyped;
 $('addPickBack').onclick=()=>{addState=null;addMsg('');$('addTyped').value='';addShow('addFind');addStartCamera();};

@@ -122,4 +122,18 @@ check('adds go through the write endpoint, then the normal sync', /crate\.discog
 check('the wantlist is removed only from the Remove button', (HTML.match(/action:'remove_want'/g) || []).length === 1 && /addWantRemove'\)\.onclick=\(\)=>addRemoveWant/.test(HTML));
 check('wantlist entries carry their master id', /masterId:bi\.master_id\?String\(bi\.master_id\):''/.test(HTML));
 
+// ── the scan loop (fixed 2026-10-20: the first build read nothing on iOS) ──
+// Real decoding is browser-only (camera + wasm), so these guard the shape that
+// fixed it. Proven end to end in the preview with a fake camera stream.
+{
+  const START = HTML.slice(HTML.indexOf('async function addStartCamera(){'), HTML.indexOf('function addStopCamera(){'));
+  check('decoders get a canvas frame, never the video element', /addDetector\.det\.detect\(canvas\)/.test(START) && !/\.detect\(v\)/.test(START));
+  check('scan errors are counted and logged, not swallowed', /addScanStats\.errors\+\+/.test(START) && /console\.warn\('\[add\] scan error'/.test(START));
+  check('a failing native decoder falls back to the ponyfill', /addDetector\.kind==='native'[\s\S]{0,80}addWasmDetector\(\)/.test(START));
+  check('if nothing can decode, the user is told and lands on the typed field', /toTyped\(ADD_COPY\.scanFailed\)/.test(START) && /scanFailed:'/.test(HTML));
+  // Negative: the original loop, which swallowed every error, fails these checks.
+  const OLD = "const codes=await detector.detect(v);\n        if(hit){addOnScan(hit.rawValue);return;}\n      }\n    }catch(e){}";
+  check('negative: the old silent loop would be caught', /\.detect\(v\)/.test(OLD) && !/addScanStats\.errors\+\+/.test(OLD));
+}
+
 process.exit(report() ? 1 : 0);
