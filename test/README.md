@@ -23,6 +23,7 @@ Run them:
     node test/recap-slides.test.mjs
     node test/cycle-recap-fallback.test.mjs
     node test/theme-preview.test.mjs
+    node test/collection-dedupe.test.mjs
 
 No dependencies, no install. Exit code 0 means pass.
 

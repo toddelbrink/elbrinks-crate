@@ -2170,7 +2170,7 @@ async function init(){
   }
   if(!loaded){
     const saved=await dbGet('meta','collection');
-    if(saved&&saved.length){collection=saved;filtered=[...collection];loaded=true;}
+    if(saved&&saved.length){collection=dedupeByRelease(saved);filtered=[...collection];loaded=true;}
   }
   if(loaded){
     const keys=await dbGetAllKeys('art');const vals=await dbGetAll('art');
@@ -2748,6 +2748,16 @@ window.addEventListener('popstate',()=>{
 // ── Discogs ───────────────────────────────────────────────────
 // HDR() retired in Step 8 — auth now lives server-side in /api/discogs-proxy.
 
+// Two copies of the same pressing share one release id, and Crate keys
+// everything by release id, so they are one record: one card, one play history.
+// Last wins, matching saveCollection's server-side dedupe (supabase_patterns §16).
+// Without this the grid showed two cards until the next cold load from Supabase.
+function dedupeByRelease(list){
+  const byId=new Map();
+  for(const r of list){const id=r&&r.releaseId;if(id==null||id==='')continue;byId.set(String(id),r);}
+  return [...byId.values()];
+}
+
 async function fetchCollection(silent=false){
   let page=1,results=[],total=0;if(!silent)setProgress('Loading collection…',0);
   while(true){
@@ -2758,11 +2768,14 @@ async function fetchCollection(silent=false){
     if(page>=data.pagination.pages)break;
     page++;await sleep(500);
   }
-  const out=results.map(normalizeRelease);
-  // Discogs' own item count for the listing, so pruneRemovedRecords can tell a
-  // whole collection from a short one. Lives on the array this call returns
-  // only — copies (mergeConditions, spreads) don't carry it, by design.
+  const out=dedupeByRelease(results.map(normalizeRelease));
+  // Discogs' own item count for the listing, plus how many items actually
+  // arrived, so pruneRemovedRecords can tell a whole collection from a short
+  // one. `listed` counts before the dedupe: two copies of one pressing are two
+  // Discogs items but one record here. Both live on the array this call returns
+  // only — copies (mergeConditions, spreads) don't carry them, by design.
   out.discogsTotal=total;
+  out.listed=results.length;
   return out;
 }
 
@@ -2778,8 +2791,8 @@ async function fetchCollection(silent=false){
 async function pruneRemovedRecords(fresh){
   try{
     if(!Array.isArray(fresh)||!fresh.length)return;
-    if(typeof fresh.discogsTotal!=='number'||fresh.length!==fresh.discogsTotal){
-      console.warn('[crate] prune skipped: listing incomplete',fresh.length,'of',fresh.discogsTotal);
+    if(typeof fresh.discogsTotal!=='number'||fresh.listed!==fresh.discogsTotal){
+      console.warn('[crate] prune skipped: listing incomplete',fresh.listed,'of',fresh.discogsTotal);
       return;
     }
     const keep=new Set(fresh.map(r=>String(r.releaseId)));

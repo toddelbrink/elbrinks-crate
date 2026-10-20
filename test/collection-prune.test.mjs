@@ -12,15 +12,19 @@ import { read, sliceTo, mustContain, runIn, check, report } from './lib/slice.mj
 
 const HTML = read('index.html');
 const FETCH = sliceTo(HTML, /^async function fetchCollection\(silent=false\)\{/, '}');
+const DEDUPE = sliceTo(HTML, /^function dedupeByRelease\(list\)\{/, '}');
 const PRUNE = sliceTo(HTML, /^async function pruneRemovedRecords\(fresh\)\{/, '}');
 const REMOVE = sliceTo(read('lib/supabase.js'), /^async function removeFromCollection\(releaseIds\) \{/, '}');
 mustContain(FETCH, /out\.discogsTotal=total/, 'the Discogs item count on the fetch result');
-mustContain(PRUNE, /fresh\.length!==fresh\.discogsTotal/, 'the complete-listing guard');
+mustContain(PRUNE, /fresh\.listed!==fresh\.discogsTotal/, 'the complete-listing guard');
+mustContain(FETCH, /out\.listed=results\.length/, 'the pre-dedupe item count on the fetch result');
 mustContain(PRUNE, /Math\.floor\(stored\.data\.length\/4\)/, 'the mass-removal cap');
 mustContain(HTML, /saveCollectionToAPI\(collection\);\n\s*await pruneRemovedRecords\(fresh\);/, 'the prune call after a sync save');
 
 const rec = (id) => ({ releaseId: String(id) });
-const listing = (ids, total = ids.length) => Object.assign(ids.map(rec), { discogsTotal: total });
+// `listed` is how many Discogs items arrived. fetchCollection dedupes after
+// counting, so a listing can hold fewer records than items.
+const listing = (ids, total = ids.length, listed = ids.length) => Object.assign(ids.map(rec), { discogsTotal: total, listed });
 const crate128 = Array.from({ length: 127 }, (_, i) => String(1000 + i)).concat('37155918');
 const discogs127 = crate128.filter((id) => id !== '37155918');
 
@@ -77,7 +81,9 @@ function makePrune({ stored = crate128, loadOk = true, removeOk = true } = {}) {
 }
 {
   const { prune, log } = makePrune();
-  await prune(Object.assign(discogs127.map(rec).concat(rec('1000')), { discogsTotal: 128 }));
+  // What fetchCollection returns for 128 Discogs items where two are one pressing:
+  // 127 records after the dedupe, 128 listed.
+  await prune(listing(discogs127, 128, 128));
   check('two copies of one pressing count as a complete listing, not a removal', JSON.stringify(log.removed) === '["37155918"]');
 }
 {
@@ -106,7 +112,7 @@ function makePrune({ stored = crate128, loadOk = true, removeOk = true } = {}) {
     setProgress() {},
     normalizeRelease: (r) => ({ releaseId: String(r.basic_information.id) }),
   };
-  runIn(FETCH, sandbox);
+  runIn(DEDUPE + '\n' + FETCH, sandbox);
   const out = await sandbox.fetchCollection(true);
   check('fetchCollection reads every page and carries Discogs\' item count', out.length === 127 && out.discogsTotal === 127);
 }
