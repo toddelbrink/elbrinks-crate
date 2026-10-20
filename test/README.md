@@ -26,6 +26,7 @@ Run them:
     node test/collection-dedupe.test.mjs
     node test/discogs-write.test.mjs
     node test/add-record.test.mjs
+    node test/sync-refresh.test.mjs
 
 No dependencies, no install. Exit code 0 means pass.
 
