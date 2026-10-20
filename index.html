@@ -2999,6 +2999,8 @@ async function startAutoSuggestFetch({retagAuto=false}={}){
   if(autoSuggestRunning)return;
   if(!collection.length)return;
   if(autoSuggestEnabled===false)return; // gated by user toggle
+  // No moods to pick from: the API answers 400 for every record. Skip quietly.
+  if(!MOODS.length)return;
   // Determine queue based on retag mode + moods_source protection rules.
   const candidates=collection.filter(r=>{
     if(!r.releaseId)return false;
@@ -3708,7 +3710,9 @@ async function silentSync(){
     await dbSet('meta','collection',collection);await dbSet('meta','lastSync',new Date().toISOString());await saveCollectionToAPI(collection);
     await pruneRemovedRecords(fresh);
     await loadPlaysFromAPI();await loadMetaFromAPI();await loadArtistsFromAPI();
-    applyFilters();seedDiscogsNotes();
+    // The cycle line counts the live collection, so redraw it after a sync
+    // changes the record count (v1.3 Add a record lands here).
+    applyFilters();updateCrateProgress();seedDiscogsNotes();
     if(hasNew){
       startArtFetch();startGenreFetch();startWikiFetch();showToast('Collection updated');
       // New records → enqueue them for auto-suggest (self-gated on opt-in flag).
@@ -3855,7 +3859,7 @@ async function fullSync(){
         await dbSet('meta','collection',collection);
       }
       await loadPlaysFromAPI();await loadMetaFromAPI();await loadArtistsFromAPI();
-      applyFilters();showToast(`Loaded ${collection.length} records from database`);
+      applyFilters();updateCrateProgress();showToast(`Loaded ${collection.length} records from database`);
       startArtFetch();startGenreFetch();startWikiFetch();seedDiscogsNotes();
       hideProgress();
       return;
@@ -3867,7 +3871,7 @@ async function fullSync(){
     await pruneRemovedRecords(fresh);
     // Step 2: Pull meta from Supabase (merges data from all devices)
     await loadPlaysFromAPI();await loadMetaFromAPI();await loadArtistsFromAPI();
-    filtered=[...collection];applyFilters();showToast(`Synced — ${collection.length} records`);startArtFetch();startGenreFetch();startWikiFetch();seedDiscogsNotes();
+    filtered=[...collection];applyFilters();updateCrateProgress();showToast(`Synced — ${collection.length} records`);startArtFetch();startGenreFetch();startWikiFetch();seedDiscogsNotes();
     // Step 4 — fire auto-suggest for any new records (self-gated on opt-in).
     startAutoSuggestFetch().catch(e=>console.error('[autoSuggest]',e));
     // Sprint 3 §13 — generate liner notes for any new records.
