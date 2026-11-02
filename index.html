@@ -1293,25 +1293,25 @@ input:focus,textarea:focus{border-color:var(--accent)}
 
     <div class="auto-tag-group">
       <div class="subpanel-row">
-        <span class="subpanel-row-label">Suggest via Claude (untagged)</span>
+        <span class="subpanel-row-label">Suggest with AI (untagged)</span>
         <button class="subpanel-row-action" id="llmUntaggedBtn">Run</button>
       </div>
-      <div class="subpanel-foot-note">Calls Claude Haiku for up to 200 untagged records per session (500/day limit). More nuanced than the heuristic. You review every change before anything saves.</div>
+      <div class="subpanel-foot-note">Asks the AI about up to 200 untagged records per session (500/day limit). More nuanced than the heuristic. You review every change before anything saves.</div>
     </div>
 
     <div class="auto-tag-group">
       <div class="subpanel-row">
-        <span class="subpanel-row-label">Compare Claude's picks (all records)</span>
+        <span class="subpanel-row-label">Compare AI picks (all records)</span>
         <button class="subpanel-row-action" id="llmRetagBtn">Run</button>
       </div>
-      <div class="subpanel-foot-note">Re-runs Claude on every record, including ones you've already tagged. Use to see Claude's suggestions alongside your current moods. Cached results don't count against the daily limit. Review before save — choose Merge or Overwrite per batch.</div>
+      <div class="subpanel-foot-note">Re-runs the AI on every record, including ones you've already tagged. Use to see its suggestions alongside your current moods. Cached results don't count against the daily limit. Review before save — choose Merge or Overwrite per batch.</div>
     </div>
 
     <div class="subpanel-section-header" style="margin-top:24px">Auto-suggest</div>
 
     <div class="share-toggle-row">
       <div class="share-toggle-label">
-        <div class="share-toggle-title">Let Claude suggest moods on new albums</div>
+        <div class="share-toggle-title">Let AI suggest moods on new albums</div>
         <div class="share-toggle-sub" id="autoSuggestToggleSub">Runs in the background when you add records. Skips anything you've tagged yourself.</div>
       </div>
       <label class="share-switch">
@@ -1327,14 +1327,14 @@ input:focus,textarea:focus{border-color:var(--accent)}
         <span class="subpanel-row-label">Re-tag entire collection (no review)</span>
         <button class="subpanel-row-action" id="autoSuggestRetagBtn">Run</button>
       </div>
-      <div class="subpanel-foot-note">Asks Claude for moods across your whole collection. Writes directly — no review modal. Skips records you've manually tagged. Use "Compare Claude's picks" above if you want to review each suggestion first.</div>
+      <div class="subpanel-foot-note">Asks the AI for moods across your whole collection. Writes directly — no review modal. Skips records you've manually tagged. Use "Compare AI picks" above if you want to review each suggestion first.</div>
     </div>
 
     <div class="subpanel-section-header" style="margin-top:24px">Liner notes</div>
 
     <div class="share-toggle-row">
       <div class="share-toggle-label">
-        <div class="share-toggle-title">Let Claude write liner notes</div>
+        <div class="share-toggle-title">Let AI write liner notes</div>
         <div class="share-toggle-sub">2 to 3 short notes per record (recording, personnel, history) on every album detail page. Runs in the background when you sync. Turn off to stop generation; existing notes stay.</div>
       </div>
       <label class="share-switch">
@@ -1350,11 +1350,11 @@ input:focus,textarea:focus{border-color:var(--accent)}
 <!-- Auto-Suggest consent modal (Step 4, PRD §9.10) — shows once at onboarding -->
 <div id="autoSuggestConsentModal" class="reset-modal" style="display:none">
   <div class="reset-card">
-    <h2>Let Claude suggest moods for your collection?</h2>
-    <p style="color:var(--muted);font-size:14px;line-height:1.5;margin:12px 0">Claude reads what it knows about each album and picks the moods that fit best. You can review and re-tag anything. We never overwrite moods you set yourself.</p>
+    <h2>Let AI suggest moods for your collection?</h2>
+    <p style="color:var(--muted);font-size:14px;line-height:1.5;margin:12px 0">The AI reads what it knows about each album and picks the moods that fit best. You can review and re-tag anything. We never overwrite moods you set yourself.</p>
     <p style="color:var(--muted);font-size:13px;line-height:1.4;margin:8px 0 20px">You can change this any time in Settings → Moods.</p>
     <div style="display:flex;flex-direction:column;gap:10px">
-      <button class="btn-accent" id="autoSuggestConsentYes" style="padding:12px;font-size:15px;font-weight:600">Yes, let Claude tag my collection</button>
+      <button class="btn-accent" id="autoSuggestConsentYes" style="padding:12px;font-size:15px;font-weight:600">Yes, tag my collection</button>
       <button class="btn-ghost-sm" id="autoSuggestConsentNo" style="padding:10px;background:transparent;border:none;color:var(--muted);font-family:var(--font);font-size:14px;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation">Not now</button>
     </div>
   </div>
@@ -1364,7 +1364,7 @@ input:focus,textarea:focus{border-color:var(--accent)}
 <div id="autoSuggestRetagConfirmModal" class="reset-modal" style="display:none">
   <div class="reset-card">
     <h2>Re-tag entire collection?</h2>
-    <p style="color:var(--muted);font-size:14px;line-height:1.5;margin:12px 0">Claude will look at every record except the ones you've manually tagged. New picks save directly — no review. This will take a few minutes and uses the daily Claude limit.</p>
+    <p style="color:var(--muted);font-size:14px;line-height:1.5;margin:12px 0">The AI will look at every record except the ones you've manually tagged. New picks save directly — no review. This will take a few minutes and uses the daily limit.</p>
     <div style="display:flex;gap:10px;margin-top:20px">
       <button class="btn-ghost-sm" id="autoSuggestRetagCancel" style="flex:1;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation">Cancel</button>
       <button class="btn-accent" id="autoSuggestRetagConfirm" style="flex:1;padding:10px;font-size:14px;font-weight:600">Re-tag</button>
@@ -1377,7 +1377,7 @@ input:focus,textarea:focus{border-color:var(--accent)}
   <div class="reset-card">
     <div class="icon" style="font-size:42px;color:var(--accent)">✦</div>
     <h2>Liner Notes</h2>
-    <p style="color:var(--muted);font-size:14px;line-height:1.5;margin:12px 0">Liner notes are written by Claude from what it knows, and from web sources for records it doesn't know well. Web sources are linked under each note. Notes may occasionally be wrong. If you spot an inaccurate note, tap the ⚐ flag icon on the note to send it our way.</p>
+    <p style="color:var(--muted);font-size:14px;line-height:1.5;margin:12px 0">Liner notes are written by AI from what it knows, and from web sources for records it doesn't know well. Web sources are linked under each note. Notes may occasionally be wrong. If you spot an inaccurate note, tap the ⚐ flag icon on the note to send it our way.</p>
     <button class="btn-accent" id="linerNotesProvenanceClose" style="padding:12px;font-size:15px;font-weight:600;width:100%">Got it</button>
   </div>
 </div>
@@ -1667,7 +1667,7 @@ input:focus,textarea:focus{border-color:var(--accent)}
     <div style="font-size:11px;color:#666;margin-bottom:16px;line-height:1.4">Used to auto-tag albums at sync time. Match is case-insensitive against the record's Discogs genres and styles.</div>
     <label style="display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">What this mood means to you</label>
     <textarea id="moodEditDescription" maxlength="240" placeholder="e.g. Deep cuts I love but rarely play" style="width:100%;min-height:64px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 12px;font-family:var(--font);font-size:13px;resize:vertical;line-height:1.5;margin-bottom:6px"></textarea>
-    <div style="font-size:11px;color:#666;margin-bottom:20px;line-height:1.4">Used by Claude when suggesting moods. Optional but recommended.</div>
+    <div style="font-size:11px;color:#666;margin-bottom:20px;line-height:1.4">Used by the AI when suggesting moods. Optional but recommended.</div>
     <button id="moodEditSaveBtn" style="background:var(--accent);margin-bottom:8px">Save</button>
     <button id="moodEditDeleteBtn" style="background:transparent;color:var(--accent);border:1px solid var(--accent);margin-bottom:8px;display:none">Delete</button>
     <button id="moodEditCancelBtn" style="background:var(--surface2);color:var(--text)">Cancel</button>
@@ -1678,7 +1678,7 @@ input:focus,textarea:focus{border-color:var(--accent)}
 <div id="llmProgressModal" class="reset-modal" style="display:none">
   <div class="reset-card" style="max-width:380px">
     <div style="font-size:42px;margin-bottom:8px">✦</div>
-    <h2>Claude is suggesting moods</h2>
+    <h2>Suggesting moods</h2>
     <p id="llmProgressLabel" style="margin-bottom:16px">Starting…</p>
     <div style="height:8px;background:var(--surface2);border-radius:4px;overflow:hidden;margin-bottom:16px">
       <div id="llmProgressFill" style="height:100%;background:var(--accent);width:0%;transition:width .3s"></div>
@@ -3016,7 +3016,7 @@ async function startAutoSuggestFetch({retagAuto=false}={}){
   }
   autoSuggestRunning=true;autoSuggestDone=0;autoSuggestTotal=candidates.length;
   renderAutoSuggestStatus();updateSettingsRowDots();
-  showToast(`Claude is tagging ${candidates.length} record${candidates.length===1?'':'s'} in the background.`,3500);
+  showToast(`Tagging ${candidates.length} record${candidates.length===1?'':'s'} in the background.`,3500);
   let tagged=0,errored=0,rateLimited=false,haltedByOptOut=false;
   for(const r of candidates){
     // PRD §9.10 — if user toggles off mid-run, halt after current record.
@@ -3058,9 +3058,9 @@ async function startAutoSuggestFetch({retagAuto=false}={}){
   if(haltedByOptOut){
     // Silent — toggle handler already showed the "Auto-suggest off" toast.
   }else if(rateLimited){
-    showToast(`Claude limit reached — tagged ${tagged} so far. Resumes tomorrow.`,4000);
+    showToast(`Daily limit reached — tagged ${tagged} so far. Resumes tomorrow.`,4000);
   }else if(tagged>0){
-    showToast(`Claude tagged ${tagged} record${tagged===1?'':'s'}.`,3500);
+    showToast(`Tagged ${tagged} record${tagged===1?'':'s'}.`,3500);
   }else if(errored>0){
     showToast(`Auto-suggest finished with ${errored} error${errored===1?'':'s'}.`,3500);
   }
@@ -3085,7 +3085,7 @@ function renderAutoSuggestStatus(){
   if(autoSuggestLastSummary.caughtUp){
     row.textContent='Caught up.';
   }else if(autoSuggestLastSummary.rateLimited){
-    row.textContent=`Hit daily Claude limit. Tagged ${autoSuggestLastSummary.count} record${autoSuggestLastSummary.count===1?'':'s'}. Resumes tomorrow.`;
+    row.textContent=`Hit the daily limit. Tagged ${autoSuggestLastSummary.count} record${autoSuggestLastSummary.count===1?'':'s'}. Resumes tomorrow.`;
   }else{
     const d=new Date(autoSuggestLastSummary.at);
     const today=new Date();
@@ -3104,7 +3104,7 @@ function updateSettingsRowDots(){
   const existing=sec.querySelector('.settings-row-dot');
   if(existing)existing.remove();
   if(autoSuggestRunning||linerNotesRunning){
-    sec.insertAdjacentHTML('beforeend','<span class="settings-row-dot" title="Claude is working"></span>');
+    sec.insertAdjacentHTML('beforeend','<span class="settings-row-dot" title="Working"></span>');
   }
 }
 
@@ -3136,7 +3136,7 @@ async function startLinerNotesFetch(){
   }
   linerNotesRunning=true;linerNotesDone=0;linerNotesTotal=candidates.length;
   renderLinerNotesStatus();updateSettingsRowDots();
-  showToast(`Claude is writing liner notes for ${candidates.length} record${candidates.length===1?'':'s'} in the background.`,3500);
+  showToast(`Writing liner notes for ${candidates.length} record${candidates.length===1?'':'s'} in the background.`,3500);
   let generated=0,errored=0,rateLimited=false,haltedByOptOut=false;
   for(const r of candidates){
     // Mid-run opt-out check.
@@ -3173,9 +3173,9 @@ async function startLinerNotesFetch(){
   if(haltedByOptOut){
     // Silent — toggle handler already showed the "Liner notes off" toast.
   }else if(rateLimited){
-    showToast(`Claude limit reached — wrote ${generated} so far. Resumes tomorrow.`,4000);
+    showToast(`Daily limit reached — wrote ${generated} so far. Resumes tomorrow.`,4000);
   }else if(generated>0){
-    showToast(`Claude wrote liner notes for ${generated} record${generated===1?'':'s'}.`,3500);
+    showToast(`Wrote liner notes for ${generated} record${generated===1?'':'s'}.`,3500);
   }else if(errored>0){
     showToast(`Liner notes finished with ${errored} error${errored===1?'':'s'}.`,3500);
   }
@@ -3200,7 +3200,7 @@ function renderLinerNotesStatus(){
   if(linerNotesLastSummary.caughtUp){
     row.textContent='Caught up.';
   }else if(linerNotesLastSummary.rateLimited){
-    row.textContent=`Hit daily Claude limit. Wrote ${linerNotesLastSummary.count} record${linerNotesLastSummary.count===1?'':'s'}. Resumes tomorrow.`;
+    row.textContent=`Hit the daily limit. Wrote ${linerNotesLastSummary.count} record${linerNotesLastSummary.count===1?'':'s'}. Resumes tomorrow.`;
   }else{
     const d=new Date(linerNotesLastSummary.at);
     const today=new Date();
@@ -3539,14 +3539,14 @@ function renderLinerNotes(releaseId){
     });
     const footer=document.createElement('div');
     footer.className='liner-notes-footer';footer.id='linerNotesFooter';
-    footer.textContent='Generated by Claude';
+    footer.textContent='Written by AI';
     footer.addEventListener('touchend',e=>{e.preventDefault();openLinerNotesProvenanceModal();});
     footer.addEventListener('click',openLinerNotesProvenanceModal);
     el.appendChild(footer);
   }else if(status==='low_confidence'){
     const ph=document.createElement('div');
     ph.className='liner-notes-placeholder';
-    ph.textContent="Liner notes for this record aren't available. Claude chose silence over guessing — likely a recent, regional, or limited-data release. Better than wrong content.";
+    ph.textContent="Liner notes for this record aren't available. The AI chose silence over guessing — likely a recent, regional, or limited-data release. Better than wrong content.";
     el.appendChild(ph);
     // Symmetrical flag affordance — over-abstention path (Step 5 polish).
     // Lets knowledgeable users contribute ground truth when Claude silenced.
@@ -3563,11 +3563,11 @@ function renderLinerNotes(releaseId){
     const ph=document.createElement('div');
     ph.className='liner-notes-placeholder';
     if(linerNotesRunning){
-      ph.textContent="Claude is writing liner notes for your collection. This record will populate as soon as it comes up in the queue.";
+      ph.textContent="Liner notes are being written for your collection. This record will populate as soon as it comes up in the queue.";
     }else if(linerNotesEnabled===false){
       ph.textContent="Liner notes are off. Turn them on in Settings → Moods → Liner notes.";
     }else{
-      ph.textContent="Liner notes for this record haven't been generated yet. Claude will write them on the next sync.";
+      ph.textContent="Liner notes for this record haven't been written yet. They'll be written on the next sync.";
     }
     el.appendChild(ph);
   }
@@ -3604,7 +3604,7 @@ function openLinerNoteAbstainModal(releaseId){
   _pendingLinerNoteFlag={releaseId,note:null,abstention:true};
   const rec=collection.find(r=>r.releaseId===releaseId);
   $('linerNoteFlagTitle').textContent='Know about this record?';
-  $('linerNoteFlagSub').textContent='Claude didn\'t have enough information to write liner notes for this one. Tell Todd what you know — he\'ll review.';
+  $('linerNoteFlagSub').textContent='There wasn\'t enough information to write liner notes for this one. Tell Todd what you know — he\'ll review.';
   $('linerNoteFlagQuoteBox').style.display='none';
   $('linerNoteFlagComment').placeholder='Producer, year, recording story, anything you know about this record…';
   $('linerNoteFlagComment').value='';
@@ -8334,7 +8334,7 @@ function openReviewModal({source, mode, proposals, rateLimited}){
     rateLimited:!!rateLimited,
     overrides:new Map(), // §2.A — per-row Merge/Overwrite exceptions to global toggle
   };
-  const sourceLabel=source==='heuristic'?'From mood heuristic':'From Claude suggestions';
+  const sourceLabel=source==='heuristic'?'From mood heuristic':'From AI suggestions';
   const modeLabel=mode==='untagged'?'Untagged records only':'All records (re-tag)';
   document.getElementById('reviewTitle').textContent=`Review ${proposals.length} proposed mood change${proposals.length===1?'':'s'}`;
   document.getElementById('reviewSub').textContent=`${sourceLabel} · ${modeLabel}`;
@@ -8511,13 +8511,13 @@ async function runLLMReview(mode){
     return true;
   });
   if(!candidates.length){
-    showToast(mode==='untagged'?'Every record already has moods — try "Compare Claude\'s picks" to re-evaluate':'No records to review');
+    showToast(mode==='untagged'?'Every record already has moods — try "Compare AI picks" to re-evaluate':'No records to review');
     return;
   }
   const cap=Math.min(200,candidates.length);
   const confirmMsg=mode==='retag'
-    ? `Compare Claude's picks on ${cap} record${cap===1?'':'s'}?\n\nDaily limit is 50/day; cached results don't count. Nothing saves until you tap Save in the review modal.`
-    : `Suggest moods for ${cap} untagged record${cap===1?'':'s'} via Claude?\n\nDaily limit is 50/day; cached results don't count. Nothing saves until you tap Save in the review modal.`;
+    ? `Compare AI picks on ${cap} record${cap===1?'':'s'}?\n\nDaily limit is 50/day; cached results don't count. Nothing saves until you tap Save in the review modal.`
+    : `Suggest moods for ${cap} untagged record${cap===1?'':'s'} with AI?\n\nDaily limit is 50/day; cached results don't count. Nothing saves until you tap Save in the review modal.`;
   if(!confirm(confirmMsg))return;
   const btnId=mode==='untagged'?'llmUntaggedBtn':'llmRetagBtn';
   const btn=document.getElementById(btnId);
@@ -8528,9 +8528,9 @@ async function runLLMReview(mode){
   closeLLMProgress();
   if(btn){btn.disabled=false;btn.textContent=origLabel;}
   if(!res.proposals.length){
-    if(res.rateLimited)showToast('Hit the daily Claude limit — no new suggestions');
+    if(res.rateLimited)showToast('Hit the daily limit — no new suggestions');
     else if(res.errored)showToast(`Failed: ${res.errored} error${res.errored===1?'':'s'}`);
-    else showToast('No changes — Claude agrees with existing tags');
+    else showToast('No changes — the AI agrees with your tags');
     return;
   }
   openReviewModal({source:'llm', mode, proposals:res.proposals, rateLimited:res.rateLimited});
